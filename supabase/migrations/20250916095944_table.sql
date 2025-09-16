@@ -84,7 +84,6 @@ create table "public"."company_settings" (
     "created_at" timestamp with time zone default CURRENT_TIMESTAMP,
     "updated_at" timestamp with time zone default CURRENT_TIMESTAMP,
     "company_siret" text,
-    "company_id" uuid,
     "id" uuid not null default uuid_generate_v4()
 );
 
@@ -206,6 +205,8 @@ create table "public"."stocks" (
     "updated_at" timestamp with time zone not null default now()
 );
 
+
+alter table "public"."stocks" enable row level security;
 
 create table "public"."users" (
     "id" uuid not null default uuid_generate_v4(),
@@ -513,6 +514,10 @@ alter table "public"."invoices" add constraint "invoices_total_check" CHECK ((to
 
 alter table "public"."invoices" validate constraint "invoices_total_check";
 
+alter table "public"."magasins" add constraint "magasins_company_id_fkey" FOREIGN KEY (company_id) REFERENCES company_settings(id) not valid;
+
+alter table "public"."magasins" validate constraint "magasins_company_id_fkey";
+
 alter table "public"."payments" add constraint "chk_payment_method" CHECK (((payment_method)::text = ANY ((ARRAY['virement'::character varying, 'cheque'::character varying, 'especes'::character varying, 'carte'::character varying, 'autre'::character varying])::text[]))) not valid;
 
 alter table "public"."payments" validate constraint "chk_payment_method";
@@ -554,6 +559,10 @@ alter table "public"."stocks" add constraint "stocks_quantity_check" CHECK ((qua
 alter table "public"."stocks" validate constraint "stocks_quantity_check";
 
 alter table "public"."users" add constraint "users_auth_user_id_key" UNIQUE using index "users_auth_user_id_key";
+
+alter table "public"."users" add constraint "users_company_id_fkey" FOREIGN KEY (company_id) REFERENCES company_settings(id) not valid;
+
+alter table "public"."users" validate constraint "users_company_id_fkey";
 
 alter table "public"."users" add constraint "users_email_key" UNIQUE using index "users_email_key";
 
