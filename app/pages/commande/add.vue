@@ -461,7 +461,7 @@ onMounted(async () => {
                     {{ companyInfo.name }}
                   </h4>
                   <p class="text-sm text-gray-600 dark:text-gray-300">
-                    {{ magasinInfo.adresse || "Adresse du magasin" }}<br />
+                    {{ magasinInfo.adresse || "Adresse du magasin" }}<br >
                   </p>
                 </div>
 

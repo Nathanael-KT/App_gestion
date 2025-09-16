@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from "@nuxt/ui";
-import MagasinSelector from "./MagasinSelector.vue";
+import CompanySelector from "./CompanySelector.vue";
 
 const user = useSupabaseUser();
 const supabase = useSupabaseClient();
@@ -9,6 +9,9 @@ const emit = defineEmits(["toggleMobileMenu"]);
 // Utilisation du composable pour les paramètres de l'entreprise
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
+
+// Utilisation du composable pour la gestion des compagnies
+const { currentCompany } = useCompanyManagement();
 
 // Charger les paramètres de l'entreprise au montage du composant
 onMounted(() => {
@@ -52,6 +55,13 @@ const items: DropdownMenuItem[] = [
 const toggleMobileMenu = () => {
   emit("toggleMobileMenu");
 };
+
+// Computed pour le nom affiché dans le header
+const displayName = computed(() => {
+  return currentCompany.value?.name || 
+         companySettings.value?.company_name || 
+         "Mon Application";
+});
 </script>
 
 <template>
@@ -71,14 +81,14 @@ const toggleMobileMenu = () => {
     <div class="hidden sm:flex items-center text-white">
       <img src="../assets/img/img.png" alt="Logo" class="h-8 w-8 mr-3" >
       <h1 class="text-xl font-bold">
-        {{ companySettings?.company_name || "Mon Application" }}
+        {{ displayName }}
       </h1>
     </div>
 
     <div v-if="user" class="ml-auto flex items-center space-x-6">
-      <!-- Sélecteur de magasin -->
+      <!-- Sélecteur de compagnie et magasin -->
       <div class="flex items-center">
-        <MagasinSelector
+        <CompanySelector
           class="bg-primary text-white rounded-xl px-6 py-2 font-semibold shadow-lg border-2 border-secondary hover:bg-secondary hover:text-primary transition-all duration-200"
         />
       </div>

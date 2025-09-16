@@ -620,7 +620,7 @@ const emptyingsPage = ref(1);
 const itemsPerPage = 5;
 
 // Fonctionn pour recuperer les rôles de l'utilisateur actuel
-const { userRoles } = useCurrentUser();
+const { userRoles: _userRoles } = useCurrentUser();
 
 // Computed pour la pagination des comptages
 const paginatedCountings = computed(() => {

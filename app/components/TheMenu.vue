@@ -192,6 +192,12 @@ const menuItems = [
       },
       { name: "Utilisateurs", path: "/parametres/utilisateurs" },
       { name: "Magasins", path: "/parametres/magasin" , requiredRoles: ["admin"] },
+      { 
+        name: "Compagnies", 
+        path: "/parametres/companies", 
+        requiredRoles: ["admin"],
+        icon: "heroicons:building-office-20-solid"
+      },
     ],
     requiredRoles: ["admin", "employe", "magasinier"],
   },

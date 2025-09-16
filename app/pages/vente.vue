@@ -27,9 +27,9 @@
           <div class="dashboard-preview">
             <div class="browser-window">
               <div class="browser-controls">
-                <span></span>
-                <span></span>
-                <span></span>
+                <span/>
+                <span/>
+                <span/>
               </div>
               <div class="dashboard-content">
                 <div class="dashboard-header">
@@ -46,7 +46,7 @@
                     <strong>74</strong>
                   </div>
                 </div>
-                <div class="chart-placeholder"></div>
+                <div class="chart-placeholder"/>
               </div>
             </div>
           </div>
@@ -68,7 +68,7 @@
     </section>
 
     <!-- Features Section -->
-    <section class="features" id="features">
+    <section id="features" class="features">
       <div class="container">
         <h2>Fonctionnalités avancées</h2>
         <p class="section-description">Découvrez comment App Gestion transforme votre gestion d'entreprise</p>
@@ -172,7 +172,7 @@
               </p>
             </div>
             <div class="testimonial-author">
-              <div class="author-avatar"></div>
+              <div class="author-avatar"/>
               <div class="author-details">
                 <strong>Entreprise Alpha</strong>
                 <span>Commerce de détail</span>
@@ -187,7 +187,7 @@
               </p>
             </div>
             <div class="testimonial-author">
-              <div class="author-avatar"></div>
+              <div class="author-avatar"/>
               <div class="author-details">
                 <strong>Magasin Beta</strong>
                 <span>Vente multi-canal</span>
@@ -202,7 +202,7 @@
               </p>
             </div>
             <div class="testimonial-author">
-              <div class="author-avatar"></div>
+              <div class="author-avatar"/>
               <div class="author-details">
                 <strong>Gestionnaire Gamma</strong>
                 <span>Services aux entreprises</span>
@@ -230,7 +230,7 @@
     </section>
 
     <!-- Contact Section -->
-    <section class="contact" id="contact">
+    <section id="contact" class="contact">
       <div class="container">
         <div class="contact-content">
           <h2>Une question?<br>Contactez-nous</h2>
@@ -266,7 +266,7 @@
               <input type="text" placeholder="Entreprise">
             </div>
             <div class="form-group">
-              <textarea placeholder="Comment pouvons-nous vous aider?" rows="3"></textarea>
+              <textarea placeholder="Comment pouvons-nous vous aider?" rows="3"/>
             </div>
             <button type="submit" class="btn-primary">Envoyer la demande</button>
           </form>
