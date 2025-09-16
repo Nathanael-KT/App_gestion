@@ -75,13 +75,19 @@ const toggleMobileMenu = () => {
       </h1>
     </div>
 
-    <div v-if="user" class="ml-auto flex items-center space-x-6">
+    <div v-if="user" class="ml-auto flex items-center space-x-4">
+      <!-- Sélecteur d'entreprise -->
+      <div class="flex items-center">
+        <CompanySelector />
+      </div>
+      
       <!-- Sélecteur de magasin -->
       <div class="flex items-center">
         <MagasinSelector
           class="bg-primary text-white rounded-xl px-6 py-2 font-semibold shadow-lg border-2 border-secondary hover:bg-secondary hover:text-primary transition-all duration-200"
         />
       </div>
+      
       <!-- Notifications (visible sur desktop) -->
       <button
         class="hidden lg:flex items-center text-white hover:bg-white/10 p-2 rounded-lg transition-colors relative"

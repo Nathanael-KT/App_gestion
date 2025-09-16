@@ -2,11 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
+const cors = require('cors');
 
+// Enable CORS for all requests
+app.use(cors());
 app.use(bodyParser.json());
 
-// Multitenant middleware (squelette)
-// app.use(require('./middleware/tenantMiddleware'));
+// Multitenant middleware
+app.use(require('./middleware/tenantMiddleware'));
 
 // Example route
 app.get('/', (req, res) => {

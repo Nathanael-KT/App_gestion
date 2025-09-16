@@ -181,6 +181,16 @@ const menuItems = [
     requiredRoles: ["admin", "employe", "magasinier"],
   },
   {
+    name: "Entreprises",
+    path: "/entreprises",
+    icon: "heroicons:building-office-20-solid",
+    children: [
+      { name: "Mes entreprises", path: "/entreprises" },
+      { name: "Créer une entreprise", path: "/entreprises/add" },
+    ],
+    requiredRoles: ["admin", "employe", "magasinier"],
+  },
+  {
     name: "Paramètres",
     path: "/parametres",
     icon: "heroicons:cog-6-tooth-20-solid",
