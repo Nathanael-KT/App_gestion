@@ -1,0 +1,464 @@
+import { ref } from "vue";
+
+interface Activity {
+  type: string;
+  icon: string;
+  bgColor: string;
+  iconColor: string;
+  borderColor: string;
+  title: string;
+  description: string;
+  time: string;
+  timestamp: string;
+}
+
+interface StockAlert {
+  product_name: string;
+  stock: number;
+  unit: string;
+  level: string;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  iconColor: string;
+  icon: string;
+  message: string;
+}
+
+interface SalesDataPoint {
+  date: string;
+  total: number;
+  invoice_items?: {
+    quantity: number;
+  }[];
+}
+
+interface CompanySettings {
+  low_stock_threshold: number;
+  critical_stock_threshold: number;
+}
+
+export const useDashboardData = () => {
+  const supabase = useSupabaseClient();
+
+  // États réactifs pour les données
+  const totalProducts = ref(0);
+  const totalClients = ref(0);
+  const activeOrders = ref(0);
+  const monthSales = ref(0);
+  const recentActivities = ref<Activity[]>([]);
+  const stockAlerts = ref<StockAlert[]>([]);
+  const salesData = ref<SalesDataPoint[]>([]);
+  const loading = ref(false);
+  const error = ref<string | null>(null);
+
+  // Fonction pour récupérer le nombre total de produits
+  const fetchTotalProducts = async () => {
+    try {
+      const { count, error: prodError } = await supabase
+        .from("products_carreaux")
+        .select("*", { count: "exact", head: true });
+
+      if (prodError) throw prodError;
+      totalProducts.value = count || 0;
+    } catch (err) {
+      console.error("Erreur lors de la récupération des produits:", err);
+      error.value = (err as Error).message;
+    }
+  };
+
+  // Fonction pour récupérer le nombre total de clients
+  const fetchTotalClients = async () => {
+    try {
+      const { count, error: clientError } = await supabase
+        .from("clients")
+        .select("*", { count: "exact", head: true });
+
+      if (clientError) throw clientError;
+      totalClients.value = count || 0;
+    } catch (err) {
+      console.error("Erreur lors de la récupération des clients:", err);
+      error.value = (err as Error).message;
+    }
+  };
+
+  // Fonction pour récupérer le nombre de commandes actives (factures non payées)
+  const fetchActiveOrders = async () => {
+    try {
+      const { count, error: orderError } = await supabase
+        .from("invoices")
+        .select("*", { count: "exact", head: true })
+        .neq("status", "paid");
+
+      if (orderError) throw orderError;
+      activeOrders.value = count || 0;
+    } catch (err) {
+      console.error("Erreur lors de la récupération des commandes:", err);
+      error.value = (err as Error).message;
+    }
+  };
+
+  // Fonction pour récupérer les ventes du mois
+  const fetchMonthSales = async () => {
+    try {
+      const currentDate = new Date();
+      const firstDayOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        1
+      );
+      const lastDayOfMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        0
+      );
+
+      const { data, error: salesError } = await supabase
+        .from("invoices")
+        .select("total")
+        .eq("status", "paid")
+        .gte("date", firstDayOfMonth.toISOString().split("T")[0])
+        .lte("date", lastDayOfMonth.toISOString().split("T")[0]);
+
+      if (salesError) throw salesError;
+
+      const totalSales =
+        data?.reduce(
+          (sum: number, invoice: { total: number }) =>
+            sum + Number(invoice.total),
+          0
+        ) || 0;
+      monthSales.value = totalSales;
+    } catch (err) {
+      console.error("Erreur lors de la récupération des ventes:", err);
+      error.value = (err as Error).message;
+    }
+  };
+
+  // Fonction pour récupérer les données de ventes pour le graphique
+  const fetchSalesData = async (period: string = "month") => {
+    try {
+      const now = new Date();
+      let startDate: Date;
+
+      switch (period) {
+        case "week":
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case "year":
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+        default: // month
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+
+      const { data, error: salesError } = await supabase
+        .from("invoices")
+        .select(
+          `
+          date,
+          total,
+          status,
+          invoice_items (
+            quantity
+          )
+        `
+        )
+        .eq("status", "paid")
+        .gte("date", startDate.toISOString().split("T")[0])
+        .order("date", { ascending: true });
+
+      if (salesError) throw salesError;
+
+      salesData.value = data || [];
+    } catch (err) {
+      console.error(
+        "Erreur lors de la récupération des données de ventes:",
+        err
+      );
+      error.value = (err as Error).message;
+    }
+  };
+
+  // Fonction pour récupérer les activités récentes
+  const fetchRecentActivities = async () => {
+    try {
+      // Récupérer les 10 dernières factures avec leurs clients
+      const { data: invoicesData, error: invoicesError } = await supabase
+        .from("invoices")
+        .select(
+          `
+          id,
+          reference,
+          total,
+          status,
+          date,
+          created_at,
+          clients (
+            name
+          )
+        `
+        )
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (invoicesError) throw invoicesError;
+
+      // Récupérer les 5 derniers clients créés
+      const { data: clientsData, error: clientsError } = await supabase
+        .from("clients")
+        .select("name, created_at")
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (clientsError) throw clientsError;
+
+      // Récupérer les 5 derniers paiements
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from("payments")
+        .select(
+          `
+          amount,
+          payment_date,
+          created_at,
+          invoices (
+            reference
+          )
+        `
+        )
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (paymentsError) throw paymentsError;
+
+      // Combiner et formatter les activités
+      const activities: Activity[] = [];
+
+      // Ajouter les factures
+      invoicesData?.forEach(
+        (invoice: {
+          created_at: string;
+          status: string;
+          reference: string;
+          clients?: { name: string };
+          total: number;
+        }) => {
+          const timeAgo = getTimeAgo(invoice.created_at);
+          if (invoice.status === "paid") {
+            activities.push({
+              type: "invoice_paid",
+              icon: "i-lucide-check-circle",
+              bgColor: "bg-green-50",
+              iconColor: "text-green-600",
+              borderColor: "border-green-100",
+              title: `Facture ${invoice.reference} livrée`,
+              description: `Client: ${invoice.clients?.name} - ${Number(
+                invoice.total
+              ).toLocaleString()}Fcfa`,
+              time: timeAgo,
+              timestamp: invoice.created_at,
+            });
+          }
+        }
+      );
+
+      // Ajouter les nouveaux clients
+      clientsData?.forEach((client: { name: string; created_at: string }) => {
+        const timeAgo = getTimeAgo(client.created_at);
+        activities.push({
+          type: "client_added",
+          icon: "i-lucide-user-plus",
+          bgColor: "bg-blue-50",
+          iconColor: "text-blue-600",
+          borderColor: "border-blue-100",
+          title: "Nouveau client enregistré",
+          description: client.name,
+          time: timeAgo,
+          timestamp: client.created_at,
+        });
+      });
+
+      // Ajouter les paiements
+      paymentsData?.forEach(
+        (payment: {
+          created_at: string;
+          amount: number;
+          invoices?: { reference: string };
+        }) => {
+          const timeAgo = getTimeAgo(payment.created_at);
+          activities.push({
+            type: "payment_received",
+            icon: "i-lucide-receipt",
+            bgColor: "bg-purple-50",
+            iconColor: "text-purple-600",
+            borderColor: "border-purple-100",
+            title: "Facture payée",
+            description: `Facture ${payment.invoices?.reference} - ${Number(
+              payment.amount
+            ).toLocaleString()}Fcfa`,
+            time: timeAgo,
+            timestamp: payment.created_at,
+          });
+        }
+      );
+
+      // Trier par timestamp et prendre les 5 plus récents
+      activities.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      recentActivities.value = activities.slice(0, 5);
+    } catch (err) {
+      console.error("Erreur lors de la récupération des activités:", err);
+      error.value = (err as Error).message;
+    }
+  };
+
+  // Fonction pour récupérer les alertes de stock
+  const fetchStockAlerts = async () => {
+    try {
+      const { data: companySettings } = await supabase
+        .from("company_settings")
+        .select("low_stock_threshold, critical_stock_threshold")
+        .single();
+
+      const lowThreshold =
+        (companySettings as unknown as CompanySettings)?.low_stock_threshold ||
+        10;
+      const criticalThreshold =
+        (companySettings as unknown as CompanySettings)
+          ?.critical_stock_threshold || 5;
+
+      const { data: productsData, error: stockError } = await supabase
+        .from("products_carreaux")
+        .select("name, stock, unite")
+        .lte("stock", lowThreshold)
+        .order("stock", { ascending: true })
+        .limit(10);
+
+      if (stockError) throw stockError;
+
+      const alerts =
+        productsData?.map(
+          (product: { name: string; stock: number; unite?: string }) => {
+            const isCritical = product.stock <= criticalThreshold;
+            const isLow =
+              product.stock <= lowThreshold &&
+              product.stock > criticalThreshold;
+
+            return {
+              product_name: product.name,
+              stock: product.stock,
+              unit: product.unite || "unité",
+              level: isCritical ? "critical" : isLow ? "low" : "warning",
+              color: isCritical ? "red" : isLow ? "yellow" : "orange",
+              bgColor: isCritical
+                ? "bg-red-50"
+                : isLow
+                ? "bg-yellow-50"
+                : "bg-orange-50",
+              borderColor: isCritical
+                ? "border-red-100"
+                : isLow
+                ? "border-yellow-100"
+                : "border-orange-100",
+              iconColor: isCritical
+                ? "text-red-600"
+                : isLow
+                ? "text-yellow-600"
+                : "text-orange-600",
+              icon: isCritical
+                ? "i-lucide-alert-circle"
+                : isLow
+                ? "i-lucide-alert-triangle"
+                : "i-lucide-clock",
+              message: isCritical
+                ? `Stock critique: ${product.stock} ${
+                    product.unite || "unités"
+                  }`
+                : isLow
+                ? `Stock faible: ${product.stock} ${product.unite || "unités"}`
+                : `À réapprovisionner: ${product.stock} ${
+                    product.unite || "unités"
+                  }`,
+            };
+          }
+        ) || [];
+
+      stockAlerts.value = alerts;
+    } catch (err) {
+      console.error(
+        "Erreur lors de la récupération des alertes de stock:",
+        err
+      );
+      error.value = (err as Error).message;
+    }
+  };
+
+  // Fonction utilitaire pour calculer le temps écoulé
+  const getTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const past = new Date(timestamp);
+    const diffInMinutes = Math.floor(
+      (now.getTime() - past.getTime()) / (1000 * 60)
+    );
+
+    if (diffInMinutes < 60) {
+      return `Il y a ${diffInMinutes}min`;
+    } else if (diffInMinutes < 1440) {
+      const hours = Math.floor(diffInMinutes / 60);
+      return `Il y a ${hours}h`;
+    } else if (diffInMinutes < 10080) {
+      const days = Math.floor(diffInMinutes / 1440);
+      return days === 1 ? "Hier" : `Il y a ${days} jours`;
+    } else {
+      return past.toLocaleDateString("fr-FR");
+    }
+  };
+
+  // Fonction pour charger toutes les données
+  const loadDashboardData = async () => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      await Promise.all([
+        fetchTotalProducts(),
+        fetchTotalClients(),
+        fetchActiveOrders(),
+        fetchMonthSales(),
+        fetchRecentActivities(),
+        fetchStockAlerts(),
+        fetchSalesData(),
+      ]);
+    } catch (err) {
+      console.error("Erreur lors du chargement des données du dashboard:", err);
+      error.value = (err as Error).message;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  // Fonction pour rafraîchir les données
+  const refreshData = () => {
+    return loadDashboardData();
+  };
+
+  return {
+    // États
+    totalProducts: readonly(totalProducts),
+    totalClients: readonly(totalClients),
+    activeOrders: readonly(activeOrders),
+    monthSales: readonly(monthSales),
+    recentActivities: readonly(recentActivities),
+    stockAlerts: readonly(stockAlerts),
+    salesData: readonly(salesData),
+    loading: readonly(loading),
+    error: readonly(error),
+
+    // Méthodes
+    loadDashboardData,
+    fetchSalesData,
+    refreshData,
+  };
+};

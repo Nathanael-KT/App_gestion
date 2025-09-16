@@ -1,0 +1,26 @@
+@import "tailwindcss" theme(static);
+@import "@nuxt/ui";
+
+/* assets/css/main.css */
+
+/* Main.css */
+.icone {
+  color: var(--ui-secondary);
+}
+
+:root {
+  --ui-primary: #0d1b70;
+  --ui-secondary: #f2591d;
+  --ui-tertiary: #aae98a;
+}
+
+h2,
+h3,
+p,
+body,
+h1,
+h2,
+h3,
+label {
+  font-family: "Space grotesk", sans-serif;
+}

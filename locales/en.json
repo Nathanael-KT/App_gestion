@@ -1,0 +1,10 @@
+{
+  "preferences": {
+    "title": "User Preferences",
+    "theme": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "language": "Language",
+    "notifications": "Notifications enabled"
+  }
+}
