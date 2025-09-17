@@ -46,8 +46,10 @@ export type Database = {
           difference: number
           expected_amount: number
           id: string
+          magasin_id: string | null
           note: string | null
           time: string
+          updated_at: string | null
         }
         Insert: {
           actual_amount?: number
@@ -60,8 +62,10 @@ export type Database = {
           difference?: number
           expected_amount?: number
           id?: string
+          magasin_id?: string | null
           note?: string | null
           time?: string
+          updated_at?: string | null
         }
         Update: {
           actual_amount?: number
@@ -74,10 +78,19 @@ export type Database = {
           difference?: number
           expected_amount?: number
           id?: string
+          magasin_id?: string | null
           note?: string | null
           time?: string
+          updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "cash_counts_magasin_id_fkey"
+            columns: ["magasin_id"]
+            isOneToOne: false
+            referencedRelation: "magasins"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_cash_counts_counted_by"
             columns: ["counted_by"]
@@ -96,6 +109,7 @@ export type Database = {
           emptied_at: string | null
           emptied_by: string | null
           id: string
+          magasin_id: string | null
           notes: string | null
           reason: string
         }
@@ -107,6 +121,7 @@ export type Database = {
           emptied_at?: string | null
           emptied_by?: string | null
           id?: string
+          magasin_id?: string | null
           notes?: string | null
           reason: string
         }
@@ -118,10 +133,18 @@ export type Database = {
           emptied_at?: string | null
           emptied_by?: string | null
           id?: string
+          magasin_id?: string | null
           notes?: string | null
           reason?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "cash_emptying_magasin_id_fkey"
+            columns: ["magasin_id"]
+            isOneToOne: false
+            referencedRelation: "magasins"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_cash_emptying_emptied_by"
             columns: ["emptied_by"]
@@ -137,6 +160,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          magasin_id: string | null
           note: string | null
           reason: string
           recipient: string | null
@@ -149,6 +173,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          magasin_id?: string | null
           note?: string | null
           reason: string
           recipient?: string | null
@@ -161,6 +186,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          magasin_id?: string | null
           note?: string | null
           reason?: string
           recipient?: string | null
@@ -169,6 +195,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "cash_transactions_magasin_id_fkey"
+            columns: ["magasin_id"]
+            isOneToOne: false
+            referencedRelation: "magasins"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_cash_transactions_created_by"
             columns: ["created_by"]
@@ -184,6 +217,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          magasin_id: string | null
           name: string
           phone: string | null
         }
@@ -192,6 +226,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          magasin_id?: string | null
           name: string
           phone?: string | null
         }
@@ -200,10 +235,19 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          magasin_id?: string | null
           name?: string
           phone?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_magasin_id_fkey"
+            columns: ["magasin_id"]
+            isOneToOne: false
+            referencedRelation: "magasins"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_settings: {
         Row: {
@@ -224,7 +268,7 @@ export type Database = {
           enable_invoice_reminders: boolean | null
           enable_stock_alerts: boolean | null
           enable_two_factor: boolean | null
-          id: number
+          id: string
           invoice_number_start: number | null
           invoice_prefix: string | null
           language: string | null
@@ -254,7 +298,7 @@ export type Database = {
           enable_invoice_reminders?: boolean | null
           enable_stock_alerts?: boolean | null
           enable_two_factor?: boolean | null
-          id?: number
+          id?: string
           invoice_number_start?: number | null
           invoice_prefix?: string | null
           language?: string | null
@@ -284,7 +328,7 @@ export type Database = {
           enable_invoice_reminders?: boolean | null
           enable_stock_alerts?: boolean | null
           enable_two_factor?: boolean | null
-          id?: number
+          id?: string
           invoice_number_start?: number | null
           invoice_prefix?: string | null
           language?: string | null
@@ -308,6 +352,7 @@ export type Database = {
           date: string
           difference: number
           id: string
+          magasin_id: string | null
           notes: string | null
           opening_balance: number
           theoretical_balance: number
@@ -325,6 +370,7 @@ export type Database = {
           date: string
           difference?: number
           id?: string
+          magasin_id?: string | null
           notes?: string | null
           opening_balance?: number
           theoretical_balance?: number
@@ -342,6 +388,7 @@ export type Database = {
           date?: string
           difference?: number
           id?: string
+          magasin_id?: string | null
           notes?: string | null
           opening_balance?: number
           theoretical_balance?: number
@@ -352,10 +399,56 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "daily_closings_magasin_id_fkey"
+            columns: ["magasin_id"]
+            isOneToOne: false
+            referencedRelation: "magasins"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "fk_daily_closings_closed_by"
             columns: ["closed_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forum_messages: {
+        Row: {
+          company_id: string | null
+          content: string
+          created_at: string | null
+          id: string
+          username: string
+        }
+        Insert: {
+          company_id?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          username: string
+        }
+        Update: {
+          company_id?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forum_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forum_messages_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings_view"
             referencedColumns: ["id"]
           },
         ]
@@ -368,6 +461,7 @@ export type Database = {
           id: string
           invoice_id: string
           is_external: boolean
+          magasin_id: string | null
           price: number
           product_id: string | null
           quantity: number
@@ -379,6 +473,7 @@ export type Database = {
           id?: string
           invoice_id: string
           is_external?: boolean
+          magasin_id?: string | null
           price: number
           product_id?: string | null
           quantity: number
@@ -390,6 +485,7 @@ export type Database = {
           id?: string
           invoice_id?: string
           is_external?: boolean
+          magasin_id?: string | null
           price?: number
           product_id?: string | null
           quantity?: number
@@ -408,6 +504,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "payment_summary"
             referencedColumns: ["invoice_id"]
+          },
+          {
+            foreignKeyName: "invoice_items_magasin_id_fkey"
+            columns: ["magasin_id"]
+            isOneToOne: false
+            referencedRelation: "magasins"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "invoice_items_product_fkey"
@@ -428,9 +531,11 @@ export type Database = {
           delivery_notes: string | null
           id: string
           is_external: boolean
+          magasin_id: string | null
           reference: string | null
           status: string
           total: number
+          updated_at: string | null
         }
         Insert: {
           client_id: string
@@ -441,9 +546,11 @@ export type Database = {
           delivery_notes?: string | null
           id?: string
           is_external?: boolean
+          magasin_id?: string | null
           reference?: string | null
           status?: string
           total?: number
+          updated_at?: string | null
         }
         Update: {
           client_id?: string
@@ -454,9 +561,11 @@ export type Database = {
           delivery_notes?: string | null
           id?: string
           is_external?: boolean
+          magasin_id?: string | null
           reference?: string | null
           status?: string
           total?: number
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -466,14 +575,68 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "invoices_magasin_id_fkey"
+            columns: ["magasin_id"]
+            isOneToOne: false
+            referencedRelation: "magasins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      magasins: {
+        Row: {
+          adresse: string | null
+          company_id: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          nom: string
+          telephone: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          nom: string
+          telephone?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          company_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          nom?: string
+          telephone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "magasins_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "magasins_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       payments: {
         Row: {
           amount: number
+          company_id: string | null
           created_at: string | null
           id: string
           invoice_id: string
+          magasin_id: string | null
           note: string | null
           payment_date: string
           payment_method: string
@@ -482,9 +645,11 @@ export type Database = {
         }
         Insert: {
           amount: number
+          company_id?: string | null
           created_at?: string | null
           id?: string
           invoice_id: string
+          magasin_id?: string | null
           note?: string | null
           payment_date?: string
           payment_method?: string
@@ -493,9 +658,11 @@ export type Database = {
         }
         Update: {
           amount?: number
+          company_id?: string | null
           created_at?: string | null
           id?: string
           invoice_id?: string
+          magasin_id?: string | null
           note?: string | null
           payment_date?: string
           payment_method?: string
@@ -503,6 +670,20 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_invoice_id_fkey"
             columns: ["invoice_id"]
@@ -517,31 +698,59 @@ export type Database = {
             referencedRelation: "payment_summary"
             referencedColumns: ["invoice_id"]
           },
+          {
+            foreignKeyName: "payments_magasin_id_fkey"
+            columns: ["magasin_id"]
+            isOneToOne: false
+            referencedRelation: "magasins"
+            referencedColumns: ["id"]
+          },
         ]
       }
       product_types: {
         Row: {
+          company_id: string | null
           created_at: string
           id: string
           name: string
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           id?: string
           name: string
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           id?: string
           name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "product_types_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_types_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings_view"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products_carreaux: {
         Row: {
+          company_id: string | null
           created_at: string
           description: string | null
           id: string
+          image_url: string | null
+          is_hidden: boolean | null
           largeur: number | null
           longueur: number | null
           name: string
@@ -553,9 +762,12 @@ export type Database = {
           unite: string | null
         }
         Insert: {
+          company_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
+          is_hidden?: boolean | null
           largeur?: number | null
           longueur?: number | null
           name: string
@@ -567,9 +779,12 @@ export type Database = {
           unite?: string | null
         }
         Update: {
+          company_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          image_url?: string | null
+          is_hidden?: boolean | null
           largeur?: number | null
           longueur?: number | null
           name?: string
@@ -588,10 +803,25 @@ export type Database = {
             referencedRelation: "product_types"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "products_carreaux_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_carreaux_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings_view"
+            referencedColumns: ["id"]
+          },
         ]
       }
       stocks: {
         Row: {
+          company_id: string | null
           id: string
           location: string | null
           product_id: string
@@ -599,6 +829,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          company_id?: string | null
           id?: string
           location?: string | null
           product_id: string
@@ -606,6 +837,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          company_id?: string | null
           id?: string
           location?: string | null
           product_id?: string
@@ -613,6 +845,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "stocks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stocks_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings_view"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stocks_product_fkey"
             columns: ["product_id"]
@@ -625,9 +871,11 @@ export type Database = {
       users: {
         Row: {
           auth_user_id: string | null
+          company_id: string | null
           created_at: string
           email: string
           id: string
+          magasin_id: string | null
           name: string | null
           password_hash: string | null
           phone: string | null
@@ -635,9 +883,11 @@ export type Database = {
         }
         Insert: {
           auth_user_id?: string | null
+          company_id?: string | null
           created_at?: string
           email: string
           id?: string
+          magasin_id?: string | null
           name?: string | null
           password_hash?: string | null
           phone?: string | null
@@ -645,15 +895,39 @@ export type Database = {
         }
         Update: {
           auth_user_id?: string | null
+          company_id?: string | null
           created_at?: string
           email?: string
           id?: string
+          magasin_id?: string | null
           name?: string | null
           password_hash?: string | null
           phone?: string | null
           roles?: string[]
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "users_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_magasin_id_fkey"
+            columns: ["magasin_id"]
+            isOneToOne: false
+            referencedRelation: "magasins"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -676,7 +950,7 @@ export type Database = {
           enable_invoice_reminders: boolean | null
           enable_stock_alerts: boolean | null
           enable_two_factor: boolean | null
-          id: number | null
+          id: string | null
           invoice_number_start: number | null
           invoice_prefix: string | null
           language: string | null
@@ -708,7 +982,7 @@ export type Database = {
           enable_invoice_reminders?: boolean | null
           enable_stock_alerts?: boolean | null
           enable_two_factor?: boolean | null
-          id?: number | null
+          id?: string | null
           invoice_number_start?: number | null
           invoice_prefix?: string | null
           language?: string | null
@@ -740,7 +1014,7 @@ export type Database = {
           enable_invoice_reminders?: boolean | null
           enable_stock_alerts?: boolean | null
           enable_two_factor?: boolean | null
-          id?: number | null
+          id?: string | null
           invoice_number_start?: number | null
           invoice_prefix?: string | null
           language?: string | null
@@ -823,7 +1097,7 @@ export type Database = {
           enable_invoice_reminders: boolean | null
           enable_stock_alerts: boolean | null
           enable_two_factor: boolean | null
-          id: number
+          id: string
           invoice_number_start: number | null
           invoice_prefix: string | null
           language: string | null
@@ -839,6 +1113,14 @@ export type Database = {
       get_opening_balance: {
         Args: { target_date: string }
         Returns: number
+      }
+      sync_all_auth_users: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      sync_user_profile: {
+        Args: { user_id: string }
+        Returns: undefined
       }
       upsert_company_settings: {
         Args: {
@@ -885,7 +1167,7 @@ export type Database = {
           enable_invoice_reminders: boolean | null
           enable_stock_alerts: boolean | null
           enable_two_factor: boolean | null
-          id: number
+          id: string
           invoice_number_start: number | null
           invoice_prefix: string | null
           language: string | null

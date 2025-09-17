@@ -1,10 +1,19 @@
 <script setup>
 // Imports
 import { useMagasinStore } from "../../composables/useMagasinStore";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+import { useCompanySettings } from "../../composables/useCompanySettings";
 const supabase = useSupabaseClient();
 const toast = useToast();
 const magasinStore = useMagasinStore();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
 
+const {
+  companyId,
+  isLoadingUser,
+  loadCurrentUser,
+} = useCurrentUser();
 // États
 const loading = ref(true);
 const error = ref(null);
@@ -39,9 +48,10 @@ const chartTypes = [
 
 // Format monétaire
 const formatCurrency = (value) => {
+  const currency = companySettings?.value?.currency;
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
-    currency: "EUR",
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value || 0);
@@ -312,8 +322,17 @@ watch([selectedPeriod, selectedClient, selectedProduct], () => {
 });
 
 // Initialisation
-onMounted(() => {
-  fetchSalesData();
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+  if (companyId.value) {
+    await fetchCompanySettings(companyId.value);
+  }
+  await fetchFilterData();
+  if (magasinStore.magasinId) {
+    await fetchSalesData();
+  }
 });
 </script>
 

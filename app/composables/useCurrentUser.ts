@@ -11,6 +11,7 @@ interface CurrentUser {
   auth_user_id: string | null;
   created_at: string;
   magasin_id?: string | null;
+  company_id?: string | null;
 }
 
 export const useCurrentUser = () => {
@@ -205,5 +206,7 @@ export const useCurrentUser = () => {
       () => currentUser.value?.email || authUser.value?.email || ""
     ),
     userPhone: computed(() => currentUser.value?.phone || null),
+    companyId: computed(() => currentUser.value?.company_id || null),
+    magasinId: computed(() => currentUser.value?.magasin_id || null),
   };
 };

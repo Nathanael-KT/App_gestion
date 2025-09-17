@@ -2,7 +2,7 @@
 const isMenuExpanded = ref(true);
 const isMobileMenuOpen = ref(false);
 
-// Gestion responsive
+
 const isMobile = ref(false);
 const isTablet = ref(false);
 const isDesktop = ref(true);

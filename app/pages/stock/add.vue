@@ -1,7 +1,27 @@
 <script setup>
 // Imports
-import { ref, onMounted } from "vue";
+import { ref } from "vue";
 import { v4 as uuidv4 } from "uuid";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+import { useCompanySettings } from "../../composables/useCompanySettings";
+
+const {
+  companyId,
+  isLoadingUser,
+  loadCurrentUser,
+} = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+    if (companyId.value) await fetchCompanySettings(companyId.value);
+
+  await fetchInvoices();
+});
 
 const product = ref({
   name: "",
@@ -44,9 +64,14 @@ const uniteOptions = [
 // Fonction pour récupérer les types de produits
 const fetchProductTypes = async () => {
   try {
+    if (!companyId.value) {
+      typeProduits.value = [];
+      return;
+    }
     const { data, error: fetchError } = await supabase
       .from("product_types")
-      .select("id, name");
+      .select("id, name, company_id")
+      .eq("company_id", companyId.value);
 
     if (fetchError) throw fetchError;
 
@@ -84,10 +109,14 @@ const onTypeChange = () => {
     }
   }
 };
-// Appel de la fonction au montage du composant
-onMounted(() => {
-  fetchProductTypes();
-});
+// Attendre que companyId soit prêt avant de charger les types
+watch(
+  () => companyId.value,
+  (id) => {
+    if (id) fetchProductTypes();
+  },
+  { immediate: true }
+);
 
 // Fonction pour gérer la sélection d'une image et l'aperçu
 const onImageSelected = async (event) => {
@@ -117,6 +146,12 @@ const addProduct = async () => {
   loading.value = true;
   error.value = null;
   try {
+    // Block if companyId is missing/null
+    if (!companyId.value) {
+      throw new Error(
+        "Aucune société sélectionnée. Veuillez choisir une société avant d'ajouter un produit."
+      );
+    }
     // Validation des champs requis de base
     if (
       !product.value.name ||
@@ -179,6 +214,7 @@ const addProduct = async () => {
       price: parseFloat(product.value.price),
       unite: product.value.unite,
       image_url: imagePathToSave,
+      company_id: companyId.value,
     };
 
     // Ajouter les champs spécifiques aux produits de surface si nécessaire
@@ -329,13 +365,13 @@ const addProduct = async () => {
                 accept="image/*"
                 class="block w-full border rounded p-2"
                 @change="onImageSelected"
-              >
+              />
               <div v-if="imagePreview" class="mt-2">
                 <img
                   :src="imagePreview"
                   alt="Aperçu"
                   class="max-h-32 rounded shadow"
-                >
+                />
               </div>
             </UFormField>
 
@@ -382,7 +418,7 @@ const addProduct = async () => {
                 v-model="product.is_surface_product"
                 type="checkbox"
                 class="rounded border-gray-300"
-              >
+              />
               <label for="surface-product" class="text-sm text-gray-700">
                 Ce produit nécessite des dimensions (longueur, largeur) - Ex:
                 carreaux, dalles
@@ -412,12 +448,12 @@ const addProduct = async () => {
                 />
               </UFormField>
 
-              <UFormField label="Prix unitaire (Fcfa)" name="prix" required>
+              <UFormField :label="`Prix unitaire (${companySettings?.currency})`" name="prix" required>
                 <UInput
                   v-model="product.price"
                   type="number"
                   step="0.01"
-                  placeholder="Prix unitaire (Fcfa)"
+                  :placeholder="`Prix unitaire (${companySettings?.currency})`"
                   class="w-full"
                 />
               </UFormField>

@@ -186,7 +186,7 @@
                   type="checkbox"
                   class="sr-only peer"
                   :disabled="isLoading"
-                >
+                />
                 <label
                   :for="role.value"
                   class="flex flex-col p-4 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:border-gray-300 peer-checked:border-blue-500 peer-checked:bg-blue-50"
@@ -303,6 +303,8 @@
 <script setup lang="ts">
 // Import du store magasin
 import { useMagasinStore } from "@/composables/useMagasinStore";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+const { companyId } = useCurrentUser();
 
 // Configuration des rôles
 const availableRoles = [
@@ -494,6 +496,7 @@ const handleSubmit = async () => {
           roles: form.roles,
           phone: form.phone || null,
           magasin_id: form.magasin_id,
+          company_id: companyId.value,
         },
         emailRedirectTo: `${window.location.origin}/login`,
       },
@@ -535,6 +538,7 @@ const handleSubmit = async () => {
           phone: form.phone || null,
           roles: form.roles,
           magasin_id: form.magasin_id,
+          company_id: companyId.value,
         },
       ]);
 

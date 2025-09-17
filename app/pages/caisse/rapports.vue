@@ -619,9 +619,6 @@ const countingsPage = ref(1);
 const emptyingsPage = ref(1);
 const itemsPerPage = 5;
 
-// Fonctionn pour recuperer les rôles de l'utilisateur actuel
-const { userRoles } = useCurrentUser();
-
 // Computed pour la pagination des comptages
 const paginatedCountings = computed(() => {
   const start = (countingsPage.value - 1) * itemsPerPage;
@@ -670,9 +667,27 @@ const reasonOptions = [
   { value: "Autre", label: "Autre raison" },
 ];
 
-// Chargement des données au montage
+// Helper pour valider l'id magasin
+function isValidMagasinId(id: unknown): boolean {
+  return typeof id === "string" && id.trim() !== "";
+}
+
+// Chargement des données au montage : attend que magasinId soit prêt
 onMounted(async () => {
-  await loadCashSummary();
+  // Si magasinId n'est pas prêt, on attend qu'il soit défini
+  if (!isValidMagasinId(magasinStore.magasinId)) {
+    const stop = watch(
+      () => magasinStore.magasinId,
+      async (val) => {
+        if (isValidMagasinId(val)) {
+          await loadCashSummary();
+          stop();
+        }
+      }
+    );
+  } else {
+    await loadCashSummary();
+  }
 });
 
 // Chargement du résumé de caisse
@@ -680,6 +695,13 @@ async function loadCashSummary() {
   loading.value = true;
   try {
     console.log("Début du chargement des données...");
+
+    // Vérifier magasinId
+    if (!isValidMagasinId(magasinStore.magasinId)) {
+      throw new Error(
+        "Aucun magasin sélectionné ou identifiant magasin invalide."
+      );
+    }
 
     // Récupérer tous les comptages de caisse avec les informations utilisateur
     const { data: cashCounts, error: countsError } = await supabase

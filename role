@@ -254,7 +254,7 @@ export const useDashboardData = () => {
               title: `Facture ${invoice.reference} livrée`,
               description: `Client: ${invoice.clients?.name} - ${Number(
                 invoice.total
-              ).toLocaleString()}Fcfa`,
+              ).toLocaleString()}cfa`,
               time: timeAgo,
               timestamp: invoice.created_at,
             });
@@ -295,7 +295,7 @@ export const useDashboardData = () => {
             title: "Facture payée",
             description: `Facture ${payment.invoices?.reference} - ${Number(
               payment.amount
-            ).toLocaleString()}Fcfa`,
+            ).toLocaleString()}Ffa`,
             time: timeAgo,
             timestamp: payment.created_at,
           });

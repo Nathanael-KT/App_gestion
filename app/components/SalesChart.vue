@@ -141,7 +141,7 @@ const chartData = computed(() => {
     labels,
     datasets: [
       {
-        label: "Chiffre d'Affaires (Fcfa)",
+        label: "Chiffre d'Affaires",
         data: totals,
         backgroundColor: "rgba(59, 130, 246, 0.5)",
         borderColor: "rgba(59, 130, 246, 1)",
@@ -187,8 +187,8 @@ const chartOptions = computed(() => {
             const label = context.dataset.label || "";
             const value = context.parsed.y || context.parsed;
 
-            if (label.includes("Fcfa")) {
-              return `${label}: ${formatCurrency(value)}`;
+            if (label.includes("Chiffre d'Affaires")) {
+              return `${label}: ${(value)}`;
             }
             return `${label}: ${value}`;
           },
@@ -234,11 +234,11 @@ const chartOptions = computed(() => {
         position: "left",
         title: {
           display: true,
-          text: "Chiffre d'Affaires (Fcfa)",
+          text: "Chiffre d'Affaires",
         },
         ticks: {
           callback: function (value) {
-            return formatCurrency(value);
+            return (value);
           },
         },
       },
@@ -271,14 +271,7 @@ const getPeriodLabel = () => {
   return labels[props.period] || "Période";
 };
 
-const formatCurrency = (value) => {
-  return new Intl.NumberFormat("fr-FR", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value || 0);
-};
+
 </script>
 
 <template>

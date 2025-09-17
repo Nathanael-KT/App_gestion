@@ -1,6 +1,22 @@
 <script setup>
 // Meta configuration
 import { useMagasinStore } from "../../composables/useMagasinStore";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+import { useCompanySettings } from "../../composables/useCompanySettings";
+
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+  if (companyId.value) await fetchCompanySettings(companyId.value);
+
+  await fetchInvoices();
+});
+
 definePageMeta({
   middleware: ["auth", "roles"],
 });
@@ -194,9 +210,19 @@ const paymentMethods = [
 
 // Formats
 const formatCurrency = (value) => {
+  const currency = companySettings?.value?.currency;
+  if (!currency || typeof currency !== "string") {
+    // Fallback to EUR if currency is not defined
+    return new Intl.NumberFormat("fr-FR", {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value || 0);
+  }
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
-    currency: "EUR",
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value || 0);
@@ -288,8 +314,14 @@ const dailySummary = computed(() => ({
 const loadBaseData = async () => {
   try {
     // recuperer id magasin sélectionné
-    if (!magasinStore.magasinId) {
-      throw new Error("Aucun magasin sélectionné");
+    if (
+      !magasinStore.magasinId ||
+      typeof magasinStore.magasinId !== "string" ||
+      magasinStore.magasinId.trim() === ""
+    ) {
+      error.value =
+        "Aucun magasin sélectionné ou identifiant magasin invalide.";
+      return;
     }
 
     // Charger les clients
@@ -323,6 +355,17 @@ const loadDailySales = async () => {
   try {
     loading.value = true;
     error.value = null;
+
+    if (
+      !magasinStore.magasinId ||
+      typeof magasinStore.magasinId !== "string" ||
+      magasinStore.magasinId.trim() === ""
+    ) {
+      error.value =
+        "Aucun magasin sélectionné ou identifiant magasin invalide.";
+      loading.value = false;
+      return;
+    }
 
     const startOfDay = new Date(selectedDate.value + "T00:00:00");
     const endOfDay = new Date(selectedDate.value + "T23:59:59");
@@ -509,12 +552,20 @@ const loadOpeningBalance = async (stats) => {
         .eq("date", previousDayString)
         .single();
 
-      if (closingError) throw closingError;
-      stats.openingBalance = parseFloat(closingData?.closing_balance) || 0;
-    } catch {
-      // Si pas de données, utiliser une valeur par défaut
+      if (closingError && closingError.code !== "PGRST116") throw closingError;
+      // Si aucune ligne n'est retournée, PGRST116, on met à 0
+      if (!closingData || closingError?.code === "PGRST116") {
+        stats.openingBalance = 0;
+        console.log("Aucun solde de fermeture trouvé pour le jour précédent");
+      } else {
+        stats.openingBalance = parseFloat(closingData.closing_balance) || 0;
+      }
+    } catch (err) {
       stats.openingBalance = 0;
-      console.log("Aucun solde de fermeture trouvé pour le jour précédent");
+      console.log(
+        "Aucun solde de fermeture trouvé pour le jour précédent",
+        err
+      );
     }
   } catch (err) {
     console.error("Erreur lors du chargement du solde d'ouverture:", err);
@@ -595,8 +646,7 @@ const loadSelectedDateCashCount = async () => {
   }
 };
 
-watch(() => magasinStore.magasinId, );
-
+watch(() => magasinStore.magasinId);
 
 // Réinitialiser le formulaire de nouvelle vente (non utilisé mais conservé)
 const _resetNewSaleForm = () => {
@@ -794,7 +844,9 @@ const processCashIn = async () => {
     const success = await cashManagement.processCashIn({
       amount: cashIn.amount,
       reason: cashIn.reason,
-      note: `${cashIn.source ? `Source: ${cashIn.source}. ` : ""}${cashIn.note || ""}`,
+      note: `${cashIn.source ? `Source: ${cashIn.source}. ` : ""}${
+        cashIn.note || ""
+      }`,
       magasin_id: magasinStore.magasinId,
     });
 
@@ -2468,7 +2520,7 @@ onMounted(async () => {
                       class="bg-green-100 px-2 sm:px-3 py-2 rounded text-center"
                     >
                       <span class="font-medium text-green-800 text-sm"
-                        >{{ denomination }}Fcfa</span
+                        >{{ denomination }}{{ companySettings?.currency }}</span
                       >
                     </div>
                     <UInput
@@ -2991,9 +3043,9 @@ onMounted(async () => {
                     class="grid grid-cols-3 gap-3 items-center"
                   >
                     <div class="bg-green-100 px-3 py-2 rounded text-center">
-                      <span class="font-medium text-green-800"
-                        >{{ denomination }}Fcfa</span
-                      >
+                      <span class="font-medium text-green-800">{{
+                        formatCurrency(denomination)
+                      }}</span>
                     </div>
                     <UInput
                       v-model="cashCount[denomination]"

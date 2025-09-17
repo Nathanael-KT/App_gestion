@@ -3,6 +3,27 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { usePdfGenerator } from "../../composables/usePdfGenerator";
 import { useMagasinStore } from "../../composables/useMagasinStore";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+import { useCompanySettings } from "../../composables/useCompanySettings";
+
+const {
+  companyId,
+  isLoadingUser,
+  loadCurrentUser,
+} = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+    if (companyId.value) await fetchCompanySettings(companyId.value);
+
+  await fetchInvoices();
+});
+
 
 // Meta configuration
 definePageMeta({
@@ -19,8 +40,6 @@ const error = ref(null);
 const successMessage = ref(null);
 const downloadingPdf = ref(null);
 
-// utilise la composable useCurrentUser pour récupérer les rôles de l'utilisateur
-const { userRoles } = useCurrentUser();
 
 // Search and filters
 const searchQuery = ref("");
@@ -132,6 +151,12 @@ const fetchInvoices = async () => {
     return;
   } else {
     error.value = null;
+  }
+  if (!companyId.value) {
+    invoices.value = [];
+    error.value = "Aucune company active.";
+    loading.value = false;
+    return;
   }
   try {
     loading.value = true;
@@ -252,6 +277,7 @@ const getStatusLabel = (status) => {
   };
   return labels[status] || status;
 };
+
 
 const getVisiblePages = () => {
   const pages = [];
@@ -499,7 +525,7 @@ watch(() => magasinStore.magasinId, fetchInvoices);
               <div class="flex items-center gap-4 flex-shrink-0">
                 <div class="text-right">
                   <p class="text-xl font-bold text-gray-900">
-                    {{ invoice.total.toFixed(2) }}Fcfa
+                    {{ invoice.total.toFixed(2) }} {{ companySettings?.currency }}
                   </p>
                 </div>
 

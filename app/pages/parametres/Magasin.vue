@@ -1,7 +1,17 @@
 <script setup>
 import { ref, reactive, onMounted } from "vue";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+
 const supabase = useSupabaseClient();
 const toast = useToast();
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+  await loadMagasins();
+});
 
 // États
 const magasins = ref([]);
@@ -22,15 +32,28 @@ const loadMagasins = async () => {
   loading.value = true;
   error.value = null;
   try {
-    const { data, error: supaError } = await supabase
-      .from("magasins")
-      .select("id, nom, adresse, telephone, email");
+    let data = [];
+    let supaError = null;
+    if (
+      companyId.value &&
+      companyId.value !== "null" &&
+      companyId.value !== "" &&
+      companyId.value !== undefined
+    ) {
+      const result = await supabase
+        .from("magasins")
+        .select("id, nom, adresse, telephone, email")
+        .eq("company_id", companyId.value); // Filtrer par company_id
+      data = result.data;
+      supaError = result.error;
+    } else {
+      supaError = { message: "companyId invalide" };
+    }
     if (supaError) throw supaError;
     // Tri côté client pour éviter l'erreur 400
     magasins.value = (data || []).sort((a, b) => a.nom.localeCompare(b.nom));
   } catch (err) {
     error.value = err.message;
-    toast.add({ title: "Erreur", description: err.message, color: "red" });
   } finally {
     loading.value = false;
   }
@@ -73,15 +96,27 @@ const saveMagasin = async () => {
   try {
     if (editMode.value && currentMagasin.id) {
       // Update
-      const { error: updateError } = await supabase
-        .from("magasins")
-        .update({
-          nom: currentMagasin.nom,
-          adresse: currentMagasin.adresse,
-          telephone: currentMagasin.telephone,
-          email: currentMagasin.email,
-        })
-        .eq("id", currentMagasin.id);
+      let updateError = null;
+      if (
+        companyId.value &&
+        companyId.value !== "null" &&
+        companyId.value !== "" &&
+        companyId.value !== undefined
+      ) {
+        const result = await supabase
+          .from("magasins")
+          .update({
+            nom: currentMagasin.nom,
+            adresse: currentMagasin.adresse,
+            telephone: currentMagasin.telephone,
+            email: currentMagasin.email,
+            company_id: companyId.value,
+          })
+          .eq("id", currentMagasin.id);
+        updateError = result.error;
+      } else {
+        updateError = { message: "companyId invalide" };
+      }
       if (updateError) throw updateError;
       toast.add({
         title: "Modifié",
@@ -90,12 +125,24 @@ const saveMagasin = async () => {
       });
     } else {
       // Insert
-      const { error: insertError } = await supabase.from("magasins").insert({
-        nom: currentMagasin.nom,
-        adresse: currentMagasin.adresse,
-        telephone: currentMagasin.telephone,
-        email: currentMagasin.email,
-      });
+      let insertError = null;
+      if (
+        companyId.value &&
+        companyId.value !== "null" &&
+        companyId.value !== "" &&
+        companyId.value !== undefined
+      ) {
+        const result = await supabase.from("magasins").insert({
+          nom: currentMagasin.nom,
+          adresse: currentMagasin.adresse,
+          telephone: currentMagasin.telephone,
+          email: currentMagasin.email,
+          company_id: companyId.value,
+        });
+        insertError = result.error;
+      } else {
+        insertError = { message: "companyId invalide" };
+      }
       if (insertError) throw insertError;
       toast.add({
         title: "Ajouté",
@@ -142,7 +189,7 @@ onMounted(loadMagasins);
 </script>
 
 <template>
-<div class="w-full max-w-7xl mx-auto px-2 py-8">
+  <div class="w-full max-w-7xl mx-auto px-2 py-8">
     <div
       class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4 w-full max-w-full"
     >

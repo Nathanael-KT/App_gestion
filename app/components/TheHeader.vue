@@ -1,19 +1,134 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from "@nuxt/ui";
-import MagasinSelector from "./MagasinSelector.vue";
 
+
+import MagasinSelector from "./MagasinSelector.vue";
+import { useCurrentUser } from "../composables/useCurrentUser";
+import { useCompanySettings } from "../composables/useCompanySettings";
+import { useDashboardData } from "../composables/useDashboardData";
+import { ref, computed, onMounted, watch } from "vue";
+
+
+const { companyId, magasinId } = useCurrentUser();
 const user = useSupabaseUser();
 const supabase = useSupabaseClient();
 const emit = defineEmits(["toggleMobileMenu"]);
+
+// Notifications
+const notifications = ref<Array<{ id: string; type: string; message: string; time?: string }>>([]);
+const showNotifications = ref(false);
+const notificationCount = computed(() => notifications.value.length);
+
+// Stock alerts
+const { stockAlerts } = useDashboardData();
+
+// Forum messages
+const newForumMessage = ref(false);
+
+// Caisse fermeture (à 17h30)
+function checkCaisseFermeture() {
+  const now = new Date();
+  if (now.getHours() === 17 && now.getMinutes() >= 30) {
+    notifications.value.push({
+      id: "fermeture-caisse",
+      type: "caisse",
+      message: "Veuillez fermer la caisse à 17h30.",
+      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    });
+  }
+}
+
+// Charger les alertes de stock
+watch(stockAlerts, (alerts) => {
+  if (alerts && alerts.length > 0) {
+    notifications.value = notifications.value.filter(n => n.type !== "stock");
+    alerts.forEach((alert, idx) => {
+      notifications.value.push({
+        id: `stock-${idx}`,
+        type: "stock",
+        message: `Alerte stock: ${alert.product_name} (${alert.message})`,
+      });
+    });
+  }
+});
+
+// Vérifier les nouveaux messages du forum
+async function checkForumMessages() {
+  if (!companyId.value) return;
+  const { data, error } = await supabase
+    .from("forum_messages")
+    .select("id, created_at")
+    .eq("company_id", companyId.value)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (!error && data && data.length > 0) {
+    if (data[0]) {
+      const lastMsg = data[0] as { id: number; created_at: string };
+      // Si le message est récent (< 10 min)
+      const msgDate = new Date(lastMsg.created_at);
+      const now = new Date();
+      if ((now.getTime() - msgDate.getTime()) < 10 * 60 * 1000) {
+        notifications.value = notifications.value.filter(n => n.type !== "forum");
+        notifications.value.push({
+          id: `forum-${lastMsg.id}`,
+          type: "forum",
+          message: "Nouveau message dans le forum.",
+          time: msgDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+        });
+        newForumMessage.value = true;
+      }
+    }
+  }
+}
+
+onMounted(() => {
+  // Vérifier la fermeture de caisse toutes les minutes
+  setInterval(checkCaisseFermeture, 60000);
+  // Vérifier les nouveaux messages du forum toutes les 2 min
+  setInterval(checkForumMessages, 120000);
+  // Vérifier au montage
+  checkCaisseFermeture();
+  checkForumMessages();
+});
 
 // Utilisation du composable pour les paramètres de l'entreprise
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
 
-// Charger les paramètres de l'entreprise au montage du composant
+// Récupérer les paramètres de l'entreprise au montage
 onMounted(() => {
-  fetchCompanySettings();
-});
+    // Attendre que companyId ET magasinId soient tous les deux définis
+    if (!companyId.value || !magasinId.value) {
+      const stop = watch(
+        [() => companyId.value, () => magasinId.value],
+        ([newCompanyId, newMagasinId]) => {
+          if (newCompanyId && newMagasinId) {
+            console.log("companyId récupéré :", companyId.value);
+            console.log("magasinId récupéré :", magasinId.value);
+
+            fetchMagasins();
+            fetchCompanySettings(newCompanyId);
+            stop();
+          }
+        },
+        { immediate: true }
+      );
+    } 
+  });
+
+// Liste des magasins filtrés par companyId
+const magasins = ref([]);
+
+async function fetchMagasins() {
+  if (!companyId) return;
+  const { data, error } = await supabase
+    .from("magasins")
+    .select("id, nom, company_id")
+    .eq("company_id", companyId);
+  if (!error) magasins.value = data || [];
+};
+
+
 
 const items: DropdownMenuItem[] = [
   {
@@ -64,14 +179,16 @@ const toggleMobileMenu = () => {
       class="lg:hidden mr-4 text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
       @click="toggleMobileMenu"
     >
-      <img src="../assets/img/img.png" alt="Logo" class="h-8 w-8" >
+  <img src="../assets/img/img.png" alt="Logo" class="h-8 w-8">
     </button>
 
     <!-- Titre de l'application (visible sur tablet et desktop) -->
     <div class="hidden sm:flex items-center text-white">
-      <img src="../assets/img/img.png" alt="Logo" class="h-8 w-8 mr-3" >
+  <img src="../assets/img/img.png" alt="Logo" class="h-8 w-8 mr-3">
       <h1 class="text-xl font-bold">
-        {{ companySettings?.company_name || "Mon Application" }}
+        <span class="text-2xl font-extrabold tracking-wide uppercase text-white drop-shadow-lg">
+          {{ companySettings?.company_name || "" }}
+        </span>
       </h1>
     </div>
 
@@ -79,20 +196,48 @@ const toggleMobileMenu = () => {
       <!-- Sélecteur de magasin -->
       <div class="flex items-center">
         <MagasinSelector
+          :magasins="magasins"
           class="bg-primary text-white rounded-xl px-6 py-2 font-semibold shadow-lg border-2 border-secondary hover:bg-secondary hover:text-primary transition-all duration-200"
         />
       </div>
+
       <!-- Notifications (visible sur desktop) -->
-      <button
-        class="hidden lg:flex items-center text-white hover:bg-white/10 p-2 rounded-lg transition-colors relative"
-        aria-label="Notifications"
-      >
-        <UIcon name="heroicons:bell-20-solid" class="h-6 w-6" />
-        <!-- Badge de notification -->
-        <span
-          class="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"
-        />
-      </button>
+      <div class="relative">
+        <button
+          class="hidden lg:flex items-center text-white hover:bg-white/10 p-2 rounded-lg transition-colors relative"
+          aria-label="Notifications"
+          @click="showNotifications = !showNotifications"
+        >
+          <UIcon name="heroicons:bell-20-solid" class="h-6 w-6" />
+          <span
+            v-if="notificationCount > 0"
+            class="absolute -top-1 -right-1 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-white"
+          >{{ notificationCount }}</span>
+        </button>
+        <!-- Menu notifications -->
+        <div
+          v-if="showNotifications"
+          class="absolute right-0 mt-2 w-80 bg-white shadow-lg rounded-xl z-50 border border-gray-200"
+        >
+          <div class="p-4 border-b font-bold text-gray-700">Notifications</div>
+          <ul class="max-h-80 overflow-y-auto">
+            <li v-for="notif in notifications" :key="notif.id" class="px-4 py-3 border-b last:border-b-0 flex items-center gap-3">
+              <span v-if="notif.type === 'caisse'" class="text-yellow-500">
+                <UIcon name="heroicons:clock-20-solid" class="h-5 w-5" />
+              </span>
+              <span v-else-if="notif.type === 'stock'" class="text-red-500">
+                <UIcon name="heroicons:exclamation-triangle-20-solid" class="h-5 w-5" />
+              </span>
+              <span v-else-if="notif.type === 'forum'" class="text-blue-500">
+                <UIcon name="heroicons:chat-bubble-left-20-solid" class="h-5 w-5" />
+              </span>
+              <span class="flex-1">{{ notif.message }}</span>
+              <span v-if="notif.time" class="text-xs text-gray-400">{{ notif.time }}</span>
+            </li>
+            <li v-if="notifications.length === 0" class="px-4 py-6 text-center text-gray-400">Aucune notification</li>
+          </ul>
+        </div>
+      </div>
 
       <!-- Menu utilisateur -->
       <UDropdownMenu :items="items">

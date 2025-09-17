@@ -3,6 +3,21 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useDeliveryNoteGenerator } from "../../composables/useDeliveryNoteGenerator";
 import { useMagasinStore } from "../../composables/useMagasinStore";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+import { useCompanySettings } from "../../composables/useCompanySettings";
+
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+  if (companyId.value) await fetchCompanySettings(companyId.value);
+
+  await fetchInvoices();
+});
 
 const magasinStore = useMagasinStore();
 
@@ -16,6 +31,7 @@ const successMessage = ref(null);
 const downloadingDeliveryNote = ref(null);
 // utilise la composable useCurrentUser pour récupérer les rôles de l'utilisateur
 const { userRoles } = useCurrentUser();
+const magasinIdError = ref("");
 
 // Search and filters
 const searchQuery = ref("");
@@ -268,25 +284,45 @@ const fetchInvoices = async () => {
 
     if (fetchError) throw fetchError;
 
-    invoices.value =
-      data.map((invoice) => ({
-        ...invoice,
-        reference: invoice.reference || "N/A",
-        client_name: invoice.clients?.name || "Inconnu",
-        total: invoice.total || 0,
-        status: invoice.status || "pending",
-        delivery: invoice.delivery || false,
-        // Formatage de la date pour l'affichage
-        date: new Date(invoice.date).toLocaleDateString("fr-FR"),
-      })) || [];
+    // Vérification du format de la réponse
+    if (!Array.isArray(data)) {
+      error.value =
+        "Réponse inattendue du serveur. Veuillez réessayer plus tard.";
+      invoices.value = [];
+      return;
+    }
+
+    try {
+      invoices.value =
+        data.map((invoice) => ({
+          ...invoice,
+          reference: invoice.reference || "N/A",
+          client_name: invoice.clients?.name || "Inconnu",
+          total: invoice.total || 0,
+          status: invoice.status || "pending",
+          delivery: invoice.delivery || false,
+          // Formatage de la date pour l'affichage
+          date: new Date(invoice.date).toLocaleDateString("fr-FR"),
+        })) || [];
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (parseErr) {
+      error.value =
+        "Erreur de format des données reçues. Contactez un administrateur.";
+      invoices.value = [];
+    }
   } catch (err) {
     error.value = err.message || "Erreur lors de la récupération des factures.";
+    invoices.value = [];
   } finally {
     loading.value = false;
   }
 };
 
 const handleDownloadDeliveryNote = async (invoiceId) => {
+  if (typeof window === "undefined") {
+    error.value = "La génération du PDF n'est pas disponible côté serveur.";
+    return;
+  }
   try {
     downloadingDeliveryNote.value = invoiceId;
     const { downloadDeliveryNote } = useDeliveryNoteGenerator();
@@ -304,6 +340,10 @@ const handleDownloadDeliveryNote = async (invoiceId) => {
 };
 
 const handlePrintDeliveryNote = async (invoiceId) => {
+  if (typeof window === "undefined") {
+    error.value = "L'impression du PDF n'est pas disponible côté serveur.";
+    return;
+  }
   try {
     downloadingDeliveryNote.value = `${invoiceId}_print`;
     const { printDeliveryNote } = useDeliveryNoteGenerator();
@@ -379,9 +419,37 @@ const resetAllFilters = () => {
 
 onMounted(() => {
   loadFiltersFromStorage(); // Charger les filtres sauvegardés
-  fetchInvoices();
+  // Attendre que magasinId soit prêt
+  if (!magasinStore.magasinId) {
+    const stop = watch(
+      () => magasinStore.magasinId,
+      (val) => {
+        if (val) {
+          magasinIdError.value = "";
+          fetchInvoices();
+          stop();
+        }
+      }
+    );
+    // Si après 2 secondes magasinId n'est toujours pas défini, afficher une erreur
+    setTimeout(() => {
+      if (!magasinStore.magasinId) {
+        magasinIdError.value =
+          "Aucun magasin sélectionné. Veuillez choisir un magasin pour afficher les commandes.";
+        loading.value = false;
+      }
+    }, 2000);
+  } else {
+    fetchInvoices();
+  }
 });
-watch(() => magasinStore.magasinId, fetchInvoices);
+watch(
+  () => magasinStore.magasinId,
+  () => {
+    magasinIdError.value = "";
+    fetchInvoices();
+  }
+);
 </script>
 
 <template>
@@ -522,7 +590,7 @@ watch(() => magasinStore.magasinId, fetchInvoices);
               v-model="customStartDate"
               type="date"
               class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
+            />
             <label class="text-sm font-medium text-gray-700 whitespace-nowrap"
               >Au :</label
             >
@@ -530,7 +598,7 @@ watch(() => magasinStore.magasinId, fetchInvoices);
               v-model="customEndDate"
               type="date"
               class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
+            />
           </div>
 
           <!-- Bouton pour effacer tous les filtres -->
@@ -628,7 +696,7 @@ watch(() => magasinStore.magasinId, fetchInvoices);
             <div class="flex items-center gap-4 flex-shrink-0">
               <div class="text-right">
                 <p class="text-xl font-bold text-gray-900">
-                  {{ invoice.total.toFixed(2) }}Fcfa
+                  {{ invoice.total.toFixed(2) }}{{ companySettings?.currency }}
                 </p>
               </div>
 
@@ -877,3 +945,10 @@ watch(() => magasinStore.magasinId, fetchInvoices);
     </div>
   </div>
 </template>
+
+<!-- Message d'erreur magasinId -->
+<div
+  v-if="magasinIdError"
+  class="bg-white rounded-xl shadow-sm border border-orange-200 p-12 text-center mb-6"
+>
+</div>

@@ -1,5 +1,7 @@
 <script setup>
 // Imports
+import { useCurrentUser } from "../../composables/useCurrentUser";
+import { useCompanySettings } from "../../composables/useCompanySettings";
 const supabase = useSupabaseClient();
 const toast = useToast();
 
@@ -14,6 +16,19 @@ const selectedStatus = ref("all");
 const showFilters = ref(false);
 const sortBy = ref("name");
 const sortOrder = ref("asc");
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+  if (companyId.value) {
+    await fetchCompanySettings(companyId.value);
+    await fetchStockData();
+  }
+});
 
 // Données pour les filtres
 const productTypes = ref([]);
@@ -42,9 +57,10 @@ const CRITICAL_STOCK_THRESHOLD = 5;
 
 // Format monétaire
 const formatCurrency = (value) => {
+  const currency = companySettings?.value?.currency;
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
-    currency: "EUR",
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value || 0);
@@ -101,48 +117,39 @@ const getStockBadgeText = (stock) => {
 
 // Récupérer les données de stock
 const fetchStockData = async () => {
+  if (!companyId.value) {
+    error.value = "Aucune société sélectionnée.";
+    return;
+  }
   loading.value = true;
   error.value = null;
 
   try {
     if (!supabase) throw new Error("Supabase client non initialisé");
 
-    // Récupérer les produits avec leurs types
+    // Récupérer les produits avec leurs types et company_id
     const query = supabase
       .from("products_carreaux")
-      .select(
-        `
-        *,
-        product_types!left(id, name)
-      `
-      )
+      .select(`*, product_types!left(id, name)`)
+      .eq("company_id", companyId.value)
       .order(getSortField(), { ascending: sortOrder.value === "asc" });
 
     const { data: productsData, error: productsError } = await query;
-
     if (productsError) throw productsError;
-
     products.value = productsData || [];
 
     // Récupérer les mouvements de stock récents
     const { data: stockData, error: stockError } = await supabase
       .from("stocks")
-      .select(
-        `
-        *,
-        products_carreaux!inner(name, reference)
-      `
-      )
+      .select(`*, products_carreaux!inner(name, reference)`)
+      .eq("company_id", companyId.value)
       .order("updated_at", { ascending: false })
       .limit(20);
-
     if (stockError) throw stockError;
-
     stockMovements.value = stockData || [];
 
     // Calculer les statistiques
     calculateStatistics();
-
     // Récupérer les types de produits
     await fetchProductTypes();
   } catch (err) {
@@ -308,7 +315,7 @@ const resetFilters = () => {
   selectedStatus.value = "all";
   sortBy.value = "name";
   sortOrder.value = "asc";
-  fetchStockData();
+  if (companyId.value) fetchStockData();
 };
 
 // Watcher pour le tri
@@ -318,7 +325,7 @@ watch([sortBy, sortOrder], () => {
     : [sortBy.value, sortOrder.value];
   sortBy.value = field;
   sortOrder.value = order;
-  fetchStockData();
+  if (companyId.value) fetchStockData();
 });
 
 // Watcher pour les filtres
@@ -328,7 +335,7 @@ watch([selectedType, selectedStatus], () => {
 
 // Initialisation
 onMounted(() => {
-  fetchStockData();
+  if (companyId.value) fetchStockData();
 });
 </script>
 

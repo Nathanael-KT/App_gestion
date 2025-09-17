@@ -1,5 +1,24 @@
 <script setup>
+// Helper pour valider l'id société
 // Imports
+
+// utilise la composable useCurrentUser pour récupérer les rôles de l'utilisateur
+import { useCurrentUser } from "../../composables/useCurrentUser";
+import { useCompanySettings } from "../../composables/useCompanySettings";
+function isValidCompanyId(id) {
+  return typeof id === "string" && id.trim() !== "";
+}
+
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+  if (companyId.value) await fetchCompanySettings(companyId.value);
+});
+
 const products = ref([]);
 const loading = ref(true);
 const error = ref(null);
@@ -7,11 +26,35 @@ const error = ref(null);
 // Variables pour les filtres
 const availableTypes = ref([]);
 const availableUnites = ref([]);
-const productTypes = ref([]); // Pour stocker les types depuis la table product_types
+const productTypes = ref([]);
+const {
+  userRoles: _userRoles,
+  companyId,
+  isLoadingUser,
+  loadCurrentUser,
+} = useCurrentUser();
+const userRoles = computed(() =>
+  Array.isArray(_userRoles.value) ? _userRoles.value : []
+);
 
-// utilise la composable useCurrentUser pour récupérer les rôles de l'utilisateur
-const { userRoles } = useCurrentUser();
-
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+  if (!isValidCompanyId(companyId.value)) {
+    const stop = watch(
+      () => companyId.value,
+      async (val) => {
+        if (isValidCompanyId(val)) {
+          await fetchProducts();
+          stop();
+        }
+      }
+    );
+  } else {
+    await fetchProducts();
+  }
+});
 // États des filtres
 const filters = ref({
   search: "",
@@ -33,9 +76,10 @@ const toast = useToast();
 
 // Format monétaire
 const formatCurrency = (value) => {
+  const currency = companySettings?.value?.currency;
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
-    currency: "EUR",
+    currency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value || 0);
@@ -45,16 +89,26 @@ const formatCurrency = (value) => {
 const fetchProductTypes = async () => {
   try {
     if (!supabase) throw new Error("Supabase client non initialisé");
+    if (!isValidCompanyId(companyId.value)) {
+      if (isLoadingUser.value) {
+        error.value = "Chargement du profil utilisateur...";
+      } else {
+        error.value =
+          "Aucune société liée à votre profil utilisateur ou identifiant société invalide. Contactez un administrateur.";
+      }
+      loading.value = false;
+      return;
+    }
 
     const { data, error: typesError } = await supabase
       .from("product_types")
       .select("id, name")
+      .eq("company_id", companyId.value)
       .order("name", { ascending: true });
 
     if (typesError) throw typesError;
 
     productTypes.value = data || [];
-    // Créer la liste des types disponibles avec nom et id
     availableTypes.value =
       data?.map((type) => ({
         id: type.id,
@@ -73,6 +127,12 @@ const fetchProducts = async () => {
 
   try {
     if (!supabase) throw new Error("Supabase client non initialisé");
+    if (!isValidCompanyId(companyId.value)) {
+      error.value =
+        "Aucune société sélectionnée ou identifiant société invalide. Veuillez choisir une société avant d'afficher le stock.";
+      loading.value = false;
+      return;
+    }
 
     // Récupérer les produits avec jointure sur la table product_types
     const { data, error: supabaseError } = await supabase
@@ -83,6 +143,7 @@ const fetchProducts = async () => {
         product_types!inner(id, name)
       `
       )
+      .eq("company_id", companyId.value)
       .order("name", { ascending: true });
 
     if (supabaseError) throw supabaseError;
@@ -315,32 +376,7 @@ const handleUnhideProduct = async () => {
   }
 };
 // Fonction pour masquer un produit
-const handleHideProduct = async (product) => {
-  try {
-    if (!supabase) throw new Error("Supabase client non initialisé");
-    const { error: hideError } = await supabase
-      .from("products_carreaux")
-      .update({ is_hidden: true })
-      .eq("id", product.id);
-    if (hideError) throw hideError;
-    await fetchProducts();
-    toast.add({
-      title: "Produit masqué",
-      description: `Le produit '${product.name}' est maintenant masqué.`,
-      icon: "i-heroicons-eye-slash",
-      color: "gray",
-      timeout: 4000,
-    });
-  } catch (err) {
-    toast.add({
-      title: "Erreur",
-      description: err.message || "Erreur lors du masquage du produit.",
-      icon: "i-heroicons-exclamation-triangle",
-      color: "red",
-      timeout: 5000,
-    });
-  }
-};
+// (Supprimé car non utilisé)
 
 // Computed pour séparer les carreaux des autres produits (hors masqués)
 const carreauxProducts = computed(() => {
@@ -659,7 +695,7 @@ onMounted(async () => {
           <UInput
             v-model="filters.priceMin"
             type="number"
-            placeholder="Prix min (Fcfa)"
+            :placeholder="`Prix min (${companySettings?.currency})`"
             size="sm"
             step="0.01"
           />
@@ -667,7 +703,7 @@ onMounted(async () => {
           <UInput
             v-model="filters.priceMax"
             type="number"
-            placeholder="Prix max (Fcfa)"
+            :placeholder="`Prix max (${companySettings?.currency})`"
             size="sm"
             step="0.01"
           />
@@ -747,7 +783,7 @@ onMounted(async () => {
                           :src="product.signed_image_url"
                           alt="Photo"
                           class="w-23 h-22 object-cover rounded shadow mx-auto"
-                        >
+                        />
                       </a>
                     </div>
                     <div v-else class="text-gray-400 italic">Aucune image</div>
@@ -822,7 +858,7 @@ onMounted(async () => {
                     :src="product.signed_image_url"
                     alt="Photo"
                     class="max-h-24 rounded shadow"
-                  >
+                  />
                 </a>
               </div>
               <div v-else class="text-gray-400 italic text-center mb-2">
@@ -966,7 +1002,7 @@ onMounted(async () => {
                       :src="product.signed_image_url"
                       alt="Photo"
                       class="w-23 h-22 object-cover rounded shadow mx-auto"
-                    >
+                    />
                   </a>
                 </div>
                 <div v-else class="text-gray-400 italic">Aucune image</div>
@@ -1042,7 +1078,7 @@ onMounted(async () => {
                 :src="product.signed_image_url"
                 alt="Photo"
                 class="max-h-24 rounded shadow"
-              >
+              />
             </a>
           </div>
           <div v-else class="text-gray-400 italic text-center mb-2">
@@ -1072,13 +1108,6 @@ onMounted(async () => {
               @click="openDeleteModal(product)"
             >
               <Icon name="material-symbols:delete" class="text-lg" />
-            </button>
-            <button
-              v-if="userRoles.includes('admin') && !product.is_hidden"
-              class="text-gray-500 hover:text-gray-700 p-1 rounded hover:bg-gray-100"
-              @click="handleHideProduct(product)"
-            >
-              <Icon name="material-symbols:visibility-off" class="text-lg" />
             </button>
           </div>
         </div>
@@ -1155,7 +1184,7 @@ onMounted(async () => {
                       :src="product.signed_image_url"
                       alt="Photo"
                       class="w-23 h-22 object-cover rounded shadow mx-auto"
-                    >
+                    />
                   </a>
                 </div>
                 <div v-else class="text-gray-400 italic">Aucune image</div>
@@ -1222,7 +1251,7 @@ onMounted(async () => {
                 :src="product.signed_image_url"
                 alt="Photo"
                 class="max-h-24 rounded shadow"
-              >
+              />
             </a>
           </div>
           <div v-else class="text-gray-400 italic text-center mb-2">

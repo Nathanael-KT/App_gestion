@@ -1,7 +1,8 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
-import { useRouter } from "vue-router";
-import { useMagasinStore } from "../../composables/useMagasinStore";
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
 const magasinStore = useMagasinStore();
 
 const supabase = useSupabaseClient();
@@ -21,19 +22,7 @@ useSeoMeta({
   description: "Création d'une facture avec produits externes",
 });
 
-// Utilisation du composable pour les paramètres de l'entreprise
-const { settings: companySettings, fetchCompanySettings } =
-  useCompanySettings();
-
 // Données de l'entreprise calculées
-const companyInfo = computed(() => ({
-  name: companySettings.value?.company_name || "Nom de l'entreprise",
-  address: companySettings.value?.company_address || "Adresse de l'entreprise",
-  phone: companySettings.value?.company_phone || "Téléphone",
-  email: companySettings.value?.company_email || "email@entreprise.com",
-  siret: companySettings.value?.company_siret || "N° SIRET",
-  vatNumber: companySettings.value?.vat_number || "N° TVA",
-}));
 
 // Données de la facture
 const invoiceData = ref({
@@ -110,14 +99,14 @@ const fetchClients = async () => {
   }
 };
 
-const magasinInfo = ref({ adresse: '', telephone: '' });
+const magasinInfo = ref({ adresse: "", telephone: "" });
 
 const fetchMagasinInfo = async () => {
   if (!magasinStore.magasinId) return;
   const { data, error } = await supabase
-    .from('magasins')
-    .select('adresse, telephone, email')
-    .eq('id', magasinStore.magasinId)
+    .from("magasins")
+    .select("adresse, telephone, email")
+    .eq("id", magasinStore.magasinId)
     .single();
   if (!error && data) {
     magasinInfo.value = data;
@@ -131,7 +120,6 @@ watch(
   },
   { immediate: true }
 );
-
 
 const addItem = () => {
   error.value = null;
@@ -334,7 +322,9 @@ const handleSubmit = async () => {
 };
 
 onMounted(async () => {
-  await Promise.all([fetchCompanySettings(), fetchClients()]);
+  if (isLoadingUser.value) await loadCurrentUser();
+  if (companyId.value) await fetchCompanySettings(companyId.value);
+  await fetchClients();
 });
 </script>
 
@@ -408,15 +398,62 @@ onMounted(async () => {
               <UIcon name="i-heroicons-building-office" class="w-5 h-5" />
               Émetteur
             </h3>
-            <div class="space-y-1 text-gray-600">
-              <p class="font-medium text-gray-800">{{ companyInfo.name }}</p>
-              <p>{{ magasinInfo.adresse }}</p>
-              <p>Tél: {{ magasinInfo.telephone }}</p>
-              <p>Email: {{ magasinInfo.email }}</p>
-              <p class="mt-2 pt-2 border-t border-gray-200">
-                SIRET: {{ companyInfo.siret }}
-              </p>
-              <p>N° TVA: {{ companyInfo.vatNumber }}</p>
+            <div class="space-y-4">
+              <div>
+                <h4 class="text-xl font-bold text-gray-900 dark:text-white">
+                  {{ companySettings?.company_name || "Nom de l'entreprise" }}
+                </h4>
+                <p class="text-sm text-gray-500 dark:text-gray-300 mt-1">
+                  {{ companySettings?.company_address || "Adresse du magasin" }}
+                </p>
+              </div>
+
+              <UDivider />
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                <div class="flex items-center gap-2">
+                  <UIcon
+                    name="i-heroicons-phone"
+                    class="w-4 h-4 text-primary-500"
+                  />
+                  <span class="font-medium text-gray-700 dark:text-gray-200">
+                    {{
+                      companySettings?.company_phone ||
+                      "Téléphone non renseigné"
+                    }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <UIcon
+                    name="i-heroicons-envelope"
+                    class="w-4 h-4 text-primary-500"
+                  />
+                  <span class="font-medium text-gray-700 dark:text-gray-200">
+                    {{
+                      companySettings?.company_email || "Email non renseigné"
+                    }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <UIcon
+                    name="i-heroicons-identification"
+                    class="w-4 h-4 text-primary-500"
+                  />
+                  <span class="font-medium text-gray-700 dark:text-gray-200">
+                    SIRET :
+                    {{ companySettings?.company_siret || "Non renseigné" }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <UIcon
+                    name="i-heroicons-document-text"
+                    class="w-4 h-4 text-primary-500"
+                  />
+                  <span class="font-medium text-gray-700 dark:text-gray-200">
+                    TVA : {{ companySettings?.company_tva || "Non renseigné" }}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -577,7 +614,7 @@ onMounted(async () => {
 
               <!-- Prix unitaire -->
               <div class="md:col-span-2">
-                <UFormGroup label="Prix unitaire (Fcfa) *">
+                <UFormGroup label="Prix unitaire ({{ companySettings?.currency }}) *">
                   <UInput
                     v-model.number="newItem.price"
                     type="number"
@@ -613,7 +650,7 @@ onMounted(async () => {
             >
               <p class="text-sm text-blue-700">
                 <span class="font-medium">Total de cet article :</span>
-                {{ (newItem.quantity * newItem.price).toFixed(2) }} Fcfa
+                {{ (newItem.quantity * newItem.price).toFixed(2) }} {{ companySettings?.currency }}
               </p>
             </div>
           </UCard>
@@ -673,12 +710,12 @@ onMounted(async () => {
                     {{ item.quantity }}
                   </td>
                   <td class="px-4 py-3 text-sm text-right text-gray-600">
-                    {{ item.price.toFixed(2) }} Fcfa
+                    {{ item.price.toFixed(2) }} {{ companySettings?.currency }}
                   </td>
                   <td
                     class="px-4 py-3 text-sm text-right font-medium text-gray-900"
                   >
-                    {{ item.total.toFixed(2) }} Fcfa
+                    {{ item.total.toFixed(2) }} {{ companySettings?.currency }}
                   </td>
                   <td class="px-4 py-3 text-center">
                     <div class="flex justify-center space-x-2">
@@ -720,16 +757,16 @@ onMounted(async () => {
           <div class="w-full max-w-md space-y-3 bg-gray-50 p-6 rounded-lg">
             <div class="flex justify-between text-gray-600">
               <span>Sous-total HT :</span>
-              <span class="font-medium">{{ subtotal.toFixed(2) }} Fcfa</span>
+              <span class="font-medium">{{ subtotal.toFixed(2) }} {{ companySettings?.currency }}</span>
             </div>
             <div class="flex justify-between text-gray-600">
               <span>TVA ({{ (taxRate.value * 100).toFixed(0) }}%) :</span>
-              <span class="font-medium">{{ taxAmount.toFixed(2) }} Fcfa</span>
+              <span class="font-medium">{{ taxAmount.toFixed(2) }} {{ companySettings?.currency }}</span>
             </div>
             <UDivider />
             <div class="flex justify-between text-lg font-bold text-gray-900">
               <span>Total TTC :</span>
-              <span>{{ total.toFixed(2) }} Fcfa</span>
+              <span>{{ total.toFixed(2) }} {{ companySettings?.currency }}</span>
             </div>
           </div>
         </div>

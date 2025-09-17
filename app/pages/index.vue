@@ -69,17 +69,6 @@
               >
                 Nouveau Client
               </UButton>
-              <UButton
-                :loading="loading"
-                icon="i-lucide-refresh-cw"
-                color="white"
-                variant="ghost"
-                size="lg"
-                class="border-white/30 hover:bg-white/10"
-                @click="loadDashboardData"
-              >
-                Actualiser
-              </UButton>
             </div>
           </div>
 
@@ -93,7 +82,7 @@
               <div class="flex justify-between items-center">
                 <span class="text-blue-100">Ventes du mois</span>
                 <span class="text-xl font-bold"
-                  >{{ monthSales.toLocaleString() }}Fcfa</span
+                  >{{ monthSales.toLocaleString() }} {{ companySettings?.currency }}</span
                 >
               </div>
               <div class="flex justify-between items-center">
@@ -224,7 +213,7 @@
             </div>
             <div class="text-right">
               <p class="text-2xl font-bold text-gray-900">
-                {{ monthSales.toLocaleString() }}Fcfa
+                {{ monthSales.toLocaleString() }} {{ companySettings?.currency }}
               </p>
               <p class="text-sm text-gray-500">CA du mois</p>
             </div>
@@ -719,6 +708,30 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useMagasinStore } from "../composables/useMagasinStore";
+import { useCurrentUser } from "../composables/useCurrentUser";
+import { useCompanySettings } from "../composables/useCompanySettings";
+// Helper pour valider l'id magasin
+function isValidMagasinId(id) {
+  return typeof id === "string" && id.trim() !== "";
+}
+
+const {
+  companyId,
+  isLoadingUser,
+  loadCurrentUser,
+} = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+    if (companyId.value) await fetchCompanySettings(companyId.value);
+
+  await fetchInvoices();
+});
 
 const { userRoles, userName, userEmail, userPhone } = useCurrentUser();
 const { getHighestRole } = useRoles();
@@ -742,15 +755,30 @@ const {
 // Reactive data
 const salesPeriod = ref("month");
 
-// Charger les données au montage du composant
+
+// Charger les données au montage du composant : attend que magasinId soit prêt
 onMounted(async () => {
-  await loadDashboardData(magasinStore.magasinId);
+  if (!isValidMagasinId(magasinStore.magasinId)) {
+    const stop = watch(
+      () => magasinStore.magasinId,
+      async (val) => {
+        if (isValidMagasinId(val)) {
+          await loadDashboardData(val);
+          stop();
+        }
+      }
+    );
+  } else {
+    await loadDashboardData(magasinStore.magasinId);
+  }
 });
 
 // Fonction pour changer la période du graphique
 const changeSalesPeriod = async (period) => {
   salesPeriod.value = period;
-  await fetchSalesData(period, magasinStore.magasinId);
+  if (isValidMagasinId(magasinStore.magasinId)) {
+    await fetchSalesData(period, magasinStore.magasinId);
+  }
 };
 
 // Computed properties
