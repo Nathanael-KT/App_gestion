@@ -4,7 +4,9 @@ import { useCurrentUser } from "../../composables/useCurrentUser";
 
 const supabase = useSupabaseClient();
 const toast = useToast();
-const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
+const { companyId, isLoadingUser, loadCurrentUser, currentUser } =
+  useCurrentUser();
+console.log("currentMagasin.id:", companyId);
 
 onMounted(async () => {
   if (isLoadingUser.value) {
@@ -26,6 +28,35 @@ const currentMagasin = reactive({
   telephone: "",
   email: "",
 });
+
+// modifier le magasin courant de l'utilisateur
+const switchMagasin = async (id) => {
+  if (!id) return;
+  loading.value = true;
+  error.value = null;
+  try {
+    const userId = currentUser.value?.id;
+    if (!userId) throw new Error("Utilisateur non connecté");
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ magasin_id: id })
+      .eq("id", userId);
+    if (updateError) throw updateError;
+    toast.add({
+      title: "Magasin changé",
+      description: "Le magasin courant a été mis à jour.",
+      color: "green",
+    });
+    await loadCurrentUser(); // Recharger les infos utilisateur
+  } catch (err) {
+    error.value = err.message;
+    toast.add({ title: "Erreur", description: err.message, color: "red" });
+  } finally {
+    loading.value = false;
+  }
+  // Rafraichir la page pour appliquer le changement
+  window.location.reload();
+};
 
 // Charger la liste des magasins
 const loadMagasins = async () => {
@@ -159,6 +190,7 @@ const saveMagasin = async () => {
     loading.value = false;
   }
 };
+console.log("currentMagasin.id:", currentMagasin.id);
 
 // Supprimer un magasin
 const deleteMagasin = async (id) => {
@@ -276,7 +308,7 @@ onMounted(loadMagasins);
                 >
                 <UButton
                   icon="i-heroicons-arrow-path"
-                  color="blue"
+                  color="primary"
                   variant="soft"
                   size="sm"
                   class="rounded-full"
