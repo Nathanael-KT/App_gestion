@@ -1,5 +1,6 @@
 import { useCurrentUser } from "./useCurrentUser";
 import { useCompanySettings } from "./useCompanySettings";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let jsPDF: any = null;
 if (typeof window !== "undefined") {
   try {

@@ -1,3 +1,5 @@
+<!-- eslint-disable vue/html-self-closing -->
+<!-- eslint-disable vue/attributes-order -->
 <template>
   <div class="vente-page pro">
     <!-- Hero Section -->

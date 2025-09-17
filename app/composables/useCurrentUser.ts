@@ -64,6 +64,7 @@ export const useCurrentUser = () => {
           // Utilisateur trouvé par email, mettre à jour auth_user_id
 
           const { data: updatedData, error: updateError } = await (
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             supabase as any
           )
             .from("users")

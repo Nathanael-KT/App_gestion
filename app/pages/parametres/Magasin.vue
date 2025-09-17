@@ -274,6 +274,15 @@ onMounted(loadMagasins);
                   @click="deleteMagasin(magasin.id)"
                   >Supprimer</UButton
                 >
+                <UButton
+                  icon="i-heroicons-arrow-path"
+                  color="blue"
+                  variant="soft"
+                  size="sm"
+                  class="rounded-full"
+                  @click="switchMagasin(magasin.id)"
+                  >Basculer</UButton
+                >
               </td>
             </tr>
             <tr v-if="magasins.length === 0">

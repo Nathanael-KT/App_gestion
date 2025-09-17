@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { readonly, ref } from "vue";
 
 interface Activity {
   type: string;
@@ -462,3 +462,4 @@ export const useDashboardData = () => {
     refreshData,
   };
 };
+

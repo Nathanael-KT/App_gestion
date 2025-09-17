@@ -3,6 +3,7 @@
 import { useMagasinStore } from "../../composables/useMagasinStore";
 import { useCurrentUser } from "../../composables/useCurrentUser";
 import { useCompanySettings } from "../../composables/useCompanySettings";
+import NotificationMenu from "../../components/NotificationMenu.vue";
 
 const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
@@ -1641,457 +1642,602 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="container mx-auto px-4 py-2">
-    <!-- Header -->
-    <!-- Blocage simple pour les magasiniers -->
-    <div v-if="userRoles?.includes('magasinier')" class="text-center py-12">
-      <UIcon
-        name="i-heroicons-exclamation-triangle"
-        class="w-16 h-16 text-red-500 mx-auto mb-4"
-      />
-      <h2 class="text-xl font-bold text-red-600 mb-2">Accès refusé</h2>
-      <p class="text-gray-600 mb-4">
-        Cette action est réservée aux administrateurs et magasiniers.
-      </p>
-      <UButton label="Retour" to="/" />
-    </div>
-
-    <!-- Contenu normal -->
-    <div v-else>
-      <div
-        class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4"
-      >
-        <div>
-          <h1 class="text-3xl font-bold text-gray-800">Caisse</h1>
-          <p class="text-gray-600 mt-1">Gestion des ventes journalières</p>
-        </div>
-
-        <div class="flex flex-col sm:flex-row gap-3">
-          <!-- Sélecteur de date -->
-          <UInput
-            v-model="selectedDate"
-            type="date"
-            size="sm"
-            icon="i-heroicons-calendar-days"
-            class="w-full sm:w-auto"
-          />
-
-          <!-- Actions de caisse -->
-          <div class="flex flex-wrap gap-2">
-            <!-- Entrée d'argent -->
-            <UButton
-              icon="i-heroicons-arrow-up-circle"
-              color="green"
-              variant="outline"
-              size="sm"
-              :disabled="hasCountForDate"
-              class="flex-1 sm:flex-none"
-              @click="openCashInModal"
-            >
-              <span class="hidden sm:inline">Entrée</span>
-            </UButton>
-
-            <!-- Sortie d'argent -->
-            <UButton
-              icon="i-heroicons-arrow-down-circle"
-              color="red"
-              variant="outline"
-              size="sm"
-              :disabled="hasCountForDate"
-              class="flex-1 sm:flex-none"
-              @click="openCashOutModal"
-            >
-              <span class="hidden sm:inline">Sortie</span>
-            </UButton>
-
-            <!-- Historique -->
-            <UButton
-              icon="i-heroicons-clock"
-              color="gray"
-              variant="outline"
-              size="sm"
-              class="flex-1 sm:flex-none"
-              @click="openHistoryModal"
-            >
-              <span class="hidden sm:inline">Historique</span>
-            </UButton>
-
-            <!-- Comptage de caisse -->
-            <UButton
-              icon="i-heroicons-calculator"
-              color="orange"
-              variant="outline"
-              size="sm"
-              class="flex-1 sm:flex-none"
-              :disabled="hasCountForDate"
-              @click="openCashCountModal"
-            >
-              <span class="hidden sm:inline">{{
-                hasCountForDate ? "Modifier Comptage" : "Comptage"
-              }}</span>
-            </UButton>
-
-            <!-- Résumé journalier (Z) -->
-            <UButton
-              icon="i-heroicons-document-chart-bar"
-              color="purple"
-              variant="outline"
-              size="sm"
-              class="flex-1 sm:flex-none"
-              @click="openDailySummaryModal"
-            >
-              <span class="hidden sm:inline">Rapport Z</span>
-            </UButton>
-
-            <!-- Export -->
-            <UButton
-              icon="i-heroicons-arrow-down-tray"
-              color="gray"
-              variant="outline"
-              size="sm"
-              class="flex-1 sm:flex-none"
-              @click="exportCashReport"
-            >
-              <span class="hidden sm:inline">Exporter</span>
-            </UButton>
-
-            <!-- Actualiser -->
-            <UButton
-              :disabled="loading"
-              icon="i-lucide-refresh-cw"
-              :class="{ 'animate-spin': loading }"
-              color="gray"
-              variant="outline"
-              size="sm"
-              class="flex-1 sm:flex-none"
-              @click="loadDailySales"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Loading -->
-      <div v-if="loading" class="flex justify-center items-center py-12">
-        <div
-          class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"
+  <div>
+    <NotificationMenu :has-count-for-date="hasCountForDate" />
+    <div class="container mx-auto px-4 py-2">
+      <!-- Header -->
+      <!-- Blocage simple pour les magasiniers -->
+      <div v-if="userRoles?.includes('magasinier')" class="text-center py-12">
+        <UIcon
+          name="i-heroicons-exclamation-triangle"
+          class="w-16 h-16 text-red-500 mx-auto mb-4"
         />
+        <h2 class="text-xl font-bold text-red-600 mb-2">Accès refusé</h2>
+        <p class="text-gray-600 mb-4">
+          Cette action est réservée aux administrateurs et magasiniers.
+        </p>
+        <UButton label="Retour" to="/" />
       </div>
 
-      <!-- Erreur -->
-      <div
-        v-if="error"
-        class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded"
-      >
-        <p>{{ error }}</p>
-      </div>
-
-      <div v-if="!loading && !error">
-        <!-- Statistiques du jour -->
+      <!-- Contenu normal -->
+      <div v-else>
         <div
-          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 lg:gap-6 mb-6 lg:mb-8"
+          class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4"
         >
-          <!-- Chiffre d'affaires -->
-          <div
-            class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 lg:p-6 rounded-lg shadow-lg"
-          >
-            <div class="flex items-center justify-between">
-              <div class="min-w-0 flex-1">
-                <h3
-                  class="text-blue-100 text-xs lg:text-sm font-medium truncate"
-                >
-                  Chiffre d'Affaires
-                </h3>
-                <p class="text-xl lg:text-2xl font-bold truncate">
-                  {{ formatCurrency(todayStats.totalSales) }}
-                </p>
-                <p class="text-blue-200 text-xs lg:text-sm truncate">
-                  {{ todayStats.totalInvoices }} vente{{
-                    todayStats.totalInvoices > 1 ? "s" : ""
-                  }}
-                </p>
-              </div>
-              <UIcon
-                name="i-heroicons-currency-euro"
-                class="w-6 h-6 lg:w-8 lg:h-8 text-blue-200 flex-shrink-0"
-              />
-            </div>
+          <div>
+            <h1 class="text-3xl font-bold text-gray-800">Caisse</h1>
+            <p class="text-gray-600 mt-1">Gestion des ventes journalières</p>
           </div>
 
-          <!-- Espèces Ventes -->
-          <div
-            class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 lg:p-6 rounded-lg shadow-lg"
-          >
-            <div class="flex items-center justify-between">
-              <div class="min-w-0 flex-1">
-                <h3
-                  class="text-green-100 text-xs lg:text-sm font-medium truncate"
-                >
-                  Espèces Ventes
-                </h3>
-                <p class="text-xl lg:text-2xl font-bold truncate">
-                  {{ formatCurrency(todayStats.totalCash) }}
-                </p>
-                <p class="text-green-200 text-xs lg:text-sm truncate">
-                  {{
-                    Math.round(
-                      (todayStats.totalCash / todayStats.totalSales) * 100
-                    ) || 0
-                  }}% du CA
-                </p>
-              </div>
-              <UIcon
-                name="i-heroicons-banknotes"
-                class="w-6 h-6 lg:w-8 lg:h-8 text-green-200 flex-shrink-0"
-              />
-            </div>
-          </div>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <!-- Sélecteur de date -->
+            <UInput
+              v-model="selectedDate"
+              type="date"
+              size="sm"
+              icon="i-heroicons-calendar-days"
+              class="w-full sm:w-auto"
+            />
 
-          <!-- Entrées d'Argent -->
-          <div
-            class="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white p-4 lg:p-6 rounded-lg shadow-lg"
-          >
-            <div class="flex items-center justify-between">
-              <div class="min-w-0 flex-1">
-                <h3
-                  class="text-emerald-100 text-xs lg:text-sm font-medium truncate"
-                >
-                  Entrées
-                </h3>
-                <p class="text-xl lg:text-2xl font-bold truncate">
-                  {{ formatCurrency(todayStats.cashIn) }}
-                </p>
-                <p class="text-emerald-200 text-xs lg:text-sm truncate">
-                  Ajouts caisse
-                </p>
-              </div>
-              <UIcon
-                name="i-heroicons-arrow-up-circle"
-                class="w-6 h-6 lg:w-8 lg:h-8 text-emerald-200 flex-shrink-0"
-              />
-            </div>
-          </div>
+            <!-- Actions de caisse -->
+            <div class="flex flex-wrap gap-2">
+              <!-- Entrée d'argent -->
+              <UButton
+                icon="i-heroicons-arrow-up-circle"
+                color="green"
+                variant="outline"
+                size="sm"
+                :disabled="hasCountForDate"
+                class="flex-1 sm:flex-none"
+                @click="openCashInModal"
+              >
+                <span class="hidden sm:inline">Entrée</span>
+              </UButton>
 
-          <!-- Sorties d'Argent -->
-          <div
-            class="bg-gradient-to-r from-red-500 to-red-600 text-white p-4 lg:p-6 rounded-lg shadow-lg"
-          >
-            <div class="flex items-center justify-between">
-              <div class="min-w-0 flex-1">
-                <h3
-                  class="text-red-100 text-xs lg:text-sm font-medium truncate"
-                >
-                  Sorties
-                </h3>
-                <p class="text-xl lg:text-2xl font-bold truncate">
-                  {{ formatCurrency(todayStats.cashOut) }}
-                </p>
-                <p class="text-red-200 text-xs lg:text-sm truncate">
-                  Retraits caisse
-                </p>
-              </div>
-              <UIcon
-                name="i-heroicons-arrow-down-circle"
-                class="w-6 h-6 lg:w-8 lg:h-8 text-red-200 flex-shrink-0"
-              />
-            </div>
-          </div>
+              <!-- Sortie d'argent -->
+              <UButton
+                icon="i-heroicons-arrow-down-circle"
+                color="red"
+                variant="outline"
+                size="sm"
+                :disabled="hasCountForDate"
+                class="flex-1 sm:flex-none"
+                @click="openCashOutModal"
+              >
+                <span class="hidden sm:inline">Sortie</span>
+              </UButton>
 
-          <!-- Argent Théorique en Caisse -->
-          <div
-            class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 lg:p-6 rounded-lg shadow-lg relative"
-          >
-            <!-- Indicateur de comptage fait -->
-            <div
-              v-if="hasCountForDate"
-              class="absolute top-1 right-1 lg:top-2 lg:right-2 bg-green-400 text-green-800 px-1 lg:px-2 py-1 rounded-full text-xs font-medium"
-            >
-              ✓ Compté
-            </div>
+              <!-- Historique -->
+              <UButton
+                icon="i-heroicons-clock"
+                color="gray"
+                variant="outline"
+                size="sm"
+                class="flex-1 sm:flex-none"
+                @click="openHistoryModal"
+              >
+                <span class="hidden sm:inline">Historique</span>
+              </UButton>
 
-            <div class="flex items-center justify-between">
-              <div class="min-w-0 flex-1 pr-2">
-                <h3
-                  class="text-purple-100 text-xs lg:text-sm font-medium truncate"
-                >
-                  {{ hasCountForDate ? "Caisse Comptée" : "Caisse Théorique" }}
-                </h3>
-                <p class="text-xl lg:text-2xl font-bold truncate">
-                  {{
-                    hasCountForDate && selectedDateCashCount
-                      ? formatCurrency(selectedDateCashCount.actual_amount)
-                      : formatCurrency(todayStats.expectedCash)
-                  }}
-                </p>
-                <p class="text-purple-200 text-xs lg:text-sm truncate">
-                  {{ hasCountForDate ? "Comptage effectué" : "À compter" }}
-                </p>
-              </div>
-              <UIcon
-                name="i-heroicons-calculator"
-                class="w-6 h-6 lg:w-8 lg:h-8 text-purple-200 flex-shrink-0"
+              <!-- Comptage de caisse -->
+              <UButton
+                icon="i-heroicons-calculator"
+                color="orange"
+                variant="outline"
+                size="sm"
+                class="flex-1 sm:flex-none"
+                :disabled="hasCountForDate"
+                @click="openCashCountModal"
+              >
+                <span class="hidden sm:inline">{{
+                  hasCountForDate ? "Modifier Comptage" : "Comptage"
+                }}</span>
+              </UButton>
+
+              <!-- Résumé journalier (Z) -->
+              <UButton
+                icon="i-heroicons-document-chart-bar"
+                color="purple"
+                variant="outline"
+                size="sm"
+                class="flex-1 sm:flex-none"
+                @click="openDailySummaryModal"
+              >
+                <span class="hidden sm:inline">Rapport Z</span>
+              </UButton>
+
+              <!-- Export -->
+              <UButton
+                icon="i-heroicons-arrow-down-tray"
+                color="gray"
+                variant="outline"
+                size="sm"
+                class="flex-1 sm:flex-none"
+                @click="exportCashReport"
+              >
+                <span class="hidden sm:inline">Exporter</span>
+              </UButton>
+
+              <!-- Actualiser -->
+              <UButton
+                :disabled="loading"
+                icon="i-lucide-refresh-cw"
+                :class="{ 'animate-spin': loading }"
+                color="gray"
+                variant="outline"
+                size="sm"
+                class="flex-1 sm:flex-none"
+                @click="loadDailySales"
               />
             </div>
           </div>
         </div>
 
-        <!-- Encaissement -->
-        <div class="bg-white rounded-lg shadow-md">
-          <div class="p-6 border-b border-gray-200">
-            <h3
-              class="text-lg font-semibold text-gray-800 flex items-center gap-2"
+        <!-- Loading -->
+        <div v-if="loading" class="flex justify-center items-center py-12">
+          <div
+            class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"
+          />
+        </div>
+
+        <!-- Erreur -->
+        <div
+          v-if="error"
+          class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded"
+        >
+          <p>{{ error }}</p>
+        </div>
+
+        <div v-if="!loading && !error">
+          <!-- Statistiques du jour -->
+          <div
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-4 lg:gap-6 mb-6 lg:mb-8"
+          >
+            <!-- Chiffre d'affaires -->
+            <div
+              class="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 lg:p-6 rounded-lg shadow-lg"
             >
-              <UIcon
-                name="i-heroicons-list-bullet"
-                class="w-5 h-5 text-blue-500"
-              />
-              Encaissement du {{ formatDate(selectedDate) }}
-            </h3>
+              <div class="flex items-center justify-between">
+                <div class="min-w-0 flex-1">
+                  <h3
+                    class="text-blue-100 text-xs lg:text-sm font-medium truncate"
+                  >
+                    Chiffre d'Affaires
+                  </h3>
+                  <p class="text-xl lg:text-2xl font-bold truncate">
+                    {{ formatCurrency(todayStats.totalSales) }}
+                  </p>
+                  <p class="text-blue-200 text-xs lg:text-sm truncate">
+                    {{ todayStats.totalInvoices }} vente{{
+                      todayStats.totalInvoices > 1 ? "s" : ""
+                    }}
+                  </p>
+                </div>
+                <UIcon
+                  name="i-heroicons-currency-euro"
+                  class="w-6 h-6 lg:w-8 lg:h-8 text-blue-200 flex-shrink-0"
+                />
+              </div>
+            </div>
+
+            <!-- Espèces Ventes -->
+            <div
+              class="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 lg:p-6 rounded-lg shadow-lg"
+            >
+              <div class="flex items-center justify-between">
+                <div class="min-w-0 flex-1">
+                  <h3
+                    class="text-green-100 text-xs lg:text-sm font-medium truncate"
+                  >
+                    Espèces Ventes
+                  </h3>
+                  <p class="text-xl lg:text-2xl font-bold truncate">
+                    {{ formatCurrency(todayStats.totalCash) }}
+                  </p>
+                  <p class="text-green-200 text-xs lg:text-sm truncate">
+                    {{
+                      Math.round(
+                        (todayStats.totalCash / todayStats.totalSales) * 100
+                      ) || 0
+                    }}% du CA
+                  </p>
+                </div>
+                <UIcon
+                  name="i-heroicons-banknotes"
+                  class="w-6 h-6 lg:w-8 lg:h-8 text-green-200 flex-shrink-0"
+                />
+              </div>
+            </div>
+
+            <!-- Entrées d'Argent -->
+            <div
+              class="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white p-4 lg:p-6 rounded-lg shadow-lg"
+            >
+              <div class="flex items-center justify-between">
+                <div class="min-w-0 flex-1">
+                  <h3
+                    class="text-emerald-100 text-xs lg:text-sm font-medium truncate"
+                  >
+                    Entrées
+                  </h3>
+                  <p class="text-xl lg:text-2xl font-bold truncate">
+                    {{ formatCurrency(todayStats.cashIn) }}
+                  </p>
+                  <p class="text-emerald-200 text-xs lg:text-sm truncate">
+                    Ajouts caisse
+                  </p>
+                </div>
+                <UIcon
+                  name="i-heroicons-arrow-up-circle"
+                  class="w-6 h-6 lg:w-8 lg:h-8 text-emerald-200 flex-shrink-0"
+                />
+              </div>
+            </div>
+
+            <!-- Sorties d'Argent -->
+            <div
+              class="bg-gradient-to-r from-red-500 to-red-600 text-white p-4 lg:p-6 rounded-lg shadow-lg"
+            >
+              <div class="flex items-center justify-between">
+                <div class="min-w-0 flex-1">
+                  <h3
+                    class="text-red-100 text-xs lg:text-sm font-medium truncate"
+                  >
+                    Sorties
+                  </h3>
+                  <p class="text-xl lg:text-2xl font-bold truncate">
+                    {{ formatCurrency(todayStats.cashOut) }}
+                  </p>
+                  <p class="text-red-200 text-xs lg:text-sm truncate">
+                    Retraits caisse
+                  </p>
+                </div>
+                <UIcon
+                  name="i-heroicons-arrow-down-circle"
+                  class="w-6 h-6 lg:w-8 lg:h-8 text-red-200 flex-shrink-0"
+                />
+              </div>
+            </div>
+
+            <!-- Argent Théorique en Caisse -->
+            <div
+              class="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 lg:p-6 rounded-lg shadow-lg relative"
+            >
+              <!-- Indicateur de comptage fait -->
+              <div
+                v-if="hasCountForDate"
+                class="absolute top-1 right-1 lg:top-2 lg:right-2 bg-green-400 text-green-800 px-1 lg:px-2 py-1 rounded-full text-xs font-medium"
+              >
+                ✓ Compté
+              </div>
+
+              <div class="flex items-center justify-between">
+                <div class="min-w-0 flex-1 pr-2">
+                  <h3
+                    class="text-purple-100 text-xs lg:text-sm font-medium truncate"
+                  >
+                    {{
+                      hasCountForDate ? "Caisse Comptée" : "Caisse Théorique"
+                    }}
+                  </h3>
+                  <p class="text-xl lg:text-2xl font-bold truncate">
+                    {{
+                      hasCountForDate && selectedDateCashCount
+                        ? formatCurrency(selectedDateCashCount.actual_amount)
+                        : formatCurrency(todayStats.expectedCash)
+                    }}
+                  </p>
+                  <p class="text-purple-200 text-xs lg:text-sm truncate">
+                    {{ hasCountForDate ? "Comptage effectué" : "À compter" }}
+                  </p>
+                </div>
+                <UIcon
+                  name="i-heroicons-calculator"
+                  class="w-6 h-6 lg:w-8 lg:h-8 text-purple-200 flex-shrink-0"
+                />
+              </div>
+            </div>
           </div>
 
-          <div v-if="dailySales.length">
-            <!-- Vue desktop/tablette -->
-            <div class="hidden md:block overflow-x-auto">
-              <table class="min-w-full">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th
-                      class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+          <!-- Encaissement -->
+          <div class="bg-white rounded-lg shadow-md">
+            <div class="p-6 border-b border-gray-200">
+              <h3
+                class="text-lg font-semibold text-gray-800 flex items-center gap-2"
+              >
+                <UIcon
+                  name="i-heroicons-list-bullet"
+                  class="w-5 h-5 text-blue-500"
+                />
+                Encaissement du {{ formatDate(selectedDate) }}
+              </h3>
+            </div>
+
+            <div v-if="dailySales.length">
+              <!-- Vue desktop/tablette -->
+              <div class="hidden md:block overflow-x-auto">
+                <table class="min-w-full">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th
+                        class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Heure
+                      </th>
+                      <th
+                        class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                      >
+                        N° Facture
+                      </th>
+                      <th
+                        class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Client
+                      </th>
+                      <th
+                        class="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Articles
+                      </th>
+                      <th
+                        class="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Total
+                      </th>
+                      <th
+                        class="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Statut
+                      </th>
+                      <th
+                        class="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Paiement
+                      </th>
+                      <th
+                        class="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-200">
+                    <tr
+                      v-for="sale in dailySales"
+                      :key="sale.id"
+                      class="hover:bg-gray-50"
                     >
-                      Heure
-                    </th>
-                    <th
-                      class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >
-                      N° Facture
-                    </th>
-                    <th
-                      class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
-                    >
-                      Client
-                    </th>
-                    <th
-                      class="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase"
-                    >
-                      Articles
-                    </th>
-                    <th
-                      class="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase"
-                    >
-                      Total
-                    </th>
-                    <th
-                      class="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase"
-                    >
-                      Statut
-                    </th>
-                    <th
-                      class="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase"
-                    >
-                      Paiement
-                    </th>
-                    <th
-                      class="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase"
-                    >
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                  <tr
-                    v-for="sale in dailySales"
-                    :key="sale.id"
-                    class="hover:bg-gray-50"
-                  >
-                    <td class="px-4 lg:px-6 py-4 text-sm text-gray-500">
-                      {{ formatTime(sale.created_at) }}
-                    </td>
-                    <td
-                      class="px-4 lg:px-6 py-4 text-sm font-medium text-gray-900"
-                    >
-                      #{{ sale.reference || sale.id }}
-                    </td>
-                    <td class="px-4 lg:px-6 py-4 text-sm text-gray-500">
-                      <div>
-                        <p class="font-medium">{{ sale.clients?.name }}</p>
-                        <p
-                          class="text-xs text-gray-400 flex items-center gap-1"
-                        >
-                          {{ sale.clients?.email }}
-                          <UBadge
+                      <td class="px-4 lg:px-6 py-4 text-sm text-gray-500">
+                        {{ formatTime(sale.created_at) }}
+                      </td>
+                      <td
+                        class="px-4 lg:px-6 py-4 text-sm font-medium text-gray-900"
+                      >
+                        #{{ sale.reference || sale.id }}
+                      </td>
+                      <td class="px-4 lg:px-6 py-4 text-sm text-gray-500">
+                        <div>
+                          <p class="font-medium">{{ sale.clients?.name }}</p>
+                          <p
+                            class="text-xs text-gray-400 flex items-center gap-1"
+                          >
+                            {{ sale.clients?.email }}
+                            <UBadge
+                              v-if="
+                                sale.is_external ||
+                                sale.invoice_items?.some(
+                                  (item) => item.is_external
+                                )
+                              "
+                              color="purple"
+                              variant="soft"
+                              size="xs"
+                            >
+                              Prod. externes
+                            </UBadge>
+                          </p>
+                        </div>
+                      </td>
+                      <td
+                        class="px-4 lg:px-6 py-4 text-sm text-center text-gray-500"
+                      >
+                        <div class="flex items-center justify-center gap-1">
+                          <span>{{ sale.invoice_items?.length || 0 }}</span>
+                          <div
                             v-if="
-                              sale.is_external ||
                               sale.invoice_items?.some(
                                 (item) => item.is_external
                               )
                             "
-                            color="purple"
-                            variant="soft"
-                            size="xs"
+                            class="flex flex-col"
                           >
-                            Prod. externes
-                          </UBadge>
-                        </p>
-                      </div>
-                    </td>
-                    <td
-                      class="px-4 lg:px-6 py-4 text-sm text-center text-gray-500"
-                    >
-                      <div class="flex items-center justify-center gap-1">
-                        <span>{{ sale.invoice_items?.length || 0 }}</span>
+                            <span class="text-xs text-purple-600">
+                              ({{
+                                sale.invoice_items?.filter(
+                                  (item) => item.is_external
+                                ).length
+                              }}
+                              ext.)
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td
+                        class="px-4 lg:px-6 py-4 text-sm text-right font-semibold text-gray-900"
+                      >
+                        {{ formatCurrency(sale.total) }}
+                      </td>
+                      <td class="px-4 lg:px-6 py-4 text-center">
+                        <UBadge
+                          :color="
+                            sale.status === 'paid'
+                              ? 'green'
+                              : sale.status === 'pending'
+                              ? 'orange'
+                              : 'red'
+                          "
+                          variant="soft"
+                          size="xs"
+                        >
+                          {{
+                            sale.status === "paid"
+                              ? "Payé"
+                              : sale.status === "pending"
+                              ? "En attente"
+                              : "Brouillon"
+                          }}
+                        </UBadge>
+                      </td>
+                      <td class="px-4 lg:px-6 py-4 text-center">
                         <div
                           v-if="
-                            sale.invoice_items?.some((item) => item.is_external)
+                            getPaymentsForSelectedDate(sale.payments).length
                           "
-                          class="flex flex-col"
+                          class="flex flex-col gap-1"
                         >
-                          <span class="text-xs text-purple-600">
-                            ({{
-                              sale.invoice_items?.filter(
-                                (item) => item.is_external
-                              ).length
-                            }}
-                            ext.)
-                          </span>
+                          <div
+                            v-for="salePayment in getPaymentsForSelectedDate(
+                              sale.payments
+                            )"
+                            :key="salePayment.id"
+                            class="flex items-center justify-center gap-1"
+                          >
+                            <UIcon
+                              :name="
+                                getPaymentMethodInfo(salePayment.payment_method)
+                                  .icon
+                              "
+                              class="w-3 h-3"
+                              :class="`text-${
+                                getPaymentMethodInfo(salePayment.payment_method)
+                                  .color
+                              }-500`"
+                            />
+                            <span class="text-xs">{{
+                              formatCurrency(salePayment.amount)
+                            }}</span>
+                          </div>
                         </div>
+                        <span
+                          v-else
+                          class="text-xs"
+                          :class="{
+                            'text-gray-400':
+                              getPaymentStatusMessage(sale) ===
+                              `Aucun paiement le ${formatDate(selectedDate)}`,
+                            'text-orange-500':
+                              getPaymentStatusMessage(sale) ===
+                              'Facture non payée',
+                          }"
+                        >
+                          {{ getPaymentStatusMessage(sale) }}
+                        </span>
+                      </td>
+                      <td class="px-4 lg:px-6 py-4 text-center">
+                        <div class="flex items-center justify-center gap-1">
+                          <UButton
+                            v-if="sale.status !== 'paid'"
+                            size="xs"
+                            color="green"
+                            variant="soft"
+                            icon="i-heroicons-currency-euro"
+                            @click="openPaymentModal(sale)"
+                          />
+                          <UButton
+                            size="xs"
+                            color="blue"
+                            variant="soft"
+                            icon="i-heroicons-printer"
+                            @click="printReceipt(sale)"
+                          />
+                          <UButton
+                            v-if="sale.status === 'paid'"
+                            size="xs"
+                            color="red"
+                            variant="soft"
+                            icon="i-heroicons-arrow-uturn-left"
+                            @click="openRefundModal(sale)"
+                          />
+                          <NuxtLink
+                            :to="`/facture/${sale.id}`"
+                            class="inline-flex"
+                          >
+                            <UButton
+                              size="xs"
+                              color="gray"
+                              variant="soft"
+                              icon="i-heroicons-eye"
+                            />
+                          </NuxtLink>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Vue mobile -->
+              <div class="md:hidden space-y-4">
+                <div
+                  v-for="sale in dailySales"
+                  :key="sale.id"
+                  class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
+                >
+                  <div class="flex items-start justify-between mb-3">
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2 mb-1">
+                        <span class="text-sm font-medium text-gray-900">
+                          #{{ sale.reference || sale.id }}
+                        </span>
+                        <UBadge
+                          :color="
+                            sale.status === 'paid'
+                              ? 'green'
+                              : sale.status === 'pending'
+                              ? 'orange'
+                              : 'red'
+                          "
+                          variant="soft"
+                          size="xs"
+                        >
+                          {{
+                            sale.status === "paid"
+                              ? "Payé"
+                              : sale.status === "pending"
+                              ? "En attente"
+                              : "Brouillon"
+                          }}
+                        </UBadge>
                       </div>
-                    </td>
-                    <td
-                      class="px-4 lg:px-6 py-4 text-sm text-right font-semibold text-gray-900"
-                    >
-                      {{ formatCurrency(sale.total) }}
-                    </td>
-                    <td class="px-4 lg:px-6 py-4 text-center">
-                      <UBadge
-                        :color="
-                          sale.status === 'paid'
-                            ? 'green'
-                            : sale.status === 'pending'
-                            ? 'orange'
-                            : 'red'
-                        "
-                        variant="soft"
-                        size="xs"
-                      >
-                        {{
-                          sale.status === "paid"
-                            ? "Payé"
-                            : sale.status === "pending"
-                            ? "En attente"
-                            : "Brouillon"
-                        }}
-                      </UBadge>
-                    </td>
-                    <td class="px-4 lg:px-6 py-4 text-center">
+                      <p class="text-sm text-gray-600">
+                        {{ sale.clients?.name }}
+                      </p>
+                      <p class="text-xs text-gray-400">
+                        {{ formatTime(sale.created_at) }}
+                      </p>
+                    </div>
+                    <div class="text-right">
+                      <p class="text-lg font-semibold text-gray-900">
+                        {{ formatCurrency(sale.total) }}
+                      </p>
+                      <p class="text-xs text-gray-500">
+                        {{ sale.invoice_items?.length || 0 }} article(s)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center justify-between">
+                    <div class="flex-1">
                       <div
                         v-if="getPaymentsForSelectedDate(sale.payments).length"
-                        class="flex flex-col gap-1"
+                        class="flex flex-wrap gap-1"
                       >
                         <div
                           v-for="salePayment in getPaymentsForSelectedDate(
                             sale.payments
                           )"
                           :key="salePayment.id"
-                          class="flex items-center justify-center gap-1"
+                          class="flex items-center gap-1"
                         >
                           <UIcon
                             :name="
@@ -2104,7 +2250,7 @@ onMounted(async () => {
                                 .color
                             }-500`"
                           />
-                          <span class="text-xs">{{
+                          <span class="text-xs text-gray-600">{{
                             formatCurrency(salePayment.amount)
                           }}</span>
                         </div>
@@ -2123,1307 +2269,1187 @@ onMounted(async () => {
                       >
                         {{ getPaymentStatusMessage(sale) }}
                       </span>
-                    </td>
-                    <td class="px-4 lg:px-6 py-4 text-center">
-                      <div class="flex items-center justify-center gap-1">
-                        <UButton
-                          v-if="sale.status !== 'paid'"
-                          size="xs"
-                          color="green"
-                          variant="soft"
-                          icon="i-heroicons-currency-euro"
-                          @click="openPaymentModal(sale)"
-                        />
-                        <UButton
-                          size="xs"
-                          color="blue"
-                          variant="soft"
-                          icon="i-heroicons-printer"
-                          @click="printReceipt(sale)"
-                        />
-                        <UButton
-                          v-if="sale.status === 'paid'"
-                          size="xs"
-                          color="red"
-                          variant="soft"
-                          icon="i-heroicons-arrow-uturn-left"
-                          @click="openRefundModal(sale)"
-                        />
-                        <NuxtLink
-                          :to="`/facture/${sale.id}`"
-                          class="inline-flex"
-                        >
-                          <UButton
-                            size="xs"
-                            color="gray"
-                            variant="soft"
-                            icon="i-heroicons-eye"
-                          />
-                        </NuxtLink>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                    </div>
 
-            <!-- Vue mobile -->
-            <div class="md:hidden space-y-4">
-              <div
-                v-for="sale in dailySales"
-                :key="sale.id"
-                class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
-              >
-                <div class="flex items-start justify-between mb-3">
-                  <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-1">
-                      <span class="text-sm font-medium text-gray-900">
-                        #{{ sale.reference || sale.id }}
-                      </span>
-                      <UBadge
-                        :color="
-                          sale.status === 'paid'
-                            ? 'green'
-                            : sale.status === 'pending'
-                            ? 'orange'
-                            : 'red'
-                        "
-                        variant="soft"
+                    <div class="flex items-center gap-1">
+                      <UButton
+                        v-if="sale.status !== 'paid'"
                         size="xs"
-                      >
-                        {{
-                          sale.status === "paid"
-                            ? "Payé"
-                            : sale.status === "pending"
-                            ? "En attente"
-                            : "Brouillon"
-                        }}
-                      </UBadge>
-                    </div>
-                    <p class="text-sm text-gray-600">
-                      {{ sale.clients?.name }}
-                    </p>
-                    <p class="text-xs text-gray-400">
-                      {{ formatTime(sale.created_at) }}
-                    </p>
-                  </div>
-                  <div class="text-right">
-                    <p class="text-lg font-semibold text-gray-900">
-                      {{ formatCurrency(sale.total) }}
-                    </p>
-                    <p class="text-xs text-gray-500">
-                      {{ sale.invoice_items?.length || 0 }} article(s)
-                    </p>
-                  </div>
-                </div>
-
-                <div class="flex items-center justify-between">
-                  <div class="flex-1">
-                    <div
-                      v-if="getPaymentsForSelectedDate(sale.payments).length"
-                      class="flex flex-wrap gap-1"
-                    >
-                      <div
-                        v-for="salePayment in getPaymentsForSelectedDate(
-                          sale.payments
-                        )"
-                        :key="salePayment.id"
-                        class="flex items-center gap-1"
-                      >
-                        <UIcon
-                          :name="
-                            getPaymentMethodInfo(salePayment.payment_method)
-                              .icon
-                          "
-                          class="w-3 h-3"
-                          :class="`text-${
-                            getPaymentMethodInfo(salePayment.payment_method)
-                              .color
-                          }-500`"
-                        />
-                        <span class="text-xs text-gray-600">{{
-                          formatCurrency(salePayment.amount)
-                        }}</span>
-                      </div>
-                    </div>
-                    <span
-                      v-else
-                      class="text-xs"
-                      :class="{
-                        'text-gray-400':
-                          getPaymentStatusMessage(sale) ===
-                          `Aucun paiement le ${formatDate(selectedDate)}`,
-                        'text-orange-500':
-                          getPaymentStatusMessage(sale) === 'Facture non payée',
-                      }"
-                    >
-                      {{ getPaymentStatusMessage(sale) }}
-                    </span>
-                  </div>
-
-                  <div class="flex items-center gap-1">
-                    <UButton
-                      v-if="sale.status !== 'paid'"
-                      size="xs"
-                      color="green"
-                      variant="soft"
-                      icon="i-heroicons-currency-euro"
-                      @click="openPaymentModal(sale)"
-                    />
-                    <UButton
-                      size="xs"
-                      color="blue"
-                      variant="soft"
-                      icon="i-heroicons-printer"
-                      @click="printReceipt(sale)"
-                    />
-                    <UButton
-                      v-if="sale.status === 'paid'"
-                      size="xs"
-                      color="red"
-                      variant="soft"
-                      icon="i-heroicons-arrow-uturn-left"
-                      @click="openRefundModal(sale)"
-                    />
-                    <NuxtLink :to="`/facture/${sale.id}`" class="inline-flex">
+                        color="green"
+                        variant="soft"
+                        icon="i-heroicons-currency-euro"
+                        @click="openPaymentModal(sale)"
+                      />
                       <UButton
                         size="xs"
-                        color="gray"
+                        color="blue"
                         variant="soft"
-                        icon="i-heroicons-eye"
+                        icon="i-heroicons-printer"
+                        @click="printReceipt(sale)"
                       />
-                    </NuxtLink>
+                      <UButton
+                        v-if="sale.status === 'paid'"
+                        size="xs"
+                        color="red"
+                        variant="soft"
+                        icon="i-heroicons-arrow-uturn-left"
+                        @click="openRefundModal(sale)"
+                      />
+                      <NuxtLink :to="`/facture/${sale.id}`" class="inline-flex">
+                        <UButton
+                          size="xs"
+                          color="gray"
+                          variant="soft"
+                          icon="i-heroicons-eye"
+                        />
+                      </NuxtLink>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div v-else class="p-8 text-center text-gray-500">
-            <UIcon
-              name="i-heroicons-shopping-cart"
-              class="w-12 h-12 mx-auto mb-4 text-gray-300"
-            />
-            <p class="text-lg">Aucune vente pour cette date</p>
-            <p class="text-sm">
-              Consultez les autres dates ou vérifiez les données
-            </p>
+            <div v-else class="p-8 text-center text-gray-500">
+              <UIcon
+                name="i-heroicons-shopping-cart"
+                class="w-12 h-12 mx-auto mb-4 text-gray-300"
+              />
+              <p class="text-lg">Aucune vente pour cette date</p>
+              <p class="text-sm">
+                Consultez les autres dates ou vérifiez les données
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- Modal Paiement -->
-      <UModal
-        v-model:open="showPaymentModal"
-        title="Enregistrer un paiement"
-        :ui="{ wrapper: 'sm:max-w-md w-full mx-2 sm:mx-auto' }"
-      >
-        <template #body>
-          <div v-if="selectedInvoice" class="space-y-4">
-            <!-- Info facture -->
-            <div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
-              <p class="text-sm text-gray-600">
-                Facture:
-                <span class="font-medium"
-                  >#{{ selectedInvoice.reference }}</span
-                >
-              </p>
-              <p class="text-sm text-gray-600">
-                Client:
-                <span class="font-medium">{{
-                  selectedInvoice.clients?.name
-                }}</span>
-              </p>
-              <p class="text-lg font-semibold">
-                Total: {{ formatCurrency(selectedInvoice.total) }}
-              </p>
-            </div>
-
-            <!-- Date de paiement -->
-            <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
-              <div class="flex items-center gap-2">
-                <Icon
-                  name="i-heroicons-calendar-days"
-                  class="w-4 h-4 text-blue-600"
-                />
-                <span class="text-sm font-medium text-blue-800">
-                  Date de paiement : {{ formatDate(selectedDate) }}
-                </span>
-              </div>
-              <p class="text-xs text-blue-600 mt-1">
-                Le paiement sera enregistré pour cette date
-              </p>
-            </div>
-
-            <!-- Montant -->
-            <UInput
-              v-model.number="payment.amount"
-              type="number"
-              step="0.01"
-              min="0"
-              :max="selectedInvoice.total"
-              label="Montant"
-              placeholder="0.00"
-            />
-
-            <!-- Méthode de paiement -->
-            <div>
-              <label class="block text-sm font-medium mb-2"
-                >Méthode de paiement</label
-              >
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  v-for="method in paymentMethods"
-                  :key="method.value"
-                  :class="[
-                    'p-2 border rounded-lg text-sm flex items-center justify-center gap-2 transition-colors',
-                    payment.method === method.value
-                      ? 'border-' +
-                        method.color +
-                        '-500 bg-' +
-                        method.color +
-                        '-50 text-' +
-                        method.color +
-                        '-700'
-                      : 'border-gray-200 hover:border-gray-300',
-                  ]"
-                  @click="payment.method = method.value"
-                >
-                  <UIcon :name="method.icon" class="w-4 h-4" />
-                  {{ method.label }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Référence -->
-            <UInput
-              v-model="payment.reference"
-              label="Référence (optionnel)"
-              placeholder="N° de transaction, chèque..."
-            />
-
-            <!-- Note -->
-            <UTextarea
-              v-model="payment.note"
-              label="Note (optionnel)"
-              placeholder="Commentaire sur le paiement..."
-              rows="2"
-            />
-          </div>
-        </template>
-
-        <template #footer="{ close }">
-          <div class="flex flex-col sm:flex-row justify-end gap-3">
-            <UButton
-              color="gray"
-              variant="outline"
-              class="w-full sm:w-auto"
-              @click="close"
-            >
-              Annuler
-            </UButton>
-            <UButton
-              :disabled="payment.amount <= 0"
-              class="w-full sm:w-auto"
-              @click="processPayment"
-            >
-              Enregistrer le paiement
-            </UButton>
-          </div>
-        </template>
-      </UModal>
-
-      <!-- Modal Comptage de Caisse -->
-      <UModal
-        v-model:open="showCashCountModal"
-        title="Comptage de Caisse"
-        :ui="{ wrapper: 'sm:max-w-4xl w-full mx-2 sm:mx-auto' }"
-      >
-        <template #body>
-          <div class="space-y-6">
-            <!-- Montants attendus -->
-            <div class="bg-blue-50 p-3 sm:p-4 rounded-lg">
-              <h4 class="font-medium text-blue-900 mb-2">
-                Montants théoriques
-              </h4>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span class="text-blue-700">Solde d'ouverture:</span>
-                  <span class="font-semibold ml-2">{{
-                    formatCurrency(todayStats.openingBalance)
-                  }}</span>
-                </div>
-                <div>
-                  <span class="text-blue-700">Ventes espèces:</span>
-                  <span class="font-semibold ml-2">{{
-                    formatCurrency(todayStats.totalCash)
-                  }}</span>
-                </div>
-                <div>
-                  <span class="text-blue-700">Entrées d'argent:</span>
-                  <span class="font-semibold ml-2">{{
-                    formatCurrency(todayStats.cashIn)
-                  }}</span>
-                </div>
-                <div>
-                  <span class="text-blue-700">Sorties d'argent:</span>
-                  <span class="font-semibold ml-2 text-red-600"
-                    >-{{ formatCurrency(todayStats.cashOut) }}</span
+        <!-- Modal Paiement -->
+        <UModal
+          v-model:open="showPaymentModal"
+          title="Enregistrer un paiement"
+          :ui="{ wrapper: 'sm:max-w-md w-full mx-2 sm:mx-auto' }"
+        >
+          <template #body>
+            <div v-if="selectedInvoice" class="space-y-4">
+              <!-- Info facture -->
+              <div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                <p class="text-sm text-gray-600">
+                  Facture:
+                  <span class="font-medium"
+                    >#{{ selectedInvoice.reference }}</span
                   >
-                </div>
+                </p>
+                <p class="text-sm text-gray-600">
+                  Client:
+                  <span class="font-medium">{{
+                    selectedInvoice.clients?.name
+                  }}</span>
+                </p>
+                <p class="text-lg font-semibold">
+                  Total: {{ formatCurrency(selectedInvoice.total) }}
+                </p>
               </div>
-              <div class="mt-3 pt-3 border-t border-blue-200">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span class="text-blue-700">Espèces théoriques:</span>
-                    <span class="font-semibold ml-2">{{
-                      formatCurrency(cashCountInfo.expectedAmount)
-                    }}</span>
-                  </div>
-                  <div>
-                    <span class="text-blue-700">Montant compté:</span>
-                    <span class="font-semibold ml-2">{{
-                      formatCurrency(cashCountTotal)
-                    }}</span>
-                  </div>
-                </div>
-                <div class="mt-2 pt-2 border-t border-blue-200">
-                  <span class="text-blue-700">Différence:</span>
-                  <span
-                    class="font-semibold ml-2"
-                    :class="
-                      cashCountDifference === 0
-                        ? 'text-green-600'
-                        : cashCountDifference > 0
-                        ? 'text-green-600'
-                        : 'text-red-600'
-                    "
-                  >
-                    {{ formatCurrency(cashCountDifference) }}
+
+              <!-- Date de paiement -->
+              <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <div class="flex items-center gap-2">
+                  <Icon
+                    name="i-heroicons-calendar-days"
+                    class="w-4 h-4 text-blue-600"
+                  />
+                  <span class="text-sm font-medium text-blue-800">
+                    Date de paiement : {{ formatDate(selectedDate) }}
                   </span>
                 </div>
+                <p class="text-xs text-blue-600 mt-1">
+                  Le paiement sera enregistré pour cette date
+                </p>
               </div>
-            </div>
 
-            <!-- Détail par billet/pièce -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <!-- Billets -->
+              <!-- Montant -->
+              <UInput
+                v-model.number="payment.amount"
+                type="number"
+                step="0.01"
+                min="0"
+                :max="selectedInvoice.total"
+                label="Montant"
+                placeholder="0.00"
+              />
+
+              <!-- Méthode de paiement -->
               <div>
-                <h4 class="font-medium text-gray-900 mb-4">Billets</h4>
-                <div class="space-y-3">
-                  <div
-                    v-for="denomination in [500, 200, 100, 50, 20, 10, 5]"
-                    :key="denomination"
-                    class="grid grid-cols-3 gap-2 sm:gap-3 items-center"
-                  >
-                    <div
-                      class="bg-green-100 px-2 sm:px-3 py-2 rounded text-center"
-                    >
-                      <span class="font-medium text-green-800 text-sm"
-                        >{{ denomination }}{{ companySettings?.currency }}</span
-                      >
-                    </div>
-                    <UInput
-                      v-model.number="cashCount[denomination]"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      size="sm"
-                      class="text-center"
-                      @input="calculateTotal"
-                    />
-                    <span class="text-right font-medium text-sm">
-                      {{
-                        formatCurrency(
-                          denomination * (cashCount[denomination] || 0)
-                        )
-                      }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Pièces -->
-              <div>
-                <h4 class="font-medium text-gray-900 mb-4">Pièces</h4>
-                <div class="space-y-3">
-                  <div
-                    v-for="denomination in [
-                      2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01,
-                    ]"
-                    :key="denomination"
-                    class="grid grid-cols-3 gap-2 sm:gap-3 items-center"
-                  >
-                    <div
-                      class="bg-amber-100 px-2 sm:px-3 py-2 rounded text-center"
-                    >
-                      <span class="font-medium text-amber-800 text-sm">{{
-                        formatCurrency(denomination)
-                      }}</span>
-                    </div>
-                    <UInput
-                      v-model.number="cashCount[denomination]"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      size="sm"
-                      class="text-center"
-                      @input="calculateTotal"
-                    />
-                    <span class="text-right font-medium text-sm">
-                      {{
-                        formatCurrency(
-                          denomination * (cashCount[denomination] || 0)
-                        )
-                      }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Résumé du comptage -->
-            <div class="border-t pt-6">
-              <div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                  <div class="text-center">
-                    <div class="text-gray-600">Théorique</div>
-                    <div class="text-xl font-bold text-blue-600">
-                      {{ formatCurrency(cashCountInfo.expectedAmount) }}
-                    </div>
-                  </div>
-                  <div class="text-center">
-                    <div class="text-gray-600">Compté</div>
-                    <div class="text-xl font-bold text-green-600">
-                      {{ formatCurrency(cashCountTotal) }}
-                    </div>
-                  </div>
-                  <div class="text-center">
-                    <div class="text-gray-600">Écart</div>
-                    <div
-                      class="text-xl font-bold"
-                      :class="{
-                        'text-green-600': cashCountDifference >= 0,
-                        'text-red-600': cashCountDifference < 0,
-                      }"
-                    >
-                      {{ formatCurrency(cashCountDifference) }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Note -->
-            <UTextarea
-              v-model="cashCountInfo.note"
-              label="Note (optionnel)"
-              placeholder="Commentaire sur le comptage..."
-              rows="3"
-            />
-          </div>
-        </template>
-
-        <template #footer="{ close }">
-          <div class="flex flex-col sm:flex-row justify-end gap-3">
-            <UButton
-              color="gray"
-              variant="outline"
-              class="w-full sm:w-auto"
-              @click="close"
-            >
-              Annuler
-            </UButton>
-            <UButton
-              :color="cashCountDifference === 0 ? 'green' : 'orange'"
-              class="w-full sm:w-auto"
-              @click="saveCashCount"
-            >
-              Enregistrer le comptage
-            </UButton>
-          </div>
-        </template>
-      </UModal>
-
-      <!-- Modal Résumé Journalier (Z) -->
-      <UModal
-        v-model:open="showDailySummaryModal"
-        title="Rapport Z - Résumé Journalier"
-        :ui="{ wrapper: 'sm:max-w-lg w-full mx-2 sm:mx-auto' }"
-      >
-        <template #body>
-          <div class="space-y-4">
-            <!-- En-tête -->
-            <div class="text-center border-b pb-4">
-              <h4 class="font-bold">RAPPORT Z</h4>
-              <p class="text-sm text-gray-600">
-                {{ formatDate(selectedDate) }}
-              </p>
-            </div>
-
-            <!-- Résumé des ventes -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <div class="flex justify-between">
-                  <span class="text-sm">Nombre de transactions:</span>
-                  <span class="font-semibold text-sm">{{
-                    dailySummary.totalTransactions
-                  }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-sm">Total des ventes:</span>
-                  <span class="font-semibold text-sm">{{
-                    formatCurrency(dailySummary.totalSales)
-                  }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-sm">Panier moyen:</span>
-                  <span class="font-semibold text-sm">{{
-                    formatCurrency(dailySummary.averageTicket)
-                  }}</span>
-                </div>
-              </div>
-
-              <div class="space-y-2">
-                <div class="flex justify-between">
-                  <span class="text-sm">Espèces:</span>
-                  <span class="font-semibold text-sm">{{
-                    formatCurrency(dailySummary.totalCash)
-                  }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-sm">Cartes:</span>
-                  <span class="font-semibold text-sm">{{
-                    formatCurrency(dailySummary.totalCard)
-                  }}</span>
-                </div>
-                <div class="flex justify-between">
-                  <span class="text-sm">TVA (20%):</span>
-                  <span class="font-semibold text-sm">{{
-                    formatCurrency(dailySummary.taxAmount)
-                  }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Total -->
-            <div class="border-t pt-4">
-              <div class="flex justify-between text-lg font-bold">
-                <span>TOTAL NET:</span>
-                <span>{{ formatCurrency(dailySummary.netSales) }}</span>
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <template #footer="{ close }">
-          <div class="flex flex-col sm:flex-row justify-end gap-3">
-            <UButton
-              color="gray"
-              variant="outline"
-              class="w-full sm:w-auto"
-              @click="close"
-            >
-              Fermer
-            </UButton>
-            <UButton
-              icon="i-heroicons-printer"
-              class="w-full sm:w-auto"
-              @click="window.print()"
-            >
-              Imprimer
-            </UButton>
-          </div>
-        </template>
-      </UModal>
-
-      <!-- Modal Remboursement -->
-      <UModal
-        v-model:open="showRefundModal"
-        title="Remboursement"
-        :ui="{ wrapper: 'sm:max-w-md w-full mx-2 sm:mx-auto' }"
-      >
-        <template #body>
-          <div v-if="selectedSale" class="space-y-4">
-            <!-- Info vente -->
-            <div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
-              <p class="text-sm text-gray-600">
-                Vente:
-                <span class="font-medium">#{{ selectedSale.reference }}</span>
-              </p>
-              <p class="text-sm text-gray-600">
-                Client:
-                <span class="font-medium">{{
-                  selectedSale.clients?.name
-                }}</span>
-              </p>
-              <p class="text-lg font-semibold">
-                Total: {{ formatCurrency(selectedSale.total) }}
-              </p>
-            </div>
-
-            <!-- Montant à rembourser -->
-            <UInput
-              v-model.number="refund.amount"
-              type="number"
-              step="0.01"
-              min="0"
-              :max="selectedSale.total"
-              label="Montant à rembourser"
-              placeholder="0.00"
-            />
-
-            <!-- Méthode de remboursement -->
-            <div>
-              <label class="block text-sm font-medium mb-2"
-                >Méthode de remboursement</label
-              >
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  v-for="method in paymentMethods"
-                  :key="method.value"
-                  :class="[
-                    'p-2 border rounded-lg text-sm flex items-center justify-center gap-2 transition-colors',
-                    refund.method === method.value
-                      ? 'border-' +
-                        method.color +
-                        '-500 bg-' +
-                        method.color +
-                        '-50 text-' +
-                        method.color +
-                        '-700'
-                      : 'border-gray-200 hover:border-gray-300',
-                  ]"
-                  @click="refund.method = method.value"
+                <label class="block text-sm font-medium mb-2"
+                  >Méthode de paiement</label
                 >
-                  <UIcon :name="method.icon" class="w-4 h-4" />
-                  {{ method.label }}
-                </button>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    v-for="method in paymentMethods"
+                    :key="method.value"
+                    :class="[
+                      'p-2 border rounded-lg text-sm flex items-center justify-center gap-2 transition-colors',
+                      payment.method === method.value
+                        ? 'border-' +
+                          method.color +
+                          '-500 bg-' +
+                          method.color +
+                          '-50 text-' +
+                          method.color +
+                          '-700'
+                        : 'border-gray-200 hover:border-gray-300',
+                    ]"
+                    @click="payment.method = method.value"
+                  >
+                    <UIcon :name="method.icon" class="w-4 h-4" />
+                    {{ method.label }}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <!-- Raison -->
-            <UTextarea
-              v-model="refund.reason"
-              label="Raison du remboursement"
-              placeholder="Motif du remboursement..."
-              rows="3"
-              required
-            />
-          </div>
-        </template>
+              <!-- Référence -->
+              <UInput
+                v-model="payment.reference"
+                label="Référence (optionnel)"
+                placeholder="N° de transaction, chèque..."
+              />
 
-        <template #footer="{ close }">
-          <div class="flex flex-col sm:flex-row justify-end gap-3">
-            <UButton
-              color="gray"
-              variant="outline"
-              class="w-full sm:w-auto"
-              @click="close"
-            >
-              Annuler
-            </UButton>
-            <UButton
-              :disabled="refund.amount <= 0 || !refund.reason"
-              color="red"
-              class="w-full sm:w-auto"
-              @click="processRefund"
-            >
-              Traiter le remboursement
-            </UButton>
-          </div>
-        </template>
-      </UModal>
-
-      <!-- Modal Impression Reçu -->
-      <UModal
-        v-model:open="showReceiptModal"
-        title="Impression de reçu"
-        :ui="{ wrapper: 'sm:max-w-lg w-full mx-2 sm:mx-auto' }"
-      >
-        <template #body>
-          <div v-if="selectedSale" class="space-y-4">
-            <!-- Aperçu du reçu -->
-            <div
-              class="bg-gray-50 p-3 sm:p-4 rounded-lg font-mono text-xs sm:text-sm overflow-x-auto"
-            >
-              <pre class="whitespace-pre-wrap">{{
-                generateReceiptContent(selectedSale)
-              }}</pre>
-            </div>
-
-            <!-- Options d'impression -->
-            <div class="space-y-2">
-              <UCheckbox v-model="receipt.customerCopy" label="Copie client" />
-              <UCheckbox
-                v-model="receipt.merchantCopy"
-                label="Copie commerçant"
+              <!-- Note -->
+              <UTextarea
+                v-model="payment.note"
+                label="Note (optionnel)"
+                placeholder="Commentaire sur le paiement..."
+                rows="2"
               />
             </div>
-          </div>
-        </template>
+          </template>
 
-        <template #footer="{ close }">
-          <div class="flex flex-col sm:flex-row justify-end gap-3">
-            <UButton
-              color="gray"
-              variant="outline"
-              class="w-full sm:w-auto"
-              @click="close"
-            >
-              Annuler
-            </UButton>
-            <UButton
-              icon="i-heroicons-printer"
-              class="w-full sm:w-auto"
-              @click="executeReceiptPrint"
-            >
-              Imprimer
-            </UButton>
-          </div>
-        </template>
-      </UModal>
-
-      <!-- Modal Entrée d'Argent -->
-      <UModal
-        v-model:open="showCashInModal"
-        title="Entrée d'argent en caisse"
-        :ui="{ wrapper: 'sm:max-w-md w-full mx-2 sm:mx-auto' }"
-      >
-        <template #body>
-          <div class="space-y-4">
-            <!-- Montant -->
-            <UInput
-              v-model.number="cashIn.amount"
-              type="number"
-              step="0.01"
-              min="0"
-              label="Montant"
-              placeholder="0.00"
-              required
-            />
-
-            <!-- Raison -->
-            <div>
-              <label class="block text-sm font-medium mb-2">Raison</label>
-              <select
-                v-model="cashIn.reason"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <template #footer="{ close }">
+            <div class="flex flex-col sm:flex-row justify-end gap-3">
+              <UButton
+                color="gray"
+                variant="outline"
+                class="w-full sm:w-auto"
+                @click="close"
               >
-                <option value="fond_de_caisse">Fond de caisse</option>
-                <option value="remboursement">Remboursement</option>
-                <option value="complement">Complément de caisse</option>
-                <option value="vente_externe">Vente externe</option>
-                <option value="autre">Autre</option>
-              </select>
+                Annuler
+              </UButton>
+              <UButton
+                :disabled="payment.amount <= 0"
+                class="w-full sm:w-auto"
+                @click="processPayment"
+              >
+                Enregistrer le paiement
+              </UButton>
             </div>
+          </template>
+        </UModal>
 
-            <!-- Source -->
-            <UInput
-              v-model="cashIn.source"
-              label="Source (optionnel)"
-              placeholder="D'où vient cet argent..."
-            />
-
-            <!-- Note -->
-            <UTextarea
-              v-model="cashIn.note"
-              label="Note (optionnel)"
-              placeholder="Commentaire sur cette entrée..."
-              rows="3"
-            />
-          </div>
-        </template>
-
-        <template #footer="{ close }">
-          <div class="flex flex-col sm:flex-row justify-end gap-3">
-            <UButton
-              color="gray"
-              variant="outline"
-              class="w-full sm:w-auto"
-              @click="close"
-            >
-              Annuler
-            </UButton>
-            <UButton
-              :disabled="cashIn.amount <= 0 || !cashIn.reason"
-              color="green"
-              class="w-full sm:w-auto"
-              @click="processCashIn"
-            >
-              Ajouter à la caisse
-            </UButton>
-          </div>
-        </template>
-      </UModal>
-
-      <!-- Modal Sortie d'Argent -->
-      <UModal
-        v-model:open="showCashOutModal"
-        title="Sortie d'argent de la caisse"
-        :ui="{ wrapper: 'sm:max-w-md w-full mx-2 sm:mx-auto' }"
-      >
-        <template #body>
-          <div class="space-y-4">
-            <!-- Montant -->
-            <UInput
-              v-model.number="cashOut.amount"
-              type="number"
-              step="0.01"
-              min="0"
-              label="Montant"
-              placeholder="0.00"
-              required
-            />
-
-            <!-- Raison -->
-            <UInput
-              v-model="cashOut.reason"
-              label="Raison"
-              placeholder="Achat matériel, frais, remboursement..."
-              required
-            />
-
-            <!-- Destinataire -->
-            <UInput
-              v-model="cashOut.recipient"
-              label="Destinataire (optionnel)"
-              placeholder="À qui ou pour quoi..."
-            />
-
-            <!-- Note -->
-            <UTextarea
-              v-model="cashOut.note"
-              label="Note (optionnel)"
-              placeholder="Commentaire sur cette sortie..."
-              rows="3"
-            />
-          </div>
-        </template>
-
-        <template #footer="{ close }">
-          <div class="flex flex-col sm:flex-row justify-end gap-3">
-            <UButton
-              color="gray"
-              variant="outline"
-              class="w-full sm:w-auto"
-              @click="close"
-            >
-              Annuler
-            </UButton>
-            <UButton
-              :disabled="cashOut.amount <= 0 || !cashOut.reason"
-              color="red"
-              class="w-full sm:w-auto"
-              @click="processCashOut"
-            >
-              Retirer de la caisse
-            </UButton>
-          </div>
-        </template>
-      </UModal>
-
-      <!-- Modal de Comptage -->
-      <UModal
-        v-model:open="showCashCountModal"
-        title="Comptage de Caisse"
-        :ui="{ wrapper: 'max-w-3xl' }"
-      >
-        <template #body>
-          <div class="space-y-6">
-            <!-- Détail par billet/pièce -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <!-- Billets -->
-              <div>
-                <h4 class="font-medium text-gray-900 mb-4">Billets</h4>
-                <div class="space-y-3">
-                  <div
-                    v-for="denomination in [500, 200, 100, 50, 20, 10, 5]"
-                    :key="denomination"
-                    class="grid grid-cols-3 gap-3 items-center"
-                  >
-                    <div class="bg-green-100 px-3 py-2 rounded text-center">
-                      <span class="font-medium text-green-800">{{
-                        formatCurrency(denomination)
-                      }}</span>
-                    </div>
-                    <UInput
-                      v-model="cashCount[denomination]"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      size="sm"
-                      class="text-center"
-                      @input="calculateTotal"
-                    />
-                    <span class="text-right font-medium">
-                      {{
-                        formatCurrency(
-                          denomination * (cashCount[denomination] || 0)
-                        )
-                      }}
-                    </span>
+        <!-- Modal Comptage de Caisse -->
+        <UModal
+          v-model:open="showCashCountModal"
+          title="Comptage de Caisse"
+          :ui="{ wrapper: 'sm:max-w-4xl w-full mx-2 sm:mx-auto' }"
+        >
+          <template #body>
+            <div class="space-y-6">
+              <!-- Montants attendus -->
+              <div class="bg-blue-50 p-3 sm:p-4 rounded-lg">
+                <h4 class="font-medium text-blue-900 mb-2">
+                  Montants théoriques
+                </h4>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span class="text-blue-700">Solde d'ouverture:</span>
+                    <span class="font-semibold ml-2">{{
+                      formatCurrency(todayStats.openingBalance)
+                    }}</span>
+                  </div>
+                  <div>
+                    <span class="text-blue-700">Ventes espèces:</span>
+                    <span class="font-semibold ml-2">{{
+                      formatCurrency(todayStats.totalCash)
+                    }}</span>
+                  </div>
+                  <div>
+                    <span class="text-blue-700">Entrées d'argent:</span>
+                    <span class="font-semibold ml-2">{{
+                      formatCurrency(todayStats.cashIn)
+                    }}</span>
+                  </div>
+                  <div>
+                    <span class="text-blue-700">Sorties d'argent:</span>
+                    <span class="font-semibold ml-2 text-red-600"
+                      >-{{ formatCurrency(todayStats.cashOut) }}</span
+                    >
                   </div>
                 </div>
-              </div>
-
-              <!-- Pièces -->
-              <div>
-                <h4 class="font-medium text-gray-900 mb-4">Pièces</h4>
-                <div class="space-y-3">
-                  <div
-                    v-for="denomination in [
-                      2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01,
-                    ]"
-                    :key="denomination"
-                    class="grid grid-cols-3 gap-3 items-center"
-                  >
-                    <div class="bg-amber-100 px-3 py-2 rounded text-center">
-                      <span class="font-medium text-amber-800">{{
-                        formatCurrency(denomination)
+                <div class="mt-3 pt-3 border-t border-blue-200">
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span class="text-blue-700">Espèces théoriques:</span>
+                      <span class="font-semibold ml-2">{{
+                        formatCurrency(cashCountInfo.expectedAmount)
                       }}</span>
                     </div>
-                    <UInput
-                      v-model="cashCount[denomination]"
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      size="sm"
-                      class="text-center"
-                      @input="calculateTotal"
-                    />
-                    <span class="text-right font-medium">
-                      {{
-                        formatCurrency(
-                          denomination * (cashCount[denomination] || 0)
-                        )
-                      }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Résumé du comptage -->
-            <div class="border-t pt-6">
-              <div class="bg-gray-50 p-4 rounded-lg">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div class="text-center">
-                    <div class="text-gray-600">Théorique</div>
-                    <div class="text-xl font-bold text-blue-600">
-                      {{ formatCurrency(cashCountInfo.expectedAmount) }}
+                    <div>
+                      <span class="text-blue-700">Montant compté:</span>
+                      <span class="font-semibold ml-2">{{
+                        formatCurrency(cashCountTotal)
+                      }}</span>
                     </div>
                   </div>
-                  <div class="text-center">
-                    <div class="text-gray-600">Compté</div>
-                    <div class="text-xl font-bold text-green-600">
-                      {{ formatCurrency(cashCountTotal) }}
-                    </div>
-                  </div>
-                  <div class="text-center">
-                    <div class="text-gray-600">Écart</div>
-                    <div
-                      class="text-xl font-bold"
-                      :class="{
-                        'text-green-600': cashCountDifference >= 0,
-                        'text-red-600': cashCountDifference < 0,
-                      }"
+                  <div class="mt-2 pt-2 border-t border-blue-200">
+                    <span class="text-blue-700">Différence:</span>
+                    <span
+                      class="font-semibold ml-2"
+                      :class="
+                        cashCountDifference === 0
+                          ? 'text-green-600'
+                          : cashCountDifference > 0
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      "
                     >
                       {{ formatCurrency(cashCountDifference) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Détail par billet/pièce -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Billets -->
+                <div>
+                  <h4 class="font-medium text-gray-900 mb-4">Billets</h4>
+                  <div class="space-y-3">
+                    <div
+                      v-for="denomination in [500, 200, 100, 50, 20, 10, 5]"
+                      :key="denomination"
+                      class="grid grid-cols-3 gap-2 sm:gap-3 items-center"
+                    >
+                      <div
+                        class="bg-green-100 px-2 sm:px-3 py-2 rounded text-center"
+                      >
+                        <span class="font-medium text-green-800 text-sm"
+                          >{{ denomination
+                          }}{{ companySettings?.currency }}</span
+                        >
+                      </div>
+                      <UInput
+                        v-model.number="cashCount[denomination]"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        size="sm"
+                        class="text-center"
+                        @input="calculateTotal"
+                      />
+                      <span class="text-right font-medium text-sm">
+                        {{
+                          formatCurrency(
+                            denomination * (cashCount[denomination] || 0)
+                          )
+                        }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Pièces -->
+                <div>
+                  <h4 class="font-medium text-gray-900 mb-4">Pièces</h4>
+                  <div class="space-y-3">
+                    <div
+                      v-for="denomination in [
+                        2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01,
+                      ]"
+                      :key="denomination"
+                      class="grid grid-cols-3 gap-2 sm:gap-3 items-center"
+                    >
+                      <div
+                        class="bg-amber-100 px-2 sm:px-3 py-2 rounded text-center"
+                      >
+                        <span class="font-medium text-amber-800 text-sm">{{
+                          formatCurrency(denomination)
+                        }}</span>
+                      </div>
+                      <UInput
+                        v-model.number="cashCount[denomination]"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        size="sm"
+                        class="text-center"
+                        @input="calculateTotal"
+                      />
+                      <span class="text-right font-medium text-sm">
+                        {{
+                          formatCurrency(
+                            denomination * (cashCount[denomination] || 0)
+                          )
+                        }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Résumé du comptage -->
+              <div class="border-t pt-6">
+                <div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                    <div class="text-center">
+                      <div class="text-gray-600">Théorique</div>
+                      <div class="text-xl font-bold text-blue-600">
+                        {{ formatCurrency(cashCountInfo.expectedAmount) }}
+                      </div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-gray-600">Compté</div>
+                      <div class="text-xl font-bold text-green-600">
+                        {{ formatCurrency(cashCountTotal) }}
+                      </div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-gray-600">Écart</div>
+                      <div
+                        class="text-xl font-bold"
+                        :class="{
+                          'text-green-600': cashCountDifference >= 0,
+                          'text-red-600': cashCountDifference < 0,
+                        }"
+                      >
+                        {{ formatCurrency(cashCountDifference) }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Note -->
+              <UTextarea
+                v-model="cashCountInfo.note"
+                label="Note (optionnel)"
+                placeholder="Commentaire sur le comptage..."
+                rows="3"
+              />
+            </div>
+          </template>
+
+          <template #footer="{ close }">
+            <div class="flex flex-col sm:flex-row justify-end gap-3">
+              <UButton
+                color="gray"
+                variant="outline"
+                class="w-full sm:w-auto"
+                @click="close"
+              >
+                Annuler
+              </UButton>
+              <UButton
+                :color="cashCountDifference === 0 ? 'green' : 'orange'"
+                class="w-full sm:w-auto"
+                @click="saveCashCount"
+              >
+                Enregistrer le comptage
+              </UButton>
+            </div>
+          </template>
+        </UModal>
+
+        <!-- Modal Résumé Journalier (Z) -->
+        <UModal
+          v-model:open="showDailySummaryModal"
+          title="Rapport Z - Résumé Journalier"
+          :ui="{ wrapper: 'sm:max-w-lg w-full mx-2 sm:mx-auto' }"
+        >
+          <template #body>
+            <div class="space-y-4">
+              <!-- En-tête -->
+              <div class="text-center border-b pb-4">
+                <h4 class="font-bold">RAPPORT Z</h4>
+                <p class="text-sm text-gray-600">
+                  {{ formatDate(selectedDate) }}
+                </p>
+              </div>
+
+              <!-- Résumé des ventes -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-sm">Nombre de transactions:</span>
+                    <span class="font-semibold text-sm">{{
+                      dailySummary.totalTransactions
+                    }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm">Total des ventes:</span>
+                    <span class="font-semibold text-sm">{{
+                      formatCurrency(dailySummary.totalSales)
+                    }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm">Panier moyen:</span>
+                    <span class="font-semibold text-sm">{{
+                      formatCurrency(dailySummary.averageTicket)
+                    }}</span>
+                  </div>
+                </div>
+
+                <div class="space-y-2">
+                  <div class="flex justify-between">
+                    <span class="text-sm">Espèces:</span>
+                    <span class="font-semibold text-sm">{{
+                      formatCurrency(dailySummary.totalCash)
+                    }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm">Cartes:</span>
+                    <span class="font-semibold text-sm">{{
+                      formatCurrency(dailySummary.totalCard)
+                    }}</span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-sm">TVA (20%):</span>
+                    <span class="font-semibold text-sm">{{
+                      formatCurrency(dailySummary.taxAmount)
+                    }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Total -->
+              <div class="border-t pt-4">
+                <div class="flex justify-between text-lg font-bold">
+                  <span>TOTAL NET:</span>
+                  <span>{{ formatCurrency(dailySummary.netSales) }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template #footer="{ close }">
+            <div class="flex flex-col sm:flex-row justify-end gap-3">
+              <UButton
+                color="gray"
+                variant="outline"
+                class="w-full sm:w-auto"
+                @click="close"
+              >
+                Fermer
+              </UButton>
+              <UButton
+                icon="i-heroicons-printer"
+                class="w-full sm:w-auto"
+                @click="window.print()"
+              >
+                Imprimer
+              </UButton>
+            </div>
+          </template>
+        </UModal>
+
+        <!-- Modal Remboursement -->
+        <UModal
+          v-model:open="showRefundModal"
+          title="Remboursement"
+          :ui="{ wrapper: 'sm:max-w-md w-full mx-2 sm:mx-auto' }"
+        >
+          <template #body>
+            <div v-if="selectedSale" class="space-y-4">
+              <!-- Info vente -->
+              <div class="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                <p class="text-sm text-gray-600">
+                  Vente:
+                  <span class="font-medium">#{{ selectedSale.reference }}</span>
+                </p>
+                <p class="text-sm text-gray-600">
+                  Client:
+                  <span class="font-medium">{{
+                    selectedSale.clients?.name
+                  }}</span>
+                </p>
+                <p class="text-lg font-semibold">
+                  Total: {{ formatCurrency(selectedSale.total) }}
+                </p>
+              </div>
+
+              <!-- Montant à rembourser -->
+              <UInput
+                v-model.number="refund.amount"
+                type="number"
+                step="0.01"
+                min="0"
+                :max="selectedSale.total"
+                label="Montant à rembourser"
+                placeholder="0.00"
+              />
+
+              <!-- Méthode de remboursement -->
+              <div>
+                <label class="block text-sm font-medium mb-2"
+                  >Méthode de remboursement</label
+                >
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    v-for="method in paymentMethods"
+                    :key="method.value"
+                    :class="[
+                      'p-2 border rounded-lg text-sm flex items-center justify-center gap-2 transition-colors',
+                      refund.method === method.value
+                        ? 'border-' +
+                          method.color +
+                          '-500 bg-' +
+                          method.color +
+                          '-50 text-' +
+                          method.color +
+                          '-700'
+                        : 'border-gray-200 hover:border-gray-300',
+                    ]"
+                    @click="refund.method = method.value"
+                  >
+                    <UIcon :name="method.icon" class="w-4 h-4" />
+                    {{ method.label }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Raison -->
+              <UTextarea
+                v-model="refund.reason"
+                label="Raison du remboursement"
+                placeholder="Motif du remboursement..."
+                rows="3"
+                required
+              />
+            </div>
+          </template>
+
+          <template #footer="{ close }">
+            <div class="flex flex-col sm:flex-row justify-end gap-3">
+              <UButton
+                color="gray"
+                variant="outline"
+                class="w-full sm:w-auto"
+                @click="close"
+              >
+                Annuler
+              </UButton>
+              <UButton
+                :disabled="refund.amount <= 0 || !refund.reason"
+                color="red"
+                class="w-full sm:w-auto"
+                @click="processRefund"
+              >
+                Traiter le remboursement
+              </UButton>
+            </div>
+          </template>
+        </UModal>
+
+        <!-- Modal Impression Reçu -->
+        <UModal
+          v-model:open="showReceiptModal"
+          title="Impression de reçu"
+          :ui="{ wrapper: 'sm:max-w-lg w-full mx-2 sm:mx-auto' }"
+        >
+          <template #body>
+            <div v-if="selectedSale" class="space-y-4">
+              <!-- Aperçu du reçu -->
+              <div
+                class="bg-gray-50 p-3 sm:p-4 rounded-lg font-mono text-xs sm:text-sm overflow-x-auto"
+              >
+                <pre class="whitespace-pre-wrap">{{
+                  generateReceiptContent(selectedSale)
+                }}</pre>
+              </div>
+
+              <!-- Options d'impression -->
+              <div class="space-y-2">
+                <UCheckbox
+                  v-model="receipt.customerCopy"
+                  label="Copie client"
+                />
+                <UCheckbox
+                  v-model="receipt.merchantCopy"
+                  label="Copie commerçant"
+                />
+              </div>
+            </div>
+          </template>
+
+          <template #footer="{ close }">
+            <div class="flex flex-col sm:flex-row justify-end gap-3">
+              <UButton
+                color="gray"
+                variant="outline"
+                class="w-full sm:w-auto"
+                @click="close"
+              >
+                Annuler
+              </UButton>
+              <UButton
+                icon="i-heroicons-printer"
+                class="w-full sm:w-auto"
+                @click="executeReceiptPrint"
+              >
+                Imprimer
+              </UButton>
+            </div>
+          </template>
+        </UModal>
+
+        <!-- Modal Entrée d'Argent -->
+        <UModal
+          v-model:open="showCashInModal"
+          title="Entrée d'argent en caisse"
+          :ui="{ wrapper: 'sm:max-w-md w-full mx-2 sm:mx-auto' }"
+        >
+          <template #body>
+            <div class="space-y-4">
+              <!-- Montant -->
+              <UInput
+                v-model.number="cashIn.amount"
+                type="number"
+                step="0.01"
+                min="0"
+                label="Montant"
+                placeholder="0.00"
+                required
+              />
+
+              <!-- Raison -->
+              <div>
+                <label class="block text-sm font-medium mb-2">Raison</label>
+                <select
+                  v-model="cashIn.reason"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="fond_de_caisse">Fond de caisse</option>
+                  <option value="remboursement">Remboursement</option>
+                  <option value="complement">Complément de caisse</option>
+                  <option value="vente_externe">Vente externe</option>
+                  <option value="autre">Autre</option>
+                </select>
+              </div>
+
+              <!-- Source -->
+              <UInput
+                v-model="cashIn.source"
+                label="Source (optionnel)"
+                placeholder="D'où vient cet argent..."
+              />
+
+              <!-- Note -->
+              <UTextarea
+                v-model="cashIn.note"
+                label="Note (optionnel)"
+                placeholder="Commentaire sur cette entrée..."
+                rows="3"
+              />
+            </div>
+          </template>
+
+          <template #footer="{ close }">
+            <div class="flex flex-col sm:flex-row justify-end gap-3">
+              <UButton
+                color="gray"
+                variant="outline"
+                class="w-full sm:w-auto"
+                @click="close"
+              >
+                Annuler
+              </UButton>
+              <UButton
+                :disabled="cashIn.amount <= 0 || !cashIn.reason"
+                color="green"
+                class="w-full sm:w-auto"
+                @click="processCashIn"
+              >
+                Ajouter à la caisse
+              </UButton>
+            </div>
+          </template>
+        </UModal>
+
+        <!-- Modal Sortie d'Argent -->
+        <UModal
+          v-model:open="showCashOutModal"
+          title="Sortie d'argent de la caisse"
+          :ui="{ wrapper: 'sm:max-w-md w-full mx-2 sm:mx-auto' }"
+        >
+          <template #body>
+            <div class="space-y-4">
+              <!-- Montant -->
+              <UInput
+                v-model.number="cashOut.amount"
+                type="number"
+                step="0.01"
+                min="0"
+                label="Montant"
+                placeholder="0.00"
+                required
+              />
+
+              <!-- Raison -->
+              <UInput
+                v-model="cashOut.reason"
+                label="Raison"
+                placeholder="Achat matériel, frais, remboursement..."
+                required
+              />
+
+              <!-- Destinataire -->
+              <UInput
+                v-model="cashOut.recipient"
+                label="Destinataire (optionnel)"
+                placeholder="À qui ou pour quoi..."
+              />
+
+              <!-- Note -->
+              <UTextarea
+                v-model="cashOut.note"
+                label="Note (optionnel)"
+                placeholder="Commentaire sur cette sortie..."
+                rows="3"
+              />
+            </div>
+          </template>
+
+          <template #footer="{ close }">
+            <div class="flex flex-col sm:flex-row justify-end gap-3">
+              <UButton
+                color="gray"
+                variant="outline"
+                class="w-full sm:w-auto"
+                @click="close"
+              >
+                Annuler
+              </UButton>
+              <UButton
+                :disabled="cashOut.amount <= 0 || !cashOut.reason"
+                color="red"
+                class="w-full sm:w-auto"
+                @click="processCashOut"
+              >
+                Retirer de la caisse
+              </UButton>
+            </div>
+          </template>
+        </UModal>
+
+        <!-- Modal de Comptage -->
+        <UModal
+          v-model:open="showCashCountModal"
+          title="Comptage de Caisse"
+          :ui="{ wrapper: 'max-w-3xl' }"
+        >
+          <template #body>
+            <div class="space-y-6">
+              <!-- Détail par billet/pièce -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Billets -->
+                <div>
+                  <h4 class="font-medium text-gray-900 mb-4">Billets</h4>
+                  <div class="space-y-3">
+                    <div
+                      v-for="denomination in [500, 200, 100, 50, 20, 10, 5]"
+                      :key="denomination"
+                      class="grid grid-cols-3 gap-3 items-center"
+                    >
+                      <div class="bg-green-100 px-3 py-2 rounded text-center">
+                        <span class="font-medium text-green-800">{{
+                          formatCurrency(denomination)
+                        }}</span>
+                      </div>
+                      <UInput
+                        v-model="cashCount[denomination]"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        size="sm"
+                        class="text-center"
+                        @input="calculateTotal"
+                      />
+                      <span class="text-right font-medium">
+                        {{
+                          formatCurrency(
+                            denomination * (cashCount[denomination] || 0)
+                          )
+                        }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Pièces -->
+                <div>
+                  <h4 class="font-medium text-gray-900 mb-4">Pièces</h4>
+                  <div class="space-y-3">
+                    <div
+                      v-for="denomination in [
+                        2, 1, 0.5, 0.2, 0.1, 0.05, 0.02, 0.01,
+                      ]"
+                      :key="denomination"
+                      class="grid grid-cols-3 gap-3 items-center"
+                    >
+                      <div class="bg-amber-100 px-3 py-2 rounded text-center">
+                        <span class="font-medium text-amber-800">{{
+                          formatCurrency(denomination)
+                        }}</span>
+                      </div>
+                      <UInput
+                        v-model="cashCount[denomination]"
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        size="sm"
+                        class="text-center"
+                        @input="calculateTotal"
+                      />
+                      <span class="text-right font-medium">
+                        {{
+                          formatCurrency(
+                            denomination * (cashCount[denomination] || 0)
+                          )
+                        }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Résumé du comptage -->
+              <div class="border-t pt-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div class="text-center">
+                      <div class="text-gray-600">Théorique</div>
+                      <div class="text-xl font-bold text-blue-600">
+                        {{ formatCurrency(cashCountInfo.expectedAmount) }}
+                      </div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-gray-600">Compté</div>
+                      <div class="text-xl font-bold text-green-600">
+                        {{ formatCurrency(cashCountTotal) }}
+                      </div>
+                    </div>
+                    <div class="text-center">
+                      <div class="text-gray-600">Écart</div>
+                      <div
+                        class="text-xl font-bold"
+                        :class="{
+                          'text-green-600': cashCountDifference >= 0,
+                          'text-red-600': cashCountDifference < 0,
+                        }"
+                      >
+                        {{ formatCurrency(cashCountDifference) }}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </template>
+          </template>
 
-        <template #footer="{ close }">
-          <div class="flex justify-end gap-3">
-            <UButton variant="outline" @click="close"> Annuler </UButton>
-            <UButton @click="saveCashCount"> Enregistrer le Comptage </UButton>
-          </div>
-        </template>
-      </UModal>
-
-      <!-- Modal de Vidage de Caisse -->
-      <UModal
-        v-model:open="showCashEmptyModal"
-        title="Vidage de Caisse"
-        description="Retirer de l'argent de la caisse"
-        :ui="{ wrapper: 'max-w-xl' }"
-      >
-        <template #body>
-          <div class="space-y-6">
-            <div
-              class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6"
-            >
-              <div class="flex items-center mb-2">
-                <UIcon
-                  name="i-heroicons-information-circle"
-                  class="w-5 h-5 text-amber-500 mr-2"
-                />
-                <span class="font-medium text-amber-800">Espèces à Vider</span>
-              </div>
-              <div class="text-2xl font-bold text-amber-900">
-                {{ formatCurrency(todayStats.cumulatedCash) }}
-              </div>
-              <div class="text-sm text-amber-700 mt-1">
-                {{
-                  todayStats.lastEmptyDate
-                    ? `Cumulées depuis ${formatDate(todayStats.lastEmptyDate)}`
-                    : "Cumulées depuis le début"
-                }}
-              </div>
+          <template #footer="{ close }">
+            <div class="flex justify-end gap-3">
+              <UButton variant="outline" @click="close"> Annuler </UButton>
+              <UButton @click="saveCashCount">
+                Enregistrer le Comptage
+              </UButton>
             </div>
+          </template>
+        </UModal>
 
-            <div class="space-y-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Montant à retirer
-                </label>
-                <UInput
-                  v-model="cashEmpty.amount"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  :max="todayStats.cumulatedCash"
-                  placeholder="0.00"
-                  class="w-full"
-                />
-                <div class="flex justify-between mt-1">
-                  <UButton
-                    size="xs"
-                    variant="outline"
-                    @click="cashEmpty.amount = todayStats.cumulatedCash"
-                  >
-                    Tout vider
-                  </UButton>
-                  <span class="text-sm text-gray-500">
-                    Max: {{ formatCurrency(todayStats.cumulatedCash) }}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Motif du vidage
-                </label>
-                <USelect
-                  v-model="cashEmpty.reason"
-                  :options="[
-                    { label: 'Dépôt en banque', value: 'bank_deposit' },
-                    { label: 'Sécurité - Trop d\'espèces', value: 'security' },
-                    { label: 'Remise en coffre', value: 'safe_deposit' },
-                    { label: 'Fin de journée', value: 'end_of_day' },
-                    { label: 'Autre', value: 'other' },
-                  ]"
-                  option-attribute="label"
-                  value-attribute="value"
-                  placeholder="Sélectionner un motif"
-                  class="w-full"
-                />
-              </div>
-
-              <div v-if="cashEmpty.reason === 'other'">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Motif personnalisé
-                </label>
-                <UInput
-                  v-model="cashEmpty.customReason"
-                  placeholder="Préciser le motif"
-                  class="w-full"
-                />
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Destination
-                </label>
-                <USelect
-                  v-model="cashEmpty.destination"
-                  :options="[
-                    { label: 'Banque', value: 'bank' },
-                    { label: 'Coffre-fort', value: 'safe' },
-                    { label: 'Caisse centrale', value: 'central_cash' },
-                    { label: 'Responsable', value: 'manager' },
-                    { label: 'Autre', value: 'other' },
-                  ]"
-                  option-attribute="label"
-                  value-attribute="value"
-                  placeholder="Où va l'argent ?"
-                  class="w-full"
-                />
-              </div>
-
-              <div v-if="cashEmpty.destination === 'other'">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Destination personnalisée
-                </label>
-                <UInput
-                  v-model="cashEmpty.customDestination"
-                  placeholder="Préciser la destination"
-                  class="w-full"
-                />
-              </div>
-
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Notes (optionnel)
-                </label>
-                <UTextarea
-                  v-model="cashEmpty.note"
-                  placeholder="Remarques, numéro de référence, etc."
-                  class="w-full"
-                />
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <template #footer="{ close }">
-          <div class="flex justify-end gap-3">
-            <UButton variant="outline" @click="close"> Annuler </UButton>
-            <UButton
-              :disabled="
-                !cashEmpty.amount || !cashEmpty.reason || !cashEmpty.destination
-              "
-              color="red"
-              @click="processCashEmpty"
-            >
-              Confirmer le Vidage
-            </UButton>
-          </div>
-        </template>
-      </UModal>
-
-      <!-- Modal Historique de Caisse -->
-      <UModal
-        v-model:open="showHistoryModal"
-        title="Historique de la Caisse"
-        description="Consulter l'historique des transactions de caisse"
-        :ui="{ wrapper: 'max-w-4xl' }"
-      >
-        <template #body>
-          <div class="space-y-6">
-            <!-- Filtres -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div v-if="historyFilter.period === 'custom'">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Date de début
-                </label>
-                <UInput v-model="historyFilter.startDate" type="date" />
-              </div>
-
-              <div v-if="historyFilter.period === 'custom'">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  Date de fin
-                </label>
-                <UInput v-model="historyFilter.endDate" type="date" />
-              </div>
-            </div>
-
-            <!-- Résumé -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div class="bg-blue-50 p-4 rounded-lg">
-                <div class="text-sm text-blue-600">Total Ventes Espèces</div>
-                <div class="text-xl font-bold text-blue-900">
-                  {{ formatCurrency(cashHistory.summary.totalCashSales) }}
-                </div>
-              </div>
-              <div class="bg-green-50 p-4 rounded-lg">
-                <div class="text-sm text-green-600">Entrées</div>
-                <div class="text-xl font-bold text-green-900">
-                  {{ formatCurrency(cashHistory.summary.totalCashIn) }}
-                </div>
-              </div>
-              <div class="bg-red-50 p-4 rounded-lg">
-                <div class="text-sm text-red-600">Sorties</div>
-                <div class="text-xl font-bold text-red-900">
-                  {{ formatCurrency(cashHistory.summary.totalCashOut) }}
-                </div>
-              </div>
-              <div class="bg-amber-50 p-4 rounded-lg">
-                <div class="text-sm text-amber-600">Vidages</div>
-                <div class="text-xl font-bold text-amber-900">
-                  {{ formatCurrency(cashHistory.summary.totalEmptied) }}
-                </div>
-              </div>
-            </div>
-
-            <!-- Liste des transactions -->
-            <div class="max-h-96 overflow-y-auto">
+        <!-- Modal de Vidage de Caisse -->
+        <UModal
+          v-model:open="showCashEmptyModal"
+          title="Vidage de Caisse"
+          description="Retirer de l'argent de la caisse"
+          :ui="{ wrapper: 'max-w-xl' }"
+        >
+          <template #body>
+            <div class="space-y-6">
               <div
-                v-if="cashHistory.transactions.length === 0"
-                class="text-center py-8 text-gray-500"
+                class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6"
               >
-                Aucune transaction trouvée pour cette période
+                <div class="flex items-center mb-2">
+                  <UIcon
+                    name="i-heroicons-information-circle"
+                    class="w-5 h-5 text-amber-500 mr-2"
+                  />
+                  <span class="font-medium text-amber-800"
+                    >Espèces à Vider</span
+                  >
+                </div>
+                <div class="text-2xl font-bold text-amber-900">
+                  {{ formatCurrency(todayStats.cumulatedCash) }}
+                </div>
+                <div class="text-sm text-amber-700 mt-1">
+                  {{
+                    todayStats.lastEmptyDate
+                      ? `Cumulées depuis ${formatDate(
+                          todayStats.lastEmptyDate
+                        )}`
+                      : "Cumulées depuis le début"
+                  }}
+                </div>
               </div>
 
-              <div v-else class="space-y-2">
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Montant à retirer
+                  </label>
+                  <UInput
+                    v-model="cashEmpty.amount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    :max="todayStats.cumulatedCash"
+                    placeholder="0.00"
+                    class="w-full"
+                  />
+                  <div class="flex justify-between mt-1">
+                    <UButton
+                      size="xs"
+                      variant="outline"
+                      @click="cashEmpty.amount = todayStats.cumulatedCash"
+                    >
+                      Tout vider
+                    </UButton>
+                    <span class="text-sm text-gray-500">
+                      Max: {{ formatCurrency(todayStats.cumulatedCash) }}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Motif du vidage
+                  </label>
+                  <USelect
+                    v-model="cashEmpty.reason"
+                    :options="[
+                      { label: 'Dépôt en banque', value: 'bank_deposit' },
+                      {
+                        label: 'Sécurité - Trop d\'espèces',
+                        value: 'security',
+                      },
+                      { label: 'Remise en coffre', value: 'safe_deposit' },
+                      { label: 'Fin de journée', value: 'end_of_day' },
+                      { label: 'Autre', value: 'other' },
+                    ]"
+                    option-attribute="label"
+                    value-attribute="value"
+                    placeholder="Sélectionner un motif"
+                    class="w-full"
+                  />
+                </div>
+
+                <div v-if="cashEmpty.reason === 'other'">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Motif personnalisé
+                  </label>
+                  <UInput
+                    v-model="cashEmpty.customReason"
+                    placeholder="Préciser le motif"
+                    class="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Destination
+                  </label>
+                  <USelect
+                    v-model="cashEmpty.destination"
+                    :options="[
+                      { label: 'Banque', value: 'bank' },
+                      { label: 'Coffre-fort', value: 'safe' },
+                      { label: 'Caisse centrale', value: 'central_cash' },
+                      { label: 'Responsable', value: 'manager' },
+                      { label: 'Autre', value: 'other' },
+                    ]"
+                    option-attribute="label"
+                    value-attribute="value"
+                    placeholder="Où va l'argent ?"
+                    class="w-full"
+                  />
+                </div>
+
+                <div v-if="cashEmpty.destination === 'other'">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Destination personnalisée
+                  </label>
+                  <UInput
+                    v-model="cashEmpty.customDestination"
+                    placeholder="Préciser la destination"
+                    class="w-full"
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Notes (optionnel)
+                  </label>
+                  <UTextarea
+                    v-model="cashEmpty.note"
+                    placeholder="Remarques, numéro de référence, etc."
+                    class="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <template #footer="{ close }">
+            <div class="flex justify-end gap-3">
+              <UButton variant="outline" @click="close"> Annuler </UButton>
+              <UButton
+                :disabled="
+                  !cashEmpty.amount ||
+                  !cashEmpty.reason ||
+                  !cashEmpty.destination
+                "
+                color="red"
+                @click="processCashEmpty"
+              >
+                Confirmer le Vidage
+              </UButton>
+            </div>
+          </template>
+        </UModal>
+
+        <!-- Modal Historique de Caisse -->
+        <UModal
+          v-model:open="showHistoryModal"
+          title="Historique de la Caisse"
+          description="Consulter l'historique des transactions de caisse"
+          :ui="{ wrapper: 'max-w-4xl' }"
+        >
+          <template #body>
+            <div class="space-y-6">
+              <!-- Filtres -->
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div v-if="historyFilter.period === 'custom'">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Date de début
+                  </label>
+                  <UInput v-model="historyFilter.startDate" type="date" />
+                </div>
+
+                <div v-if="historyFilter.period === 'custom'">
+                  <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Date de fin
+                  </label>
+                  <UInput v-model="historyFilter.endDate" type="date" />
+                </div>
+              </div>
+
+              <!-- Résumé -->
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                  <div class="text-sm text-blue-600">Total Ventes Espèces</div>
+                  <div class="text-xl font-bold text-blue-900">
+                    {{ formatCurrency(cashHistory.summary.totalCashSales) }}
+                  </div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                  <div class="text-sm text-green-600">Entrées</div>
+                  <div class="text-xl font-bold text-green-900">
+                    {{ formatCurrency(cashHistory.summary.totalCashIn) }}
+                  </div>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg">
+                  <div class="text-sm text-red-600">Sorties</div>
+                  <div class="text-xl font-bold text-red-900">
+                    {{ formatCurrency(cashHistory.summary.totalCashOut) }}
+                  </div>
+                </div>
+                <div class="bg-amber-50 p-4 rounded-lg">
+                  <div class="text-sm text-amber-600">Vidages</div>
+                  <div class="text-xl font-bold text-amber-900">
+                    {{ formatCurrency(cashHistory.summary.totalEmptied) }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Liste des transactions -->
+              <div class="max-h-96 overflow-y-auto">
                 <div
-                  v-for="transaction in cashHistory.transactions"
-                  :key="`${transaction.type}-${transaction.id}-${transaction.date}`"
-                  class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  v-if="cashHistory.transactions.length === 0"
+                  class="text-center py-8 text-gray-500"
                 >
-                  <div class="flex items-center space-x-3">
-                    <UIcon
-                      :name="getTransactionIcon(transaction.type)"
-                      :class="getTransactionColor(transaction.type)"
-                      class="w-5 h-5"
-                    />
-                    <div>
-                      <div class="font-medium">
-                        {{ getTransactionTitle(transaction) }}
+                  Aucune transaction trouvée pour cette période
+                </div>
+
+                <div v-else class="space-y-2">
+                  <div
+                    v-for="transaction in cashHistory.transactions"
+                    :key="`${transaction.type}-${transaction.id}-${transaction.date}`"
+                    class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div class="flex items-center space-x-3">
+                      <UIcon
+                        :name="getTransactionIcon(transaction.type)"
+                        :class="getTransactionColor(transaction.type)"
+                        class="w-5 h-5"
+                      />
+                      <div>
+                        <div class="font-medium">
+                          {{ getTransactionTitle(transaction) }}
+                        </div>
+                        <div class="text-sm text-gray-500">
+                          {{ formatDateTime(transaction.date) }}
+                        </div>
+                        <div
+                          v-if="transaction.note"
+                          class="text-xs text-gray-400"
+                        >
+                          {{ transaction.note }}
+                        </div>
                       </div>
-                      <div class="text-sm text-gray-500">
-                        {{ formatDateTime(transaction.date) }}
+                    </div>
+
+                    <div class="text-right">
+                      <div
+                        :class="getTransactionAmountClass(transaction.type)"
+                        class="font-medium"
+                      >
+                        {{ getTransactionAmountSign(transaction.type)
+                        }}{{ formatCurrency(Math.abs(transaction.amount)) }}
                       </div>
                       <div
-                        v-if="transaction.note"
-                        class="text-xs text-gray-400"
+                        v-if="transaction.type === 'empty'"
+                        class="text-xs text-gray-500"
                       >
-                        {{ transaction.note }}
+                        {{ transaction.destination }}
                       </div>
-                    </div>
-                  </div>
-
-                  <div class="text-right">
-                    <div
-                      :class="getTransactionAmountClass(transaction.type)"
-                      class="font-medium"
-                    >
-                      {{ getTransactionAmountSign(transaction.type)
-                      }}{{ formatCurrency(Math.abs(transaction.amount)) }}
-                    </div>
-                    <div
-                      v-if="transaction.type === 'empty'"
-                      class="text-xs text-gray-500"
-                    >
-                      {{ transaction.destination }}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </template>
+          </template>
 
-        <template #footer="{ close }">
-          <div class="flex justify-end gap-3">
-            <UButton color="gray" variant="outline" @click="close">
-              Fermer
-            </UButton>
-            <UButton
-              icon="i-heroicons-arrow-down-tray"
-              variant="outline"
-              @click="exportCashHistory"
-            >
-              Exporter
-            </UButton>
-          </div>
-        </template>
-      </UModal>
+          <template #footer="{ close }">
+            <div class="flex justify-end gap-3">
+              <UButton color="gray" variant="outline" @click="close">
+                Fermer
+              </UButton>
+              <UButton
+                icon="i-heroicons-arrow-down-tray"
+                variant="outline"
+                @click="exportCashHistory"
+              >
+                Exporter
+              </UButton>
+            </div>
+          </template>
+        </UModal>
+      </div>
     </div>
   </div>
 </template>
