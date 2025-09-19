@@ -5,4 +5,8 @@
       <NuxtPage />
     </NuxtLayout>
   </UApp>
+  import { setupRouteGuard } from "@/guards/routeGuard";
+
+setupRouteGuard(router);
+
 </template>

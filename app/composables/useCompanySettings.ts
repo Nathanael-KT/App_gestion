@@ -2,6 +2,7 @@ import { ref, computed } from "vue";
 
 // Types pour les paramètres de l'entreprise
 export interface CompanySettings {
+  blocked_menus?: string[];
   id?: number;
   company_name?: string;
   company_email?: string;

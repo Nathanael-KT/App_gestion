@@ -32,7 +32,7 @@ export function useUserPreferences() {
     if (!user.value) return;
     // Cast en tableau pour éviter l'erreur de typage Supabase
     const { error } = await supabase
-      .from("user_preferences")
+      .from<UserPreferences>("user_preferences")
       .upsert([{ user_id: user.value.id, ...newPrefs }]);
     if (!error) {
       await fetchPreferences();

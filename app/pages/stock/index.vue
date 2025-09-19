@@ -1187,7 +1187,7 @@ onMounted(async () => {
                       :src="product.signed_image_url"
                       alt="Photo"
                       class="w-23 h-22 object-cover rounded shadow mx-auto"
-                    />
+                    >
                   </a>
                 </div>
                 <div v-else class="text-gray-400 italic">Aucune image</div>
@@ -1254,7 +1254,7 @@ onMounted(async () => {
                 :src="product.signed_image_url"
                 alt="Photo"
                 class="max-h-24 rounded shadow"
-              />
+              >
             </a>
           </div>
           <div v-else class="text-gray-400 italic text-center mb-2">

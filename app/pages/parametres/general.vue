@@ -7,7 +7,6 @@ const router = useRouter();
 const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings, loading, error, fetchCompanySettings } = useCompanySettings();
 
-
 onMounted(async () => {
   if (isLoadingUser.value) {
     await loadCurrentUser();
@@ -395,6 +394,16 @@ const goToEdit = () => {
                 >
                   {{ settings.backup_retention ?? "-" }}
                 </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Logo de la société</label
+                >
+                <CompanyLogo
+                  :class="'flex justify-start'"
+                  :company-id="settings.id"
+                  :size="50"
+                />
               </div>
             </div>
           </div>

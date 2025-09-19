@@ -453,21 +453,21 @@ watch(
 </script>
 
 <template>
-  <div class="container mx-auto px-6 py-8">
+  <div class="container mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-8">
     <!-- Header Section -->
     <div class="mb-8">
       <div
         class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
       >
         <div>
-          <h1 class="text-3xl font-bold text-gray-900">
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">
             Gestion des Commandes
           </h1>
-          <p class="text-gray-600 mt-1">
+          <p class="text-gray-600 mt-1 text-sm sm:text-base">
             Gérez vos commandes et suivez les livraisons
           </p>
         </div>
-        <div class="flex flex-col sm:flex-row gap-3">
+        <div class="flex flex-wrap gap-3">
           <UButton
             icon="i-lucide-package-plus"
             color="orange"
@@ -494,13 +494,15 @@ watch(
     </div>
 
     <!-- Search and Filters Section -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+    <div
+      class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6"
+    >
       <div class="space-y-4">
         <!-- Première ligne: Recherche -->
         <div
-          class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
+          class="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
         >
-          <div class="flex-1 max-w-md">
+          <div class="flex-1 min-w-0">
             <UInput
               v-model="searchQuery"
               placeholder="Rechercher par référence ou client..."
@@ -510,7 +512,9 @@ watch(
             />
           </div>
 
-          <div class="flex items-center gap-6 text-sm text-gray-600">
+          <div
+            class="flex flex-wrap items-center gap-6 text-xs sm:text-sm text-gray-600"
+          >
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 bg-blue-500 rounded-full" />
               <span
@@ -531,7 +535,7 @@ watch(
 
         <!-- Deuxième ligne: Filtres -->
         <div
-          class="flex flex-col sm:flex-row gap-4 items-start sm:items-center"
+          class="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap"
         >
           <!-- Filtre de statut -->
           <div class="flex items-center gap-2">
@@ -590,7 +594,7 @@ watch(
               v-model="customStartDate"
               type="date"
               class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
+            >
             <label class="text-sm font-medium text-gray-700 whitespace-nowrap"
               >Au :</label
             >
@@ -598,7 +602,7 @@ watch(
               v-model="customEndDate"
               type="date"
               class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            />
+            >
           </div>
 
           <!-- Bouton pour effacer tous les filtres -->
@@ -656,7 +660,9 @@ watch(
       >
         <div class="p-4">
           <!-- Ligne principale compacte -->
-          <div class="flex items-center justify-between gap-4">
+          <div
+            class="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+          >
             <!-- Info commande -->
             <div class="flex items-center gap-4 min-w-0 flex-1">
               <div
@@ -666,11 +672,17 @@ watch(
               </div>
 
               <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-4 flex-wrap">
-                  <h3 class="text-lg font-semibold text-gray-900 truncate">
+                <div
+                  class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-wrap"
+                >
+                  <h3
+                    class="text-base sm:text-lg font-semibold text-gray-900 truncate"
+                  >
                     {{ invoice.reference }}
                   </h3>
-                  <div class="flex items-center gap-3 text-sm text-gray-600">
+                  <div
+                    class="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 flex-wrap"
+                  >
                     <div class="flex items-center gap-1">
                       <UIcon
                         name="i-lucide-user"
@@ -693,14 +705,16 @@ watch(
             </div>
 
             <!-- Statut et total -->
-            <div class="flex items-center gap-4 flex-shrink-0">
+            <div
+              class="flex flex-col sm:flex-row items-end gap-2 sm:gap-4 flex-shrink-0"
+            >
               <div class="text-right">
-                <p class="text-xl font-bold text-gray-900">
+                <p class="text-base sm:text-xl font-bold text-gray-900">
                   {{ invoice.total.toFixed(2) }}{{ companySettings?.currency }}
                 </p>
               </div>
 
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <UBadge
                   :color="getStatusColor(invoice)"
                   :label="getStatusLabel(invoice)"

@@ -140,7 +140,7 @@ onMounted(() => {
             v-model="client.email"
             type="email"
             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-          />
+          >
         </div>
 
         <div class="mb-4">
@@ -152,7 +152,7 @@ onMounted(() => {
             v-model="client.phone"
             type="text"
             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-          />
+          >
         </div>
 
         <div class="mb-4">
@@ -164,7 +164,7 @@ onMounted(() => {
             v-model="client.address"
             type="text"
             class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-          />
+          >
         </div>
 
         <div class="flex justify-end">

@@ -3,6 +3,7 @@ import type { DropdownMenuItem } from "@nuxt/ui";
 
 import MagasinSelector from "./MagasinSelector.vue";
 import { useCurrentUser } from "../composables/useCurrentUser";
+import TheHeader2 from "./TheHeader2.vue";
 import { useCompanySettings } from "../composables/useCompanySettings";
 import { useDashboardData } from "../composables/useDashboardData";
 import { ref, onMounted, watch } from "vue";
@@ -11,11 +12,14 @@ const { companyId, magasinId } = useCurrentUser();
 const user = useSupabaseUser();
 const supabase = useSupabaseClient();
 const emit = defineEmits(["toggleMobileMenu"]);
+const isSuperAdmin = computed(() => userRoles.value.includes("super_admin"));
 
 // Notifications
 const notifications = ref<
   Array<{ id: string; type: string; message: string; time?: string }>
 >([]);
+const userRoles = ref<string[]>([]);
+const isLoadingRoles = ref(true);
 
 // Stock alerts
 const { stockAlerts } = useDashboardData();
@@ -35,6 +39,48 @@ function checkCaisseFermeture() {
     });
   }
 }
+const loadUserRoles = async () => {
+  if (!user.value) {
+    userRoles.value = [];
+    isLoadingRoles.value = false;
+    return;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("users")
+      .select("roles")
+      .eq("auth_user_id", user.value.id)
+      .single();
+
+    if (error) {
+      console.error("Erreur lors du chargement des rôles:", error);
+      userRoles.value = ["employe"]; // Rôle par défaut en cas d'erreur
+    } else {
+      userRoles.value = data?.roles || ["employe"];
+    }
+  } catch (error) {
+    console.error("Erreur lors du chargement des rôles:", error);
+    userRoles.value = ["employe"]; // Rôle par défaut
+  } finally {
+    isLoadingRoles.value = false;
+  }
+};
+
+// Surveiller les changements d'utilisateur
+watch(
+  user,
+  (newUser) => {
+    if (newUser) {
+      loadUserRoles();
+    } else {
+      userRoles.value = [];
+      isLoadingRoles.value = false;
+    }
+  },
+  { immediate: true }
+);
 
 // Charger les alertes de stock
 watch(stockAlerts, (alerts) => {
@@ -138,11 +184,6 @@ const items: DropdownMenuItem[] = [
     to: "/profile",
   },
   {
-    label: "Paramètres",
-    icon: "heroicons:cog-6-tooth-20-solid",
-    to: "/parametres",
-  },
-  {
     label: "Déconnexion",
     icon: "heroicons:arrow-right-start-on-rectangle-20-solid",
     onSelect: async () => {
@@ -171,52 +212,58 @@ const toggleMobileMenu = () => {
 </script>
 
 <template>
-  <header
-    class="h-16 flex items-center p-4 shadow fixed top-0 left-0 right-0 bg-primary z-40"
-  >
-    <!-- Bouton hamburger pour mobile -->
-    <button
-      aria-label="Ouvrir le menu"
-      class="lg:hidden mr-4 text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
-      @click="toggleMobileMenu"
-    >
-      <img src="../assets/img/img.png" alt="Logo" class="h-8 w-8" >
-    </button>
-
-    <!-- Titre de l'application (visible sur tablet et desktop) -->
-    <div class="hidden sm:flex items-center text-white">
-      <img src="../assets/img/img.png" alt="Logo" class="h-8 w-8 mr-3" >
-      <h1 class="text-xl font-bold">
-        <span
-          class="text-2xl font-extrabold tracking-wide uppercase text-white drop-shadow-lg"
+  <component :is="isSuperAdmin ? TheHeader2 : 'div'" v-show="!isLoadingRoles">
+    <template v-if="!isSuperAdmin">
+      <header
+        class="h-20 flex items-center p-4 shadow fixed top-0 left-0 right-0 bg-primary z-40"
+      >
+        <!-- Bouton hamburger pour mobile -->
+        <button
+          aria-label="Ouvrir le menu"
+          class="lg:hidden mr-4 text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
+          @click="toggleMobileMenu"
         >
-          {{ companySettings?.company_name || "" }}
-        </span>
-      </h1>
-    </div>
+          <CompanyLogo :company-id="companyId ?? ''" :size="48" />
+        </button>
 
-    <div v-if="user" class="ml-auto flex items-center space-x-6">
-      <!-- Sélecteur de magasin -->
-      <div class="flex items-center">
-        <MagasinSelector
-          :magasins="magasins"
-          class="bg-primary text-white rounded-xl px-6 py-2 font-semibold shadow-lg border-2 border-secondary hover:bg-secondary hover:text-primary transition-all duration-200"
-        />
-      </div>
+        <!-- Titre de l'application (visible sur tablet et desktop) -->
+        <div class="hidden sm:flex items-center text-white">
+          <CompanyLogo :company-id="companyId ?? ''" :size="50" />
+          <!-- Séparation verticale -->
+          <span class="mx-4 h-8 w-px bg-white/30" />
+          <h1 class="text-xl font-bold">
+            <span
+              class="text-2xl font-extrabold tracking-wide uppercase text-white drop-shadow-lg"
+            >
+              {{ companySettings?.company_name || "" }}
+            </span>
+          </h1>
+        </div>
 
-      <!-- Notifications (visible sur desktop) -->
-      <NotificationMenu :notifications="notifications" />
+        <div v-if="user" class="ml-auto flex items-center space-x-6">
+          <!-- Sélecteur de magasin -->
+          <div class="flex items-center">
+            <MagasinSelector
+              :magasins="magasins"
+              class="bg-primary text-white rounded-xl px-6 py-2 font-semibold shadow-lg border-2 border-secondary hover:bg-secondary hover:text-primary transition-all duration-200"
+            />
+          </div>
 
-      <!-- Menu utilisateur -->
-      <UDropdownMenu :items="items">
-        <UButton variant="ghost" class="!p-0 !w-12 !h-12">
-          <span class="avatar-circle">
-            {{ user?.email ? user.email.charAt(0).toUpperCase() : "" }}
-          </span>
-        </UButton>
-      </UDropdownMenu>
-    </div>
-  </header>
+          <!-- Notifications (visible sur desktop) -->
+          <NotificationMenu :notifications="notifications" />
+
+          <!-- Menu utilisateur -->
+          <UDropdownMenu :items="items">
+            <UButton variant="ghost" class="!p-0 !w-12 !h-12">
+              <span class="avatar-circle">
+                {{ user?.email ? user.email.charAt(0).toUpperCase() : "" }}
+              </span>
+            </UButton>
+          </UDropdownMenu>
+        </div>
+      </header>
+    </template>
+  </component>
 </template>
 
 <style scoped>

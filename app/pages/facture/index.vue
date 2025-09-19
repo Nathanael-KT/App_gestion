@@ -3,26 +3,7 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { usePdfGenerator } from "../../composables/usePdfGenerator";
 import { useMagasinStore } from "../../composables/useMagasinStore";
-import { useCurrentUser } from "../../composables/useCurrentUser";
-import { useCompanySettings } from "../../composables/useCompanySettings";
 
-const {
-  companyId,
-  isLoadingUser,
-  loadCurrentUser,
-} = useCurrentUser();
-const { settings: companySettings, fetchCompanySettings } =
-  useCompanySettings();
-
-
-onMounted(async () => {
-  if (isLoadingUser.value) {
-    await loadCurrentUser();
-  }
-    if (companyId.value) await fetchCompanySettings(companyId.value);
-
-  await fetchInvoices();
-});
 
 
 // Meta configuration
