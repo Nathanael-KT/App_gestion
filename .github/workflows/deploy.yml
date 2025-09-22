@@ -282,7 +282,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-output
-          path: .output/
+          path: .output/public
           retention-days: 1
           if-no-files-found: error
         # This should always work now since we guarantee .output exists
