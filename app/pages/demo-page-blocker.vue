@@ -60,14 +60,14 @@ const { isBlocked, isLoading } = usePageBlocker('Stock')</code></pre>
         <h3 class="text-lg font-semibold mb-4">Actions de test</h3>
         <div class="flex space-x-4">
           <button 
-            @click="testOtherModules"
             class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+            @click="testOtherModules"
           >
             Tester autres modules
           </button>
           <button 
-            @click="showBlockedMenus"
             class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+            @click="showBlockedMenus"
           >
             Voir menus bloqués
           </button>
