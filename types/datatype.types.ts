@@ -253,6 +253,7 @@ export type Database = {
         Row: {
           backup_frequency: string | null
           backup_retention: number | null
+          blocked_menus: string[] | null
           company_address: string | null
           company_email: string
           company_name: string
@@ -272,6 +273,7 @@ export type Database = {
           invoice_number_start: number | null
           invoice_prefix: string | null
           language: string | null
+          logo_url: string | null
           low_stock_threshold: number | null
           number_format: string | null
           password_min_length: number | null
@@ -283,6 +285,7 @@ export type Database = {
         Insert: {
           backup_frequency?: string | null
           backup_retention?: number | null
+          blocked_menus?: string[] | null
           company_address?: string | null
           company_email?: string
           company_name?: string
@@ -302,6 +305,7 @@ export type Database = {
           invoice_number_start?: number | null
           invoice_prefix?: string | null
           language?: string | null
+          logo_url?: string | null
           low_stock_threshold?: number | null
           number_format?: string | null
           password_min_length?: number | null
@@ -313,6 +317,7 @@ export type Database = {
         Update: {
           backup_frequency?: string | null
           backup_retention?: number | null
+          blocked_menus?: string[] | null
           company_address?: string | null
           company_email?: string
           company_name?: string
@@ -332,6 +337,7 @@ export type Database = {
           invoice_number_start?: number | null
           invoice_prefix?: string | null
           language?: string | null
+          logo_url?: string | null
           low_stock_threshold?: number | null
           number_format?: string | null
           password_min_length?: number | null
@@ -341,6 +347,51 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      company_subscription: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          id: string
+          is_paid: boolean | null
+          last_payment_date: string | null
+          next_due_date: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_paid?: boolean | null
+          last_payment_date?: string | null
+          next_due_date?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_paid?: boolean | null
+          last_payment_date?: string | null
+          next_due_date?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_subscription_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_subscription_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "company_settings_view"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       daily_closings: {
         Row: {
@@ -1082,6 +1133,7 @@ export type Database = {
         Returns: {
           backup_frequency: string | null
           backup_retention: number | null
+          blocked_menus: string[] | null
           company_address: string | null
           company_email: string
           company_name: string
@@ -1101,6 +1153,7 @@ export type Database = {
           invoice_number_start: number | null
           invoice_prefix: string | null
           language: string | null
+          logo_url: string | null
           low_stock_threshold: number | null
           number_format: string | null
           password_min_length: number | null
@@ -1152,6 +1205,7 @@ export type Database = {
         Returns: {
           backup_frequency: string | null
           backup_retention: number | null
+          blocked_menus: string[] | null
           company_address: string | null
           company_email: string
           company_name: string
@@ -1171,6 +1225,7 @@ export type Database = {
           invoice_number_start: number | null
           invoice_prefix: string | null
           language: string | null
+          logo_url: string | null
           low_stock_threshold: number | null
           number_format: string | null
           password_min_length: number | null
