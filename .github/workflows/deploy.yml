@@ -188,7 +188,9 @@ jobs:
             echo "📂 .output directory contents:"
             find .output -type f -name "*.mjs" | head -10
             ls -la .output/server/ || echo "⚠️ .output/server directory not found"
-          fi      - name: Verify build output
+          fi
+
+      - name: Verify build output
         run: |
           echo "🔍 Verifying build output..."
 
