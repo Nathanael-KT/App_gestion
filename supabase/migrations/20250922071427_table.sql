@@ -84,7 +84,20 @@ create table "public"."company_settings" (
     "created_at" timestamp with time zone default CURRENT_TIMESTAMP,
     "updated_at" timestamp with time zone default CURRENT_TIMESTAMP,
     "company_siret" text,
-    "id" uuid not null default uuid_generate_v4()
+    "id" uuid not null default uuid_generate_v4(),
+    "blocked_menus" text[] default ARRAY[]::text[],
+    "logo_url" text
+);
+
+
+create table "public"."company_subscription" (
+    "id" uuid not null default gen_random_uuid(),
+    "company_id" uuid,
+    "is_paid" boolean default false,
+    "next_due_date" date,
+    "last_payment_date" date,
+    "created_at" timestamp without time zone default now(),
+    "updated_at" timestamp without time zone default now()
 );
 
 
@@ -239,6 +252,8 @@ CREATE UNIQUE INDEX clients_pkey ON public.clients USING btree (id);
 
 CREATE UNIQUE INDEX company_settings_pkey ON public.company_settings USING btree (id);
 
+CREATE UNIQUE INDEX company_subscription_pkey ON public.company_subscription USING btree (id);
+
 CREATE UNIQUE INDEX daily_closings_date_key ON public.daily_closings USING btree (date);
 
 CREATE UNIQUE INDEX daily_closings_pkey ON public.daily_closings USING btree (id);
@@ -357,6 +372,8 @@ alter table "public"."clients" add constraint "clients_pkey" PRIMARY KEY using i
 
 alter table "public"."company_settings" add constraint "company_settings_pkey" PRIMARY KEY using index "company_settings_pkey";
 
+alter table "public"."company_subscription" add constraint "company_subscription_pkey" PRIMARY KEY using index "company_subscription_pkey";
+
 alter table "public"."daily_closings" add constraint "daily_closings_pkey" PRIMARY KEY using index "daily_closings_pkey";
 
 alter table "public"."forum_messages" add constraint "forum_messages_pkey" PRIMARY KEY using index "forum_messages_pkey";
@@ -472,6 +489,10 @@ alter table "public"."company_settings" validate constraint "company_settings_se
 alter table "public"."company_settings" add constraint "company_settings_tax_rate_check" CHECK (((tax_rate >= (0)::numeric) AND (tax_rate <= (100)::numeric))) not valid;
 
 alter table "public"."company_settings" validate constraint "company_settings_tax_rate_check";
+
+alter table "public"."company_subscription" add constraint "company_subscription_company_id_fkey" FOREIGN KEY (company_id) REFERENCES company_settings(id) ON DELETE CASCADE not valid;
+
+alter table "public"."company_subscription" validate constraint "company_subscription_company_id_fkey";
 
 alter table "public"."daily_closings" add constraint "daily_closings_date_key" UNIQUE using index "daily_closings_date_key";
 
@@ -1247,6 +1268,48 @@ grant trigger on table "public"."company_settings" to "service_role";
 grant truncate on table "public"."company_settings" to "service_role";
 
 grant update on table "public"."company_settings" to "service_role";
+
+grant delete on table "public"."company_subscription" to "anon";
+
+grant insert on table "public"."company_subscription" to "anon";
+
+grant references on table "public"."company_subscription" to "anon";
+
+grant select on table "public"."company_subscription" to "anon";
+
+grant trigger on table "public"."company_subscription" to "anon";
+
+grant truncate on table "public"."company_subscription" to "anon";
+
+grant update on table "public"."company_subscription" to "anon";
+
+grant delete on table "public"."company_subscription" to "authenticated";
+
+grant insert on table "public"."company_subscription" to "authenticated";
+
+grant references on table "public"."company_subscription" to "authenticated";
+
+grant select on table "public"."company_subscription" to "authenticated";
+
+grant trigger on table "public"."company_subscription" to "authenticated";
+
+grant truncate on table "public"."company_subscription" to "authenticated";
+
+grant update on table "public"."company_subscription" to "authenticated";
+
+grant delete on table "public"."company_subscription" to "service_role";
+
+grant insert on table "public"."company_subscription" to "service_role";
+
+grant references on table "public"."company_subscription" to "service_role";
+
+grant select on table "public"."company_subscription" to "service_role";
+
+grant trigger on table "public"."company_subscription" to "service_role";
+
+grant truncate on table "public"."company_subscription" to "service_role";
+
+grant update on table "public"."company_subscription" to "service_role";
 
 grant delete on table "public"."daily_closings" to "anon";
 
