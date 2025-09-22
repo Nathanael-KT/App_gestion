@@ -79,7 +79,7 @@ const handleUpdate = async () => {
       color: "green",
       icon: "i-heroicons-check-circle",
     });
-    
+
     router.push("/product-types");
   } catch {
     error.value = "Failed to update product type";

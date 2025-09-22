@@ -1,7 +1,6 @@
 <script setup>
 // Imports
 import { ref } from "vue";
-import { v4 as uuidv4 } from "uuid";
 import { useCurrentUser } from "../../composables/useCurrentUser";
 import { useCompanySettings } from "../../composables/useCompanySettings";
 
@@ -187,7 +186,7 @@ const addProduct = async () => {
     if (imageFile.value) {
       const file = imageFile.value;
       const fileExt = file.name.split(".").pop();
-      const fileName = `${uuidv4()}.${fileExt}`;
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
       // Correction : le fichier est placé dans le dossier 'product-images' du bucket
       const storagePath = `product-images/${fileName}`;
       const { error: uploadError } = await supabase.storage
