@@ -3,22 +3,15 @@ import { ref, onMounted, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useCompanySettings } from "../../../composables/useCompanySettings";
 
-const {
-  companyId,
-  isLoadingUser,
-  loadCurrentUser,
-} = useCurrentUser();
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
-
 
 onMounted(async () => {
   if (isLoadingUser.value) {
     await loadCurrentUser();
   }
-    if (companyId.value) await fetchCompanySettings(companyId.value);
-
-  await fetchInvoices();
+  if (companyId.value) await fetchCompanySettings(companyId.value);
 });
 
 const supabase = useSupabaseClient();
@@ -30,8 +23,6 @@ const invoiceId = route.params.id;
 
 // utilise la composable useCurrentUser pour récupérer les rôles de l'utilisateur
 const { userRoles } = useCurrentUser();
-
-
 
 // Données de l'entreprise calculées
 const companyInfo = computed(() => ({
@@ -800,7 +791,9 @@ onMounted(async () => {
                   <td class="px-4 py-2">{{ item.reference }}</td>
                   <td class="px-4 py-2">{{ item.description }}</td>
                   <td class="px-4 py-2">{{ item.quantity }}</td>
-                  <td class="px-4 py-2">{{ item.price.toFixed(2) }}{{ companySettings?.currency }}</td>
+                  <td class="px-4 py-2">
+                    {{ item.price.toFixed(2) }}{{ companySettings?.currency }}
+                  </td>
                   <td class="px-4 py-2 font-medium">
                     {{ item.total.toFixed(2) }}{{ companySettings?.currency }}
                   </td>
@@ -823,18 +816,26 @@ onMounted(async () => {
             <div class="w-full max-w-sm space-y-3 bg-gray-50 p-4 rounded-lg">
               <div class="flex justify-between">
                 <span class="text-gray-600">Sous-total :</span>
-                <span class="font-medium">{{ subtotal.toFixed(2) }}{{ companySettings?.currency }}</span>
+                <span class="font-medium"
+                  >{{ subtotal.toFixed(2)
+                  }}{{ companySettings?.currency }}</span
+                >
               </div>
               <div class="flex justify-between">
                 <span class="text-gray-600"
                   >TVA ({{ (taxRate.value * 100).toFixed(0) }}%) :</span
                 >
-                <span class="font-medium">{{ taxAmount.toFixed(2) }}{{ companySettings?.currency }}</span>
+                <span class="font-medium"
+                  >{{ taxAmount.toFixed(2)
+                  }}{{ companySettings?.currency }}</span
+                >
               </div>
               <div class="border-t border-gray-300 pt-3">
                 <div class="flex justify-between text-lg font-bold">
                   <span>Total :</span>
-                  <span>{{ total.toFixed(2) }}{{ companySettings?.currency }}</span>
+                  <span
+                    >{{ total.toFixed(2) }}{{ companySettings?.currency }}</span
+                  >
                 </div>
               </div>
             </div>

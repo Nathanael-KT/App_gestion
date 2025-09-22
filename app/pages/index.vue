@@ -781,8 +781,6 @@ onMounted(async () => {
     await loadCurrentUser();
   }
   if (companyId.value) await fetchCompanySettings(companyId.value);
-
-  await fetchInvoices();
 });
 
 const { userRoles, userName, userEmail, userPhone } = useCurrentUser();
