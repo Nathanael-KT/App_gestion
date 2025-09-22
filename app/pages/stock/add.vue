@@ -357,13 +357,13 @@ const addProduct = async () => {
                 accept="image/*"
                 class="block w-full border rounded p-2"
                 @change="onImageSelected"
-              >
+              />
               <div v-if="imagePreview" class="mt-2">
                 <img
                   :src="imagePreview"
                   alt="Aperçu"
                   class="max-h-32 rounded shadow"
-                >
+                />
               </div>
             </UFormField>
 
@@ -410,7 +410,7 @@ const addProduct = async () => {
                 v-model="product.is_surface_product"
                 type="checkbox"
                 class="rounded border-gray-300"
-              >
+              />
               <label for="surface-product" class="text-sm text-gray-700">
                 Ce produit nécessite des dimensions (longueur, largeur) - Ex:
                 carreaux, dalles
