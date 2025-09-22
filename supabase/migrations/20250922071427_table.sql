@@ -1,4 +1,4 @@
-create table "public"."cash_counts" (
+create table if not exists "public"."cash_counts" (
     "id" uuid not null default uuid_generate_v4(),
     "date" date not null,
     "time" time without time zone not null default CURRENT_TIME,
@@ -16,7 +16,7 @@ create table "public"."cash_counts" (
 );
 
 
-create table "public"."cash_emptying" (
+create table if not exists "public"."cash_emptying" (
     "id" uuid not null default uuid_generate_v4(),
     "date" date not null default CURRENT_DATE,
     "amount" numeric(12,2) not null,
@@ -30,7 +30,7 @@ create table "public"."cash_emptying" (
 );
 
 
-create table "public"."cash_transactions" (
+create table if not exists "public"."cash_transactions" (
     "id" uuid not null default uuid_generate_v4(),
     "type" text not null,
     "amount" numeric(12,2) not null,
@@ -45,7 +45,7 @@ create table "public"."cash_transactions" (
 );
 
 
-create table "public"."clients" (
+create table if not exists "public"."clients" (
     "id" uuid not null default uuid_generate_v4(),
     "name" text not null,
     "email" text not null,
@@ -56,7 +56,7 @@ create table "public"."clients" (
 );
 
 
-create table "public"."company_settings" (
+create table if not exists "public"."company_settings" (
     "company_name" character varying(255) not null default 'Mon Entreprise'::character varying,
     "company_email" character varying(255) not null default 'contact@monentreprise.com'::character varying,
     "company_phone" character varying(50) default '+33 1 23 45 67 89'::character varying,
@@ -90,7 +90,7 @@ create table "public"."company_settings" (
 );
 
 
-create table "public"."company_subscription" (
+create table if not exists "public"."company_subscription" (
     "id" uuid not null default gen_random_uuid(),
     "company_id" uuid,
     "is_paid" boolean default false,
@@ -101,7 +101,7 @@ create table "public"."company_subscription" (
 );
 
 
-create table "public"."daily_closings" (
+create table if not exists "public"."daily_closings" (
     "id" uuid not null default uuid_generate_v4(),
     "date" date not null,
     "opening_balance" numeric(12,2) not null default 0,
@@ -121,7 +121,7 @@ create table "public"."daily_closings" (
 );
 
 
-create table "public"."forum_messages" (
+create table if not exists "public"."forum_messages" (
     "id" uuid not null default gen_random_uuid(),
     "username" text not null,
     "content" text not null,
@@ -130,7 +130,7 @@ create table "public"."forum_messages" (
 );
 
 
-create table "public"."invoice_items" (
+create table if not exists "public"."invoice_items" (
     "id" uuid not null default uuid_generate_v4(),
     "invoice_id" uuid not null,
     "product_id" uuid,
@@ -144,7 +144,7 @@ create table "public"."invoice_items" (
 );
 
 
-create table "public"."invoices" (
+create table if not exists "public"."invoices" (
     "id" uuid not null default uuid_generate_v4(),
     "client_id" uuid not null,
     "date" date not null default CURRENT_DATE,
@@ -161,7 +161,7 @@ create table "public"."invoices" (
 );
 
 
-create table "public"."magasins" (
+create table if not exists "public"."magasins" (
     "id" uuid not null default uuid_generate_v4(),
     "nom" text not null,
     "adresse" text,
@@ -172,7 +172,7 @@ create table "public"."magasins" (
 );
 
 
-create table "public"."payments" (
+create table if not exists "public"."payments" (
     "id" uuid not null default gen_random_uuid(),
     "invoice_id" uuid not null,
     "amount" numeric(10,2) not null,
@@ -187,7 +187,7 @@ create table "public"."payments" (
 );
 
 
-create table "public"."product_types" (
+create table if not exists "public"."product_types" (
     "id" text not null default uuid_generate_v4(),
     "name" text not null,
     "created_at" timestamp with time zone not null default now(),
@@ -195,7 +195,7 @@ create table "public"."product_types" (
 );
 
 
-create table "public"."products_carreaux" (
+create table if not exists "public"."products_carreaux" (
     "id" uuid not null default uuid_generate_v4(),
     "name" text not null,
     "description" text,
@@ -214,7 +214,7 @@ create table "public"."products_carreaux" (
 );
 
 
-create table "public"."stocks" (
+create table if not exists "public"."stocks" (
     "id" uuid not null default uuid_generate_v4(),
     "product_id" uuid not null,
     "quantity" integer not null,
@@ -226,7 +226,7 @@ create table "public"."stocks" (
 
 alter table "public"."stocks" enable row level security;
 
-create table "public"."users" (
+create table if not exists "public"."users" (
     "id" uuid not null default uuid_generate_v4(),
     "auth_user_id" uuid,
     "name" text,
@@ -240,159 +240,331 @@ create table "public"."users" (
 );
 
 
-CREATE UNIQUE INDEX cash_counts_pkey ON public.cash_counts USING btree (id);
-
-CREATE UNIQUE INDEX cash_emptying_pkey ON public.cash_emptying USING btree (id);
-
-CREATE UNIQUE INDEX cash_transactions_pkey ON public.cash_transactions USING btree (id);
-
-CREATE UNIQUE INDEX clients_email_key ON public.clients USING btree (email);
-
-CREATE UNIQUE INDEX clients_pkey ON public.clients USING btree (id);
-
-CREATE UNIQUE INDEX company_settings_pkey ON public.company_settings USING btree (id);
-
-CREATE UNIQUE INDEX company_subscription_pkey ON public.company_subscription USING btree (id);
-
-CREATE UNIQUE INDEX daily_closings_date_key ON public.daily_closings USING btree (date);
-
-CREATE UNIQUE INDEX daily_closings_pkey ON public.daily_closings USING btree (id);
-
-CREATE UNIQUE INDEX forum_messages_pkey ON public.forum_messages USING btree (id);
-
-CREATE INDEX idx_cash_counts_counted_by ON public.cash_counts USING btree (counted_by);
-
-CREATE INDEX idx_cash_counts_created_at ON public.cash_counts USING btree (created_at);
-
-CREATE INDEX idx_cash_counts_date ON public.cash_counts USING btree (date);
-
-CREATE INDEX idx_cash_counts_magasin_id ON public.cash_counts USING btree (magasin_id);
-
-CREATE INDEX idx_cash_counts_type ON public.cash_counts USING btree (count_type);
-
-CREATE INDEX idx_cash_emptying_created_at ON public.cash_emptying USING btree (created_at);
-
-CREATE INDEX idx_cash_emptying_date ON public.cash_emptying USING btree (date);
-
-CREATE INDEX idx_cash_emptying_emptied_by ON public.cash_emptying USING btree (emptied_by);
-
-CREATE INDEX idx_cash_emptying_magasin_id ON public.cash_emptying USING btree (magasin_id);
-
-CREATE INDEX idx_cash_transactions_created_at ON public.cash_transactions USING btree (created_at);
-
-CREATE INDEX idx_cash_transactions_created_by ON public.cash_transactions USING btree (created_by);
-
-CREATE INDEX idx_cash_transactions_date_type ON public.cash_transactions USING btree (created_at, type);
-
-CREATE INDEX idx_cash_transactions_magasin_id ON public.cash_transactions USING btree (magasin_id);
-
-CREATE INDEX idx_cash_transactions_type ON public.cash_transactions USING btree (type);
-
-CREATE INDEX idx_clients_email ON public.clients USING btree (email);
-
-CREATE INDEX idx_clients_magasin_id ON public.clients USING btree (magasin_id);
-
-CREATE INDEX idx_company_settings_updated_at ON public.company_settings USING btree (updated_at);
-
-CREATE INDEX idx_daily_closings_closed_by ON public.daily_closings USING btree (closed_by);
-
-CREATE INDEX idx_daily_closings_date ON public.daily_closings USING btree (date);
-
-CREATE INDEX idx_daily_closings_magasin_id ON public.daily_closings USING btree (magasin_id);
-
-CREATE INDEX idx_invoice_items_external ON public.invoice_items USING btree (is_external, external_reference) WHERE (is_external = true);
-
-CREATE INDEX idx_invoice_items_invoice_id ON public.invoice_items USING btree (invoice_id);
-
-CREATE INDEX idx_invoice_items_magasin_id ON public.invoice_items USING btree (magasin_id);
-
-CREATE INDEX idx_invoice_items_product_id ON public.invoice_items USING btree (product_id);
-
-CREATE INDEX idx_invoices_client_id ON public.invoices USING btree (client_id);
-
-CREATE INDEX idx_invoices_delivery_date ON public.invoices USING btree (delivery_date) WHERE (delivery_date IS NOT NULL);
-
-CREATE INDEX idx_invoices_delivery_status ON public.invoices USING btree (delivery) WHERE (delivery IS NOT NULL);
-
-CREATE INDEX idx_invoices_external ON public.invoices USING btree (is_external) WHERE (is_external = true);
-
-CREATE INDEX idx_invoices_magasin_id ON public.invoices USING btree (magasin_id);
-
-CREATE INDEX idx_payments_created_at ON public.payments USING btree (created_at);
-
-CREATE INDEX idx_payments_invoice_id ON public.payments USING btree (invoice_id);
-
-CREATE INDEX idx_payments_magasin_id ON public.payments USING btree (magasin_id);
-
-CREATE INDEX idx_payments_payment_date ON public.payments USING btree (payment_date);
-
-CREATE INDEX idx_products_reference ON public.products_carreaux USING btree (reference);
-
-CREATE INDEX idx_stocks_product_id ON public.stocks USING btree (product_id);
-
-CREATE INDEX idx_users_email ON public.users USING btree (email);
-
-CREATE INDEX idx_users_magasin_id ON public.users USING btree (magasin_id);
-
-CREATE UNIQUE INDEX invoice_items_pkey ON public.invoice_items USING btree (id);
-
-CREATE UNIQUE INDEX invoices_pkey ON public.invoices USING btree (id);
-
-CREATE UNIQUE INDEX magasins_pkey ON public.magasins USING btree (id);
-
-CREATE UNIQUE INDEX payments_pkey ON public.payments USING btree (id);
-
-CREATE UNIQUE INDEX product_types_name_key ON public.product_types USING btree (name);
-
-CREATE UNIQUE INDEX product_types_pkey ON public.product_types USING btree (id);
-
-CREATE UNIQUE INDEX products_carreaux_pkey ON public.products_carreaux USING btree (id);
-
-CREATE UNIQUE INDEX products_carreaux_reference_key ON public.products_carreaux USING btree (reference);
-
-CREATE UNIQUE INDEX stocks_pkey ON public.stocks USING btree (id);
-
-CREATE UNIQUE INDEX unique_cash_count_per_day_per_store ON public.cash_counts USING btree (date, magasin_id);
-
-CREATE UNIQUE INDEX users_auth_user_id_key ON public.users USING btree (auth_user_id);
-
-CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email);
-
-CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id);
-
-CREATE UNIQUE INDEX ux_invoice_items_invoice_stock_prod ON public.invoice_items USING btree (invoice_id, product_id) WHERE (product_id IS NOT NULL);
-
-alter table "public"."cash_counts" add constraint "cash_counts_pkey" PRIMARY KEY using index "cash_counts_pkey";
-
-alter table "public"."cash_emptying" add constraint "cash_emptying_pkey" PRIMARY KEY using index "cash_emptying_pkey";
-
-alter table "public"."cash_transactions" add constraint "cash_transactions_pkey" PRIMARY KEY using index "cash_transactions_pkey";
-
-alter table "public"."clients" add constraint "clients_pkey" PRIMARY KEY using index "clients_pkey";
-
-alter table "public"."company_settings" add constraint "company_settings_pkey" PRIMARY KEY using index "company_settings_pkey";
-
-alter table "public"."company_subscription" add constraint "company_subscription_pkey" PRIMARY KEY using index "company_subscription_pkey";
-
-alter table "public"."daily_closings" add constraint "daily_closings_pkey" PRIMARY KEY using index "daily_closings_pkey";
-
-alter table "public"."forum_messages" add constraint "forum_messages_pkey" PRIMARY KEY using index "forum_messages_pkey";
-
-alter table "public"."invoice_items" add constraint "invoice_items_pkey" PRIMARY KEY using index "invoice_items_pkey";
-
-alter table "public"."invoices" add constraint "invoices_pkey" PRIMARY KEY using index "invoices_pkey";
-
-alter table "public"."magasins" add constraint "magasins_pkey" PRIMARY KEY using index "magasins_pkey";
-
-alter table "public"."payments" add constraint "payments_pkey" PRIMARY KEY using index "payments_pkey";
-
-alter table "public"."product_types" add constraint "product_types_pkey" PRIMARY KEY using index "product_types_pkey";
-
-alter table "public"."products_carreaux" add constraint "products_carreaux_pkey" PRIMARY KEY using index "products_carreaux_pkey";
-
-alter table "public"."stocks" add constraint "stocks_pkey" PRIMARY KEY using index "stocks_pkey";
-
-alter table "public"."users" add constraint "users_pkey" PRIMARY KEY using index "users_pkey";
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes 
+    WHERE schemaname = 'public' 
+      AND tablename = 'cash_counts' 
+      AND indexname = 'cash_counts_pkey'
+  ) THEN
+    CREATE UNIQUE INDEX cash_counts_pkey ON public.cash_counts USING btree (id);
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_emptying' AND indexname = 'cash_emptying_pkey') THEN
+    CREATE UNIQUE INDEX cash_emptying_pkey ON public.cash_emptying USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_transactions' AND indexname = 'cash_transactions_pkey') THEN
+    CREATE UNIQUE INDEX cash_transactions_pkey ON public.cash_transactions USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'clients' AND indexname = 'clients_email_key') THEN
+    CREATE UNIQUE INDEX clients_email_key ON public.clients USING btree (email);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'clients' AND indexname = 'clients_pkey') THEN
+    CREATE UNIQUE INDEX clients_pkey ON public.clients USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'company_settings' AND indexname = 'company_settings_pkey') THEN
+    CREATE UNIQUE INDEX company_settings_pkey ON public.company_settings USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'company_subscription' AND indexname = 'company_subscription_pkey') THEN
+    CREATE UNIQUE INDEX company_subscription_pkey ON public.company_subscription USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'daily_closings' AND indexname = 'daily_closings_date_key') THEN
+    CREATE UNIQUE INDEX daily_closings_date_key ON public.daily_closings USING btree (date);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'daily_closings' AND indexname = 'daily_closings_pkey') THEN
+    CREATE UNIQUE INDEX daily_closings_pkey ON public.daily_closings USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'forum_messages' AND indexname = 'forum_messages_pkey') THEN
+    CREATE UNIQUE INDEX forum_messages_pkey ON public.forum_messages USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoice_items' AND indexname = 'invoice_items_pkey') THEN
+    CREATE UNIQUE INDEX invoice_items_pkey ON public.invoice_items USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoices' AND indexname = 'invoices_pkey') THEN
+    CREATE UNIQUE INDEX invoices_pkey ON public.invoices USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'magasins' AND indexname = 'magasins_pkey') THEN
+    CREATE UNIQUE INDEX magasins_pkey ON public.magasins USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'payments' AND indexname = 'payments_pkey') THEN
+    CREATE UNIQUE INDEX payments_pkey ON public.payments USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'product_types' AND indexname = 'product_types_name_key') THEN
+    CREATE UNIQUE INDEX product_types_name_key ON public.product_types USING btree (name);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'product_types' AND indexname = 'product_types_pkey') THEN
+    CREATE UNIQUE INDEX product_types_pkey ON public.product_types USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'products_carreaux' AND indexname = 'products_carreaux_pkey') THEN
+    CREATE UNIQUE INDEX products_carreaux_pkey ON public.products_carreaux USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'products_carreaux' AND indexname = 'products_carreaux_reference_key') THEN
+    CREATE UNIQUE INDEX products_carreaux_reference_key ON public.products_carreaux USING btree (reference);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'stocks' AND indexname = 'stocks_pkey') THEN
+    CREATE UNIQUE INDEX stocks_pkey ON public.stocks USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_counts' AND indexname = 'unique_cash_count_per_day_per_store') THEN
+    CREATE UNIQUE INDEX unique_cash_count_per_day_per_store ON public.cash_counts USING btree (date, magasin_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'users' AND indexname = 'users_auth_user_id_key') THEN
+    CREATE UNIQUE INDEX users_auth_user_id_key ON public.users USING btree (auth_user_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'users' AND indexname = 'users_email_key') THEN
+    CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'users' AND indexname = 'users_pkey') THEN
+    CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoice_items' AND indexname = 'ux_invoice_items_invoice_stock_prod') THEN
+    CREATE UNIQUE INDEX ux_invoice_items_invoice_stock_prod ON public.invoice_items USING btree (invoice_id, product_id) WHERE (product_id IS NOT NULL);
+  END IF;
+
+  -- Non-unique indexes
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_counts' AND indexname = 'idx_cash_counts_counted_by') THEN
+    CREATE INDEX idx_cash_counts_counted_by ON public.cash_counts USING btree (counted_by);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_counts' AND indexname = 'idx_cash_counts_created_at') THEN
+    CREATE INDEX idx_cash_counts_created_at ON public.cash_counts USING btree (created_at);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_counts' AND indexname = 'idx_cash_counts_date') THEN
+    CREATE INDEX idx_cash_counts_date ON public.cash_counts USING btree (date);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_counts' AND indexname = 'idx_cash_counts_magasin_id') THEN
+    CREATE INDEX idx_cash_counts_magasin_id ON public.cash_counts USING btree (magasin_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_counts' AND indexname = 'idx_cash_counts_type') THEN
+    CREATE INDEX idx_cash_counts_type ON public.cash_counts USING btree (count_type);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_emptying' AND indexname = 'idx_cash_emptying_created_at') THEN
+    CREATE INDEX idx_cash_emptying_created_at ON public.cash_emptying USING btree (created_at);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_emptying' AND indexname = 'idx_cash_emptying_date') THEN
+    CREATE INDEX idx_cash_emptying_date ON public.cash_emptying USING btree (date);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_emptying' AND indexname = 'idx_cash_emptying_emptied_by') THEN
+    CREATE INDEX idx_cash_emptying_emptied_by ON public.cash_emptying USING btree (emptied_by);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_emptying' AND indexname = 'idx_cash_emptying_magasin_id') THEN
+    CREATE INDEX idx_cash_emptying_magasin_id ON public.cash_emptying USING btree (magasin_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_transactions' AND indexname = 'idx_cash_transactions_created_at') THEN
+    CREATE INDEX idx_cash_transactions_created_at ON public.cash_transactions USING btree (created_at);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_transactions' AND indexname = 'idx_cash_transactions_created_by') THEN
+    CREATE INDEX idx_cash_transactions_created_by ON public.cash_transactions USING btree (created_by);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_transactions' AND indexname = 'idx_cash_transactions_date_type') THEN
+    CREATE INDEX idx_cash_transactions_date_type ON public.cash_transactions USING btree (created_at, type);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_transactions' AND indexname = 'idx_cash_transactions_magasin_id') THEN
+    CREATE INDEX idx_cash_transactions_magasin_id ON public.cash_transactions USING btree (magasin_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'cash_transactions' AND indexname = 'idx_cash_transactions_type') THEN
+    CREATE INDEX idx_cash_transactions_type ON public.cash_transactions USING btree (type);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'clients' AND indexname = 'idx_clients_email') THEN
+    CREATE INDEX idx_clients_email ON public.clients USING btree (email);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'clients' AND indexname = 'idx_clients_magasin_id') THEN
+    CREATE INDEX idx_clients_magasin_id ON public.clients USING btree (magasin_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'company_settings' AND indexname = 'idx_company_settings_updated_at') THEN
+    CREATE INDEX idx_company_settings_updated_at ON public.company_settings USING btree (updated_at);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'daily_closings' AND indexname = 'idx_daily_closings_closed_by') THEN
+    CREATE INDEX idx_daily_closings_closed_by ON public.daily_closings USING btree (closed_by);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'daily_closings' AND indexname = 'idx_daily_closings_date') THEN
+    CREATE INDEX idx_daily_closings_date ON public.daily_closings USING btree (date);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'daily_closings' AND indexname = 'idx_daily_closings_magasin_id') THEN
+    CREATE INDEX idx_daily_closings_magasin_id ON public.daily_closings USING btree (magasin_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoice_items' AND indexname = 'idx_invoice_items_external') THEN
+    CREATE INDEX idx_invoice_items_external ON public.invoice_items USING btree (is_external, external_reference) WHERE (is_external = true);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoice_items' AND indexname = 'idx_invoice_items_invoice_id') THEN
+    CREATE INDEX idx_invoice_items_invoice_id ON public.invoice_items USING btree (invoice_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoice_items' AND indexname = 'idx_invoice_items_magasin_id') THEN
+    CREATE INDEX idx_invoice_items_magasin_id ON public.invoice_items USING btree (magasin_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoice_items' AND indexname = 'idx_invoice_items_product_id') THEN
+    CREATE INDEX idx_invoice_items_product_id ON public.invoice_items USING btree (product_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoices' AND indexname = 'idx_invoices_client_id') THEN
+    CREATE INDEX idx_invoices_client_id ON public.invoices USING btree (client_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoices' AND indexname = 'idx_invoices_delivery_date') THEN
+    CREATE INDEX idx_invoices_delivery_date ON public.invoices USING btree (delivery_date) WHERE (delivery_date IS NOT NULL);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoices' AND indexname = 'idx_invoices_delivery_status') THEN
+    CREATE INDEX idx_invoices_delivery_status ON public.invoices USING btree (delivery) WHERE (delivery IS NOT NULL);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoices' AND indexname = 'idx_invoices_external') THEN
+    CREATE INDEX idx_invoices_external ON public.invoices USING btree (is_external) WHERE (is_external = true);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'invoices' AND indexname = 'idx_invoices_magasin_id') THEN
+    CREATE INDEX idx_invoices_magasin_id ON public.invoices USING btree (magasin_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'payments' AND indexname = 'idx_payments_created_at') THEN
+    CREATE INDEX idx_payments_created_at ON public.payments USING btree (created_at);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'payments' AND indexname = 'idx_payments_invoice_id') THEN
+    CREATE INDEX idx_payments_invoice_id ON public.payments USING btree (invoice_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'payments' AND indexname = 'idx_payments_magasin_id') THEN
+    CREATE INDEX idx_payments_magasin_id ON public.payments USING btree (magasin_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'payments' AND indexname = 'idx_payments_payment_date') THEN
+    CREATE INDEX idx_payments_payment_date ON public.payments USING btree (payment_date);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'products_carreaux' AND indexname = 'idx_products_reference') THEN
+    CREATE INDEX idx_products_reference ON public.products_carreaux USING btree (reference);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'stocks' AND indexname = 'idx_stocks_product_id') THEN
+    CREATE INDEX idx_stocks_product_id ON public.stocks USING btree (product_id);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'users' AND indexname = 'idx_users_email') THEN
+    CREATE INDEX idx_users_email ON public.users USING btree (email);
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'users' AND indexname = 'idx_users_magasin_id') THEN
+    CREATE INDEX idx_users_magasin_id ON public.users USING btree (magasin_id);
+  END IF;
+END
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'cash_counts_pkey') THEN
+    ALTER TABLE "public"."cash_counts" ADD CONSTRAINT "cash_counts_pkey" PRIMARY KEY USING INDEX "cash_counts_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'cash_emptying_pkey') THEN
+    ALTER TABLE "public"."cash_emptying" ADD CONSTRAINT "cash_emptying_pkey" PRIMARY KEY USING INDEX "cash_emptying_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'cash_transactions_pkey') THEN
+    ALTER TABLE "public"."cash_transactions" ADD CONSTRAINT "cash_transactions_pkey" PRIMARY KEY USING INDEX "cash_transactions_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'clients_pkey') THEN
+    ALTER TABLE "public"."clients" ADD CONSTRAINT "clients_pkey" PRIMARY KEY USING INDEX "clients_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'company_settings_pkey') THEN
+    ALTER TABLE "public"."company_settings" ADD CONSTRAINT "company_settings_pkey" PRIMARY KEY USING INDEX "company_settings_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'company_subscription_pkey') THEN
+    ALTER TABLE "public"."company_subscription" ADD CONSTRAINT "company_subscription_pkey" PRIMARY KEY USING INDEX "company_subscription_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'daily_closings_pkey') THEN
+    ALTER TABLE "public"."daily_closings" ADD CONSTRAINT "daily_closings_pkey" PRIMARY KEY USING INDEX "daily_closings_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'forum_messages_pkey') THEN
+    ALTER TABLE "public"."forum_messages" ADD CONSTRAINT "forum_messages_pkey" PRIMARY KEY USING INDEX "forum_messages_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'invoice_items_pkey') THEN
+    ALTER TABLE "public"."invoice_items" ADD CONSTRAINT "invoice_items_pkey" PRIMARY KEY USING INDEX "invoice_items_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'invoices_pkey') THEN
+    ALTER TABLE "public"."invoices" ADD CONSTRAINT "invoices_pkey" PRIMARY KEY USING INDEX "invoices_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'magasins_pkey') THEN
+    ALTER TABLE "public"."magasins" ADD CONSTRAINT "magasins_pkey" PRIMARY KEY USING INDEX "magasins_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'payments_pkey') THEN
+    ALTER TABLE "public"."payments" ADD CONSTRAINT "payments_pkey" PRIMARY KEY USING INDEX "payments_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'product_types_pkey') THEN
+    ALTER TABLE "public"."product_types" ADD CONSTRAINT "product_types_pkey" PRIMARY KEY USING INDEX "product_types_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'products_carreaux_pkey') THEN
+    ALTER TABLE "public"."products_carreaux" ADD CONSTRAINT "products_carreaux_pkey" PRIMARY KEY USING INDEX "products_carreaux_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'stocks_pkey') THEN
+    ALTER TABLE "public"."stocks" ADD CONSTRAINT "stocks_pkey" PRIMARY KEY USING INDEX "stocks_pkey";
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_pkey') THEN
+    ALTER TABLE "public"."users" ADD CONSTRAINT "users_pkey" PRIMARY KEY USING INDEX "users_pkey";
+  END IF;
+END
+$$;
 
 alter table "public"."cash_counts" add constraint "cash_counts_count_type_check" CHECK ((count_type = ANY (ARRAY['opening'::text, 'intermediate'::text, 'closing'::text]))) not valid;
 

@@ -10,7 +10,13 @@
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "deploy": "./deploy.sh",
+    "deploy:manual": "deployctl deploy --project=app-gestion .output/server/index.mjs",
+    "build:production": "NITRO_PRESET=deno-deploy nuxt build",
+    "supabase:setup": "npx supabase start",
+    "supabase:push": "npx supabase db push",
+    "supabase:types": "npx supabase gen types typescript --local > types/supabase.ts"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",

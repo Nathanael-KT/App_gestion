@@ -1,0 +1,24 @@
+{
+  "tasks": {
+    "start": "deno run --allow-net --allow-read --allow-env .output/server/index.mjs",
+    "dev": "deno run --allow-net --allow-read --allow-env --watch .output/server/index.mjs"
+  },
+  "imports": {
+    "@/": "./",
+    "~/": "./"
+  },
+  "compilerOptions": {
+    "lib": ["deno.window"],
+    "strict": true
+  },
+  "fmt": {
+    "files": {
+      "include": ["./*.ts", "./*.js", "./app/**/*.vue", "./app/**/*.ts"]
+    }
+  },
+  "lint": {
+    "files": {
+      "include": ["./*.ts", "./*.js", "./app/**/*.vue", "./app/**/*.ts"]
+    }
+  }
+}
