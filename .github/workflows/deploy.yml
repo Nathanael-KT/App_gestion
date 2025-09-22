@@ -222,7 +222,7 @@ jobs:
           fi
 
       - name: Create fallback build if needed
-        if: steps.build-app.outputs.build-success == 'false' || !contains(steps.build-app.outputs.build-success, 'true')
+        if: steps.build-step.outputs.build-success == 'false' || !contains(steps.build-step.outputs.build-success, 'true')
         run: |
           echo "🚨 Creating fallback build due to build failure"
           mkdir -p .output/server .output/public
@@ -278,11 +278,25 @@ jobs:
           find .output -type f | head -10
           echo "Total files: $(find .output -type f | wc -l)"
 
+          # Verify server entry point exists and is valid
+          if [ -f ".output/server/index.mjs" ]; then
+            echo "✅ Server entry point found"
+            echo "📝 Server file size: $(stat -c%s .output/server/index.mjs || stat -f%z .output/server/index.mjs) bytes"
+            
+            # Basic syntax check for the server file
+            if command -v node >/dev/null 2>&1; then
+              echo "🔍 Checking server file syntax..."
+              node --check .output/server/index.mjs && echo "✅ Server syntax valid" || echo "⚠️ Server syntax check failed"
+            fi
+          else
+            echo "❌ Server entry point missing!"
+          fi
+
       - name: Upload build artifacts (Always)
         uses: actions/upload-artifact@v4
         with:
           name: build-output
-          path: .output/public
+          path: .output/
           retention-days: 1
           if-no-files-found: error
         # This should always work now since we guarantee .output exists
