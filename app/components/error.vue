@@ -1,4 +1,4 @@
-<!-- ErrorComponent.vue - Multi-word component name to fix linting -->
+<!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="flex flex-col items-center justify-center h-screen text-center">
     <UIcon

@@ -24,7 +24,7 @@
     "db:reset": "supabase db reset",
     "db:seed": "supabase db reset --with-seed",
     "deploy:prod": "pnpm build && deployctl deploy --prod .output/server/index.mjs",
-    "setup:secrets": "./scripts/setup-github-secrets.sh",
+    "setup:secrets": "./scripts/setup-github-secrets.sh"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
