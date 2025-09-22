@@ -3,26 +3,30 @@ import { useCurrentUser } from "~/composables/useCurrentUser";
 
 export default defineNuxtRouteMiddleware(async (to) => {
   // éviter boucle infinie
-  if (to.path.startsWith("/error") || to.path.startsWith("/login")) return;
+  if (to.path.startsWith("/error") || to.path.startsWith("/login") || to.path.startsWith("/superadmin")) return;
 
   // récupérer companyId depuis ton composable
-  const current = useCurrentUser?.();
+  const current = useCurrentUser();
   const companyId = current?.companyId?.value ?? null;
+  
+  // Si pas d'utilisateur connecté ou pas de companyId, permettre l'accès (d'autres middlewares s'occuperont de l'auth)
   if (!companyId) return;
 
-  // cache pour éviter des requêtes répétées
-  const blockedState = useState<string[]>("blocked_menus_cache", () => []);
+  // cache pour éviter des requêtes répétées, avec le companyId pour isoler les caches
+  const blockedState = useState<string[]>(`blocked_menus_cache_${companyId}`, () => []);
 
-  if (!blockedState.value.length) {
-    const supabase = useSupabaseClient();
-    const { data, error } = await supabase
-      .from("company_settings")
-      .select("blocked_menus")
-      .eq("id", companyId)
-      .single();
-    if (!error && data?.blocked_menus) {
-      blockedState.value = data.blocked_menus;
-    }
+  // Toujours recharger les menus bloqués pour s'assurer qu'on a les données les plus récentes
+  const supabase = useSupabaseClient();
+  const { data, error } = await supabase
+    .from("company_settings")
+    .select("blocked_menus")
+    .eq("id", companyId)
+    .single() as { data: { blocked_menus: string[] | null } | null; error: unknown };
+  
+  if (!error && data?.blocked_menus && Array.isArray(data.blocked_menus)) {
+    blockedState.value = data.blocked_menus;
+  } else {
+    blockedState.value = [];
   }
 
   if (!blockedState.value.length) return;
@@ -38,6 +42,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     Utilisateurs: "/utilisateurs",
     Rapports: "/rapports",
     Discussion: "/discussion",
+    Forum: "/forum", // Ajout du chemin Forum
     Paramètres: "/parametres",
     Aide: "/aide",
   };
@@ -66,7 +71,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
       path: "/error",
       query: {
         message:
-          "Vous n'avez pas le droit d'accéder à cette page. Contactez votre administrateur.",
+          "Accès bloqué par votre administrateur. Ce module a été désactivé pour votre entreprise.",
+        blocked: "1"
       },
     });
   }

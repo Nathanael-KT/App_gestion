@@ -9,10 +9,13 @@
           />
         </div>
         <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Accès refusé
+          {{ isBlockedMenu ? 'Module désactivé' : 'Accès refusé' }}
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600">
-          Vous n'avez pas les permissions nécessaires pour accéder à cette page.
+          {{ isBlockedMenu 
+            ? 'Ce module a été désactivé pour votre entreprise par votre administrateur.' 
+            : 'Vous n\'avez pas les permissions nécessaires pour accéder à cette page.' 
+          }}
         </p>
       </div>
       <div class="bg-white p-6 rounded-lg shadow">
@@ -37,6 +40,10 @@
               </span>
             </div>
           </div>
+          <div v-if="customMessage">
+            <span class="text-sm font-medium text-gray-500">Message :</span>
+            <p class="ml-2 text-sm text-gray-700">{{ customMessage }}</p>
+          </div>
           <div v-if="error?.statusMessage">
             <span class="text-sm font-medium text-gray-500">Détail :</span>
             <p class="ml-2 text-sm text-red-600">{{ error.statusMessage }}</p>
@@ -59,9 +66,14 @@
 
 <script setup lang="ts">
 const { userRoles, userEmail } = useCurrentUser();
+const route = useRoute();
 
 // Récupérer l'erreur depuis la route si elle existe
 const error = useError();
+
+// Vérifier si c'est un accès bloqué par menu
+const isBlockedMenu = computed(() => route.query.blocked === "1");
+const customMessage = computed(() => route.query.message as string || "");
 
 // Meta pour la page
 useHead({

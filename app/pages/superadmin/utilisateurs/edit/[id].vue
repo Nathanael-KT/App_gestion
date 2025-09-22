@@ -116,7 +116,7 @@
                   type="checkbox"
                   class="sr-only peer"
                   :disabled="isLoading"
-                />
+                >
                 <label
                   :for="role.value"
                   class="flex flex-col p-4 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:border-gray-300 peer-checked:border-blue-500 peer-checked:bg-blue-50"

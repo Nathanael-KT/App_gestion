@@ -276,7 +276,7 @@ onMounted(async () => {
                       !($event.target as HTMLInputElement).checked
                     )
                   "
-                />
+                >
                 <div
                   class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-all duration-200 relative"
                 >
