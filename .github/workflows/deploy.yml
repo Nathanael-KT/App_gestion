@@ -221,76 +221,134 @@ jobs:
             find .output -type f | head -5
           fi
 
-      - name: Create fallback build if needed
-        if: steps.build-step.outputs.build-success == 'false' || !contains(steps.build-step.outputs.build-success, 'true')
-        run: |
-          echo "🚨 Creating fallback build due to build failure"
-          mkdir -p .output/server .output/public
-
-          # Create a minimal working Deno server
-          cat > .output/server/index.mjs << 'EOF'
-          // Fallback server due to build failure
-          export default {
-            async fetch(request) {
-              return new Response(`
-                <html>
-                  <head><title>Build Error</title></head>
-                  <body>
-                    <h1>Application Temporarily Unavailable</h1>
-                    <p>The build process encountered errors. Please check the deployment logs.</p>
-                    <p>Time: ${new Date().toISOString()}</p>
-                  </body>
-                </html>
-              `, {
-                headers: { 'Content-Type': 'text/html' }
-              });
-            }
-          };
-          EOF
-
-          echo "Build failed at $(date)" > .output/build-status.txt
-          echo "✅ Fallback build created"
-
       - name: Ensure output directory exists (GitHub Actions #232 fix)
         run: |
+          echo "🔍 Checking build output status..."
+          
           # Always ensure .output exists with at least one file for artifact upload
           if [ ! -d ".output" ]; then
-            echo "📁 Creating .output directory as it doesn't exist"
+            echo "� Creating .output directory as it doesn't exist"
             mkdir -p .output/server .output/public
-            
-            # Create minimal fallback if nothing exists
-            if [ ! -f ".output/server/index.mjs" ]; then
-              echo "🔧 Creating emergency fallback server"
-              cat > .output/server/index.mjs << 'EOF'
-          export default {
-            async fetch() {
-              return new Response('Emergency fallback - Build system error', {
-                headers: { 'Content-Type': 'text/plain' }
-              });
-            }
-          };
-          EOF
-            fi
+            echo "🔧 Creating emergency fallback server"
+            cat > .output/server/index.mjs << 'EOF'
+export default {
+  async fetch() {
+    return new Response('Emergency fallback - Build system error', {
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  }
+};
+EOF
+          elif [ ! -f ".output/server/index.mjs" ]; then
+            echo "🔧 Server entry point missing, creating fallback"
+            mkdir -p .output/server
+            cat > .output/server/index.mjs << 'EOF'
+export default {
+  async fetch() {
+    return new Response('Fallback server - Build incomplete', {
+      headers: { 'Content-Type': 'text/plain' }
+    });
+  }
+};
+EOF
           fi
 
           # Verify we have something to upload
           echo "📊 Final .output contents:"
           find .output -type f | head -10
           echo "Total files: $(find .output -type f | wc -l)"
-
+          
           # Verify server entry point exists and is valid
           if [ -f ".output/server/index.mjs" ]; then
             echo "✅ Server entry point found"
-            echo "📝 Server file size: $(stat -c%s .output/server/index.mjs || stat -f%z .output/server/index.mjs) bytes"
+            echo "📝 Server file size: $(stat -c%s .output/server/index.mjs 2>/dev/null || stat -f%z .output/server/index.mjs 2>/dev/null || echo 'unknown') bytes"
             
             # Basic syntax check for the server file
             if command -v node >/dev/null 2>&1; then
-              echo "🔍 Checking server file syntax..."
+              echo "� Checking server file syntax..."
               node --check .output/server/index.mjs && echo "✅ Server syntax valid" || echo "⚠️ Server syntax check failed"
             fi
           else
             echo "❌ Server entry point missing!"
           fi
+
+      - name: Create fallback build if needed
+        if: steps.build-step.outputs.build-success == 'false' || !contains(steps.build-step.outputs.build-success, 'true')
+        run: |
+          echo "� Creating enhanced fallback build due to build failure"
+          mkdir -p .output/server .output/public
+
+          # Create a minimal working Deno server
+          cat > .output/server/index.mjs << 'EOF'
+// Fallback server due to build failure
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    
+    if (url.pathname === '/health') {
+      return new Response('Fallback server is running', {
+        headers: { 'Content-Type': 'text/plain' }
+      });
+    }
+    
+    return new Response(`
+      <html>
+        <head>
+          <title>Build Error - App Gestion</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+            .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .error { color: #d73527; }
+            .info { color: #666; margin-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1 class="error">Application Temporarily Unavailable</h1>
+            <p>The build process encountered errors. Please check the deployment logs.</p>
+            <div class="info">
+              <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+              <p><strong>Status:</strong> Fallback mode active</p>
+              <p><strong>Action:</strong> Development team has been notified</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `, {
+      headers: { 'Content-Type': 'text/html' }
+    });
+  }
+};
+EOF
+
+          echo "Build failed at $(date)" > .output/build-status.txt
+          echo "✅ Enhanced fallback build created"
+
+      - name: Final verification before upload
+        run: |
+          echo "🔎 Final check before artifact upload..."
+          
+          # Absolutely ensure .output exists
+          if [ ! -d ".output" ]; then
+            echo "🚨 CRITICAL: .output still missing, creating emergency structure"
+            mkdir -p .output/server .output/public
+            echo 'export default { async fetch() { return new Response("Emergency server"); } };' > .output/server/index.mjs
+          fi
+          
+          # Count files to upload
+          file_count=$(find .output -type f | wc -l)
+          echo "📊 Files to upload: $file_count"
+          
+          if [ "$file_count" -eq 0 ]; then
+            echo "🚨 No files found, creating minimal structure"
+            mkdir -p .output/server .output/public
+            echo 'export default { async fetch() { return new Response("Minimal server"); } };' > .output/server/index.mjs
+            echo "Minimal build" > .output/public/index.html
+          fi
+          
+          echo "📁 Final .output structure:"
+          find .output -type f | head -5
+          ls -la .output/
 
       - name: Upload build artifacts (Always)
         uses: actions/upload-artifact@v4
