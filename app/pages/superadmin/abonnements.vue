@@ -22,21 +22,23 @@ async function fetchCompanies() {
     .from("company_settings")
     .select("id, company_name, company_subscription(is_paid, next_due_date)");
   if (!error && Array.isArray(data)) {
-    companies.value = data.map((row: {
-      id: string;
-      company_name: string;
-      company_subscription: Array<{
-        is_paid: boolean;
-        next_due_date: string | null;
-      }>;
-    }) => ({
-      id: row.id,
-      name: row.company_name,
-      subscription: {
-        is_paid: row.company_subscription?.[0]?.is_paid ?? false,
-        next_due_date: row.company_subscription?.[0]?.next_due_date ?? null,
-      },
-    }));
+    companies.value = data.map(
+      (row: {
+        id: string;
+        company_name: string;
+        company_subscription: Array<{
+          is_paid: boolean;
+          next_due_date: string | null;
+        }>;
+      }) => ({
+        id: row.id,
+        name: row.company_name,
+        subscription: {
+          is_paid: row.company_subscription?.[0]?.is_paid ?? false,
+          next_due_date: row.company_subscription?.[0]?.next_due_date ?? null,
+        },
+      })
+    );
   }
   loading.value = false;
 }
@@ -120,32 +122,40 @@ onMounted(fetchCompanies);
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
-                        <tr
-                            v-for="company in companies"
-                            :key="company.id"
-                            class="hover:bg-blue-50 transition"
-                        >
-                            <td class="px-6 py-4 font-medium text-gray-900">{{ company.name }}</td>
+                        <tr v-for="company in companies" :key="company.id" class="hover:bg-blue-50 transition">
+                            <td class="px-6 py-4 font-medium text-gray-900">
+                                {{ company.name }}
+                            </td>
                             <td class="px-6 py-4">
                                 <span
-                                    :class="company.subscription.is_paid ? 'bg-green-100 text-green-700 px-2 py-1 rounded-full' : 'bg-red-100 text-red-700 px-2 py-1 rounded-full'"
+                                    :class="company.subscription.is_paid
+                                        ? 'bg-green-100 text-green-700 px-2 py-1 rounded-full'
+                                        : 'bg-red-100 text-red-700 px-2 py-1 rounded-full'"
                                 >
                                     {{ company.subscription.is_paid ? "Oui" : "Non" }}
                                 </span>
                             </td>
                             <td class="px-6 py-4">
                                 <span
-                                    :class="company.subscription.is_paid ? 'text-green-700 font-semibold' : 'text-red-700 font-semibold'"
+                                    :class="company.subscription.is_paid
+                                        ? 'text-green-700 font-semibold'
+                                        : 'text-red-700 font-semibold'"
                                 >
-                                    {{ company.subscription.is_paid && company.subscription.next_due_date
-                                        ? new Date(company.subscription.next_due_date).toLocaleString('fr-FR', { month: 'long' })
-                                        : "-" }}
+                                    {{
+                                        company.subscription.is_paid &&
+                                        company.subscription.next_due_date
+                                            ? new Date(company.subscription.next_due_date).toLocaleString("fr-FR", { month: "long" })
+                                            : "-"
+                                    }}
                                 </span>
                             </td>
                             <td class="px-6 py-4">
-                                {{ company.subscription.is_paid && company.subscription.next_due_date
-                                    ? new Date(company.subscription.next_due_date).toISOString().slice(0, 10)
-                                    : "-" }}
+                                {{
+                                    company.subscription.is_paid &&
+                                    company.subscription.next_due_date
+                                        ? new Date(company.subscription.next_due_date).toISOString().slice(0, 10)
+                                        : "-"
+                                }}
                             </td>
                             <td class="px-6 py-4">
                                 {{ company.subscription.next_due_date || "-" }}

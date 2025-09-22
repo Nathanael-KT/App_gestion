@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from "vue";
-import { useRouter } from "vue-router"; 
+import { useRouter } from "vue-router";
 import { useCurrentUser } from "../composables/useCurrentUser";
 const route = useRoute();
 onMounted(() => {
@@ -80,30 +80,28 @@ const menuItems: Array<{
   requiredRoles?: string[];
   disabled?: boolean;
 }> = [
-
-  
-  {
-    name: "Configuration",
-    path: "/parametres",
-    icon: "heroicons:cog-6-tooth-20-solid",
-    children: [
-      { name: "Company", path: "/superadmin" },
-      { name: "Role & Users", path: "/superadmin/roles" },
-    ],
-    requiredRoles: ["admin", "employe", "magasinier"],
-  },
   {
     name: "Dashboard",
     path: "/superadmin/dashboard",
     icon: "heroicons:chart-bar-20-solid",
     children: [
-
-      { name: "Plans", path: "/superadmin/plans" },
+      { name: "Company", path: "/superadmin" },
       { name: "Abonnements", path: "/superadmin/abonnements" },
       { name: "Logs", path: "/superadmin/logs" },
     ],
-    },
+  },
   {
+    name: "Utilisateurs",
+    path: "/superadmin/utilisateurs",
+    icon: "heroicons:users-20-solid",
+    children: [
+      { name: "Profil", path: "/profile" },
+      { name: "Utilisateurs", path: "/superadmin/utilisateurs/list" },
+      { name: "Ajouter", path: "/superadmin/utilisateurs/add" },
+    ],
+  },
+  {
+     
     name: "Aide",
     path: "/aide",
     icon: "heroicons:question-mark-circle-20-solid",
@@ -296,7 +294,9 @@ onMounted(() => {
     ]"
   >
     <!-- En-tête du menu -->
-  <div class="flex items-center justify-between p-4 border-b border-gray-700 sticky top-0 bg-gray-800 z-40">
+    <div
+      class="flex items-center justify-between p-4 border-b border-gray-700 sticky top-0 bg-gray-800 z-40"
+    >
       <!-- Logo/Titre (visible sur desktop et tablet en mode étendu) -->
       <div v-if="isMobile || expanded" class="flex items-center space-x-2">
         <UIcon
