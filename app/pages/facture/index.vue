@@ -3,8 +3,8 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { usePdfGenerator } from "../../composables/usePdfGenerator";
 import { useMagasinStore } from "../../composables/useMagasinStore";
-
-
+import { useCurrentUser } from "../../composables/useCurrentUser";
+import { useCompanySettings } from "../../composables/useCompanySettings";
 
 // Meta configuration
 definePageMeta({
@@ -14,6 +14,13 @@ definePageMeta({
 const magasinStore = useMagasinStore();
 const supabase = useSupabaseClient();
 const router = useRouter();
+
+// Utilisation des composables pour récupérer les données utilisateur et société
+const { userRoles, companyId, isLoadingUser, loadCurrentUser } =
+  useCurrentUser();
+
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
 
 const invoices = ref([]);
 const loading = ref(false);
@@ -299,10 +306,24 @@ const resetAllFilters = () => {
   }
 };
 
-onMounted(() => {
-  loadFiltersFromStorage(); // Charger les filtres sauvegardés
+onMounted(async () => {
+  // Attendre le chargement des données utilisateur si nécessaire
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+
+  // Charger les paramètres de la société
+  if (companyId.value) {
+    await fetchCompanySettings(companyId.value);
+  }
+
+  // Charger les filtres sauvegardés
+  loadFiltersFromStorage();
+
+  // Charger les factures
   fetchInvoices();
 });
+
 watch(() => magasinStore.magasinId, fetchInvoices);
 </script>
 
@@ -506,7 +527,8 @@ watch(() => magasinStore.magasinId, fetchInvoices);
               <div class="flex items-center gap-4 flex-shrink-0">
                 <div class="text-right">
                   <p class="text-xl font-bold text-gray-900">
-                    {{ invoice.total.toFixed(2) }} {{ companySettings?.currency }}
+                    {{ invoice.total.toFixed(2) }}
+                    {{ companySettings?.currency }}
                   </p>
                 </div>
 
