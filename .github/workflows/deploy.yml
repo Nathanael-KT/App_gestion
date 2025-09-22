@@ -213,7 +213,7 @@ jobs:
           fi
 
           # Show directory structure for debugging
-          echo "� Current directory structure:"
+          echo "📂 Current directory structure:"
           ls -la
 
           if [ -d ".output" ]; then
