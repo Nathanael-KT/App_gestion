@@ -2,7 +2,7 @@
  * Middleware d'authentification global
  * Protège toutes les routes sauf login
  */
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware((to: { path: string; }) => {
   const user = useSupabaseUser();
 
   // Pages publiques qui n'ont pas besoin d'authentification

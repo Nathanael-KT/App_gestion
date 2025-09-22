@@ -4,22 +4,15 @@ import { useRoute } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
 import { useCompanySettings } from "../../../composables/useCompanySettings";
 
-const {
-  companyId,
-  isLoadingUser,
-  loadCurrentUser,
-} = useCurrentUser();
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
-
 
 onMounted(async () => {
   if (isLoadingUser.value) {
     await loadCurrentUser();
   }
-    if (companyId.value) await fetchCompanySettings(companyId.value);
-
-  await fetchInvoices();
+  if (companyId.value) await fetchCompanySettings(companyId.value);
 });
 
 const route = useRoute();
@@ -68,7 +61,8 @@ const fetchProductTypes = async () => {
     if (fetchError) throw fetchError;
     typeProduits.value = data || [];
   } catch (err) {
-    error.value = err.message || "Erreur lors de la récupération des types de produits.";
+    error.value =
+      err.message || "Erreur lors de la récupération des types de produits.";
     toast.error(error.value);
   }
 };
@@ -112,7 +106,13 @@ const onTypeChange = () => {
     (type) => type.id === product.value.type_produit
   );
   if (selectedType) {
-    const surfaceKeywords = ["carreau", "dalle", "carrelage", "parquet", "lame"];
+    const surfaceKeywords = [
+      "carreau",
+      "dalle",
+      "carrelage",
+      "parquet",
+      "lame",
+    ];
     const isSurfaceProduct = surfaceKeywords.some((keyword) =>
       selectedType.name.toLowerCase().includes(keyword)
     );
@@ -161,7 +161,9 @@ const updateProduct = async () => {
       !product.value.stock ||
       !product.value.price
     ) {
-      throw new Error("Les champs nom, référence, description, type, stock et prix sont obligatoires.");
+      throw new Error(
+        "Les champs nom, référence, description, type, stock et prix sont obligatoires."
+      );
     }
     if (product.value.is_surface_product) {
       if (
@@ -169,7 +171,9 @@ const updateProduct = async () => {
         !product.value.largeur ||
         !product.value.nbr_pieces
       ) {
-        throw new Error("Pour les produits de surface, les dimensions et le nombre de pièces sont obligatoires.");
+        throw new Error(
+          "Pour les produits de surface, les dimensions et le nombre de pièces sont obligatoires."
+        );
       }
     }
     const typeExists = typeProduits.value.some(
@@ -395,7 +399,11 @@ const updateProduct = async () => {
                   class="w-full"
                 />
               </UFormField>
-                <UFormField :label="`Prix unitaire (${companySettings?.currency})`" name="prix" required>
+              <UFormField
+                :label="`Prix unitaire (${companySettings?.currency})`"
+                name="prix"
+                required
+              >
                 <UInput
                   v-model="product.price"
                   type="number"
@@ -474,7 +482,10 @@ const updateProduct = async () => {
             label="Enregistrer les modifications"
             icon="i-lucide-check-check"
             color="primary"
-            :disabled="loading || !(userRoles.includes('admin') || userRoles.includes('magasinier'))"
+            :disabled="
+              loading ||
+              !(userRoles.includes('admin') || userRoles.includes('magasinier'))
+            "
             :loading="loading"
             size="lg"
             @click="updateProduct"

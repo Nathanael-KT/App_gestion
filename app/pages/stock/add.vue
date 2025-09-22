@@ -5,22 +5,15 @@ import { v4 as uuidv4 } from "uuid";
 import { useCurrentUser } from "../../composables/useCurrentUser";
 import { useCompanySettings } from "../../composables/useCompanySettings";
 
-const {
-  companyId,
-  isLoadingUser,
-  loadCurrentUser,
-} = useCurrentUser();
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
-
 
 onMounted(async () => {
   if (isLoadingUser.value) {
     await loadCurrentUser();
   }
-    if (companyId.value) await fetchCompanySettings(companyId.value);
-
-  await fetchInvoices();
+  if (companyId.value) await fetchCompanySettings(companyId.value);
 });
 
 const product = ref({
@@ -448,7 +441,11 @@ const addProduct = async () => {
                 />
               </UFormField>
 
-              <UFormField :label="`Prix unitaire (${companySettings?.currency})`" name="prix" required>
+              <UFormField
+                :label="`Prix unitaire (${companySettings?.currency})`"
+                name="prix"
+                required
+              >
                 <UInput
                   v-model="product.price"
                   type="number"

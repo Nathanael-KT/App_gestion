@@ -4,13 +4,27 @@
   "type": "module",
   "scripts": {
     "build": "nuxt build",
+    "build:ci": "nuxt build --no-typecheck",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "deploy": "./deploy.sh",
+    "deploy:manual": "deployctl deploy --project=app-gestion .output/server/index.mjs",
+    "build:production": "NITRO_PRESET=deno-deploy nuxt build",
+    "supabase:setup": "npx supabase start",
+    "supabase:push": "npx supabase db push",
+    "supabase:types": "npx supabase gen types typescript --local > types/supabase.ts",
+    "typecheck": "nuxt typecheck",
+    "test": "echo 'No tests specified' && exit 0",
+    "db:migrate": "supabase db push",
+    "db:reset": "supabase db reset",
+    "db:seed": "supabase db reset --with-seed",
+    "deploy:prod": "pnpm build && deployctl deploy --prod .output/server/index.mjs",
+    "setup:secrets": "./scripts/setup-github-secrets.sh"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",

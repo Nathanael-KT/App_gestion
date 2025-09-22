@@ -4,22 +4,15 @@ import { useRouter, useRoute } from "vue-router";
 import { useCurrentUser } from "../../composables/useCurrentUser";
 import { useCompanySettings } from "../../composables/useCompanySettings";
 
-const {
-  companyId,
-  isLoadingUser,
-  loadCurrentUser,
-} = useCurrentUser();
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
-
 
 onMounted(async () => {
   if (isLoadingUser.value) {
     await loadCurrentUser();
   }
-    if (companyId.value) await fetchCompanySettings(companyId.value);
-
-  await fetchInvoices();
+  if (companyId.value) await fetchCompanySettings(companyId.value);
 });
 
 const supabase = useSupabaseClient();
@@ -219,7 +212,7 @@ const addPayment = async () => {
       title: "Erreur",
       description: `Le montant ne peut pas dépasser le reste à payer (${remainingAmount.value.toFixed(
         2
-      )} {${companySettings?.currency }})`,
+      )} {${companySettings?.currency}})`,
       icon: "i-lucide-alert-circle",
       color: "red",
     });
@@ -529,7 +522,9 @@ onMounted(() => {
 
         <div class="flex justify-between text-xs text-gray-600 mt-2">
           <span>0{{ companySettings?.currency }}</span>
-          <span>{{ invoice.total.toFixed(2) }}{{ companySettings?.currency }}</span>
+          <span
+            >{{ invoice.total.toFixed(2) }}{{ companySettings?.currency }}</span
+          >
         </div>
       </div>
 
@@ -544,7 +539,7 @@ onMounted(() => {
             <label class="block text-sm font-medium text-gray-700 mb-2">
               Montant ({{ companySettings?.currency }})
             </label>
-            
+
             <UInput
               v-model="newPayment.amount"
               type="number"
@@ -666,7 +661,8 @@ onMounted(() => {
               <div>
                 <div class="flex items-center gap-3">
                   <p class="font-semibold text-gray-900">
-                    {{ payment.amount.toFixed(2) }}{{ companySettings?.currency }}
+                    {{ payment.amount.toFixed(2)
+                    }}{{ companySettings?.currency }}
                   </p>
                   <UBadge
                     :label="
@@ -721,7 +717,9 @@ onMounted(() => {
               {{
                 isFullyPaid
                   ? "La facture est entièrement payée"
-                  : `Il reste ${remainingAmount.toFixed(2)} ${companySettings?.currency} à encaisser`
+                  : `Il reste ${remainingAmount.toFixed(2)} ${
+                      companySettings?.currency
+                    } à encaisser`
               }}
             </p>
           </div>

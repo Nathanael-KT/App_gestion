@@ -4,22 +4,15 @@ import { useMagasinStore } from "../../composables/useMagasinStore";
 import { useCurrentUser } from "../../composables/useCurrentUser";
 import { useCompanySettings } from "../../composables/useCompanySettings";
 
-const {
-  companyId,
-  isLoadingUser,
-  loadCurrentUser,
-} = useCurrentUser();
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
-
 
 onMounted(async () => {
   if (isLoadingUser.value) {
     await loadCurrentUser();
   }
-    if (companyId.value) await fetchCompanySettings(companyId.value);
-
-  await fetchInvoices();
+  if (companyId.value) await fetchCompanySettings(companyId.value);
 });
 
 const magasinStore = useMagasinStore();
@@ -541,7 +534,8 @@ watch(() => magasinStore.magasinId, fetchClientsWithInvoices);
                       </div>
                       <div class="flex items-center gap-3">
                         <span class="font-semibold text-sm text-gray-900">
-                          {{ formatCurrency(invoice.total) }} {{ companySettings?.currency }}
+                          {{ formatCurrency(invoice.total) }}
+                          {{ companySettings?.currency }}
                         </span>
                         <UBadge
                           :color="
@@ -716,7 +710,8 @@ watch(() => magasinStore.magasinId, fetchClientsWithInvoices);
                   </div>
                   <div class="text-right">
                     <p class="font-semibold text-sm text-gray-900">
-                      {{ formatCurrency(invoice.total) }} {{ companySettings?.currency }}
+                      {{ formatCurrency(invoice.total) }}
+                      {{ companySettings?.currency }}
                     </p>
                     <UBadge
                       :color="
