@@ -79,17 +79,9 @@ const handleUpdate = async () => {
       color: "green",
       icon: "i-heroicons-check-circle",
     });
-  } catch (err) {
-    error.value = "Failed to update product type";
-    toast.add({
-      title: "Erreur",
-      description: error.value,
-      color: "red",
-      icon: "i-heroicons-x-circle",
-    });
-    toast.success("Product type updated successfully");
+    
     router.push("/product-types");
-  } catch (err) {
+  } catch {
     error.value = "Failed to update product type";
     toast.add({
       title: "Erreur",
@@ -154,44 +146,5 @@ onMounted(fetchData);
         </div>
       </template>
     </UCard>
-  </div>
-
-    <div v-if="!loading && productType.id" class="max-w-md">
-      <form class="space-y-4" @submit.prevent="handleUpdate">
-        <div>
-          <label
-            for="name"
-            class="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Name
-          </label>
-          <input
-            id="name"
-            v-model="productType.name"
-            type="text"
-            required
-            class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-
-        <div class="flex gap-2">
-          <button
-            type="submit"
-            :disabled="loading"
-            class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-          >
-            {{ loading ? "Updating..." : "Update" }}
-          </button>
-
-          <button
-            type="button"
-            class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-            @click="router.push('/product-types')"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
   </div>
 </template>
