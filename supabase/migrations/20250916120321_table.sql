@@ -84,7 +84,6 @@ create table "public"."company_settings" (
     "created_at" timestamp with time zone default CURRENT_TIMESTAMP,
     "updated_at" timestamp with time zone default CURRENT_TIMESTAMP,
     "company_siret" text,
-    "company_id" uuid,
     "id" uuid not null default uuid_generate_v4()
 );
 
@@ -113,7 +112,8 @@ create table "public"."forum_messages" (
     "id" uuid not null default gen_random_uuid(),
     "username" text not null,
     "content" text not null,
-    "created_at" timestamp with time zone default now()
+    "created_at" timestamp with time zone default now(),
+    "company_id" uuid
 );
 
 
@@ -169,14 +169,16 @@ create table "public"."payments" (
     "note" text,
     "created_at" timestamp with time zone default now(),
     "updated_at" timestamp with time zone default now(),
-    "magasin_id" uuid
+    "magasin_id" uuid,
+    "company_id" uuid
 );
 
 
 create table "public"."product_types" (
     "id" text not null default uuid_generate_v4(),
     "name" text not null,
-    "created_at" timestamp with time zone not null default now()
+    "created_at" timestamp with time zone not null default now(),
+    "company_id" uuid
 );
 
 
@@ -194,7 +196,8 @@ create table "public"."products_carreaux" (
     "type_produit" text,
     "unite" character varying(20) default 'pièce'::character varying,
     "image_url" text,
-    "is_hidden" boolean default false
+    "is_hidden" boolean default false,
+    "company_id" uuid
 );
 
 
@@ -203,9 +206,12 @@ create table "public"."stocks" (
     "product_id" uuid not null,
     "quantity" integer not null,
     "location" text,
-    "updated_at" timestamp with time zone not null default now()
+    "updated_at" timestamp with time zone not null default now(),
+    "company_id" uuid default gen_random_uuid()
 );
 
+
+alter table "public"."stocks" enable row level security;
 
 create table "public"."users" (
     "id" uuid not null default uuid_generate_v4(),
@@ -477,6 +483,10 @@ alter table "public"."daily_closings" add constraint "fk_daily_closings_closed_b
 
 alter table "public"."daily_closings" validate constraint "fk_daily_closings_closed_by";
 
+alter table "public"."forum_messages" add constraint "forum_messages_company_id_fkey" FOREIGN KEY (company_id) REFERENCES company_settings(id) not valid;
+
+alter table "public"."forum_messages" validate constraint "forum_messages_company_id_fkey";
+
 alter table "public"."invoice_items" add constraint "chk_product_or_external" CHECK ((((product_id IS NOT NULL) AND (external_reference IS NULL) AND (external_description IS NULL) AND (is_external = false)) OR ((product_id IS NULL) AND (external_reference IS NOT NULL) AND (external_description IS NOT NULL) AND (is_external = true)))) not valid;
 
 alter table "public"."invoice_items" validate constraint "chk_product_or_external";
@@ -513,6 +523,10 @@ alter table "public"."invoices" add constraint "invoices_total_check" CHECK ((to
 
 alter table "public"."invoices" validate constraint "invoices_total_check";
 
+alter table "public"."magasins" add constraint "magasins_company_id_fkey" FOREIGN KEY (company_id) REFERENCES company_settings(id) not valid;
+
+alter table "public"."magasins" validate constraint "magasins_company_id_fkey";
+
 alter table "public"."payments" add constraint "chk_payment_method" CHECK (((payment_method)::text = ANY ((ARRAY['virement'::character varying, 'cheque'::character varying, 'especes'::character varying, 'carte'::character varying, 'autre'::character varying])::text[]))) not valid;
 
 alter table "public"."payments" validate constraint "chk_payment_method";
@@ -520,6 +534,10 @@ alter table "public"."payments" validate constraint "chk_payment_method";
 alter table "public"."payments" add constraint "payments_amount_check" CHECK ((amount > (0)::numeric)) not valid;
 
 alter table "public"."payments" validate constraint "payments_amount_check";
+
+alter table "public"."payments" add constraint "payments_company_id_fkey" FOREIGN KEY (company_id) REFERENCES company_settings(id) not valid;
+
+alter table "public"."payments" validate constraint "payments_company_id_fkey";
 
 alter table "public"."payments" add constraint "payments_invoice_id_fkey" FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE not valid;
 
@@ -529,11 +547,19 @@ alter table "public"."payments" add constraint "payments_magasin_id_fkey" FOREIG
 
 alter table "public"."payments" validate constraint "payments_magasin_id_fkey";
 
+alter table "public"."product_types" add constraint "product_types_company_id_fkey" FOREIGN KEY (company_id) REFERENCES company_settings(id) not valid;
+
+alter table "public"."product_types" validate constraint "product_types_company_id_fkey";
+
 alter table "public"."product_types" add constraint "product_types_name_key" UNIQUE using index "product_types_name_key";
 
 alter table "public"."products_carreaux" add constraint "fk_product_type" FOREIGN KEY (type_produit) REFERENCES product_types(id) not valid;
 
 alter table "public"."products_carreaux" validate constraint "fk_product_type";
+
+alter table "public"."products_carreaux" add constraint "products_carreaux_company_id_fkey" FOREIGN KEY (company_id) REFERENCES company_settings(id) not valid;
+
+alter table "public"."products_carreaux" validate constraint "products_carreaux_company_id_fkey";
 
 alter table "public"."products_carreaux" add constraint "products_carreaux_price_check" CHECK ((price >= (0)::numeric)) not valid;
 
@@ -545,6 +571,10 @@ alter table "public"."products_carreaux" add constraint "products_carreaux_stock
 
 alter table "public"."products_carreaux" validate constraint "products_carreaux_stock_check";
 
+alter table "public"."stocks" add constraint "stocks_company_id_fkey" FOREIGN KEY (company_id) REFERENCES company_settings(id) not valid;
+
+alter table "public"."stocks" validate constraint "stocks_company_id_fkey";
+
 alter table "public"."stocks" add constraint "stocks_product_fkey" FOREIGN KEY (product_id) REFERENCES products_carreaux(id) ON DELETE CASCADE not valid;
 
 alter table "public"."stocks" validate constraint "stocks_product_fkey";
@@ -554,6 +584,10 @@ alter table "public"."stocks" add constraint "stocks_quantity_check" CHECK ((qua
 alter table "public"."stocks" validate constraint "stocks_quantity_check";
 
 alter table "public"."users" add constraint "users_auth_user_id_key" UNIQUE using index "users_auth_user_id_key";
+
+alter table "public"."users" add constraint "users_company_id_fkey" FOREIGN KEY (company_id) REFERENCES company_settings(id) not valid;
+
+alter table "public"."users" validate constraint "users_company_id_fkey";
 
 alter table "public"."users" add constraint "users_email_key" UNIQUE using index "users_email_key";
 

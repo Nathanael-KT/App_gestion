@@ -1,7 +1,19 @@
 <script setup>
 import { ref, reactive, onMounted } from "vue";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+
 const supabase = useSupabaseClient();
 const toast = useToast();
+const { companyId, isLoadingUser, loadCurrentUser, currentUser } =
+  useCurrentUser();
+console.log("currentMagasin.id:", companyId);
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+  await loadMagasins();
+});
 
 // États
 const magasins = ref([]);
@@ -17,20 +29,62 @@ const currentMagasin = reactive({
   email: "",
 });
 
+// modifier le magasin courant de l'utilisateur
+const switchMagasin = async (id) => {
+  if (!id) return;
+  loading.value = true;
+  error.value = null;
+  try {
+    const userId = currentUser.value?.id;
+    if (!userId) throw new Error("Utilisateur non connecté");
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ magasin_id: id })
+      .eq("id", userId);
+    if (updateError) throw updateError;
+    toast.add({
+      title: "Magasin changé",
+      description: "Le magasin courant a été mis à jour.",
+      color: "green",
+    });
+    await loadCurrentUser(); // Recharger les infos utilisateur
+  } catch (err) {
+    error.value = err.message;
+    toast.add({ title: "Erreur", description: err.message, color: "red" });
+  } finally {
+    loading.value = false;
+  }
+  // Rafraichir la page pour appliquer le changement
+  window.location.reload();
+};
+
 // Charger la liste des magasins
 const loadMagasins = async () => {
   loading.value = true;
   error.value = null;
   try {
-    const { data, error: supaError } = await supabase
-      .from("magasins")
-      .select("id, nom, adresse, telephone, email");
+    let data = [];
+    let supaError = null;
+    if (
+      companyId.value &&
+      companyId.value !== "null" &&
+      companyId.value !== "" &&
+      companyId.value !== undefined
+    ) {
+      const result = await supabase
+        .from("magasins")
+        .select("id, nom, adresse, telephone, email")
+        .eq("company_id", companyId.value); // Filtrer par company_id
+      data = result.data;
+      supaError = result.error;
+    } else {
+      supaError = { message: "companyId invalide" };
+    }
     if (supaError) throw supaError;
     // Tri côté client pour éviter l'erreur 400
     magasins.value = (data || []).sort((a, b) => a.nom.localeCompare(b.nom));
   } catch (err) {
     error.value = err.message;
-    toast.add({ title: "Erreur", description: err.message, color: "red" });
   } finally {
     loading.value = false;
   }
@@ -73,15 +127,27 @@ const saveMagasin = async () => {
   try {
     if (editMode.value && currentMagasin.id) {
       // Update
-      const { error: updateError } = await supabase
-        .from("magasins")
-        .update({
-          nom: currentMagasin.nom,
-          adresse: currentMagasin.adresse,
-          telephone: currentMagasin.telephone,
-          email: currentMagasin.email,
-        })
-        .eq("id", currentMagasin.id);
+      let updateError = null;
+      if (
+        companyId.value &&
+        companyId.value !== "null" &&
+        companyId.value !== "" &&
+        companyId.value !== undefined
+      ) {
+        const result = await supabase
+          .from("magasins")
+          .update({
+            nom: currentMagasin.nom,
+            adresse: currentMagasin.adresse,
+            telephone: currentMagasin.telephone,
+            email: currentMagasin.email,
+            company_id: companyId.value,
+          })
+          .eq("id", currentMagasin.id);
+        updateError = result.error;
+      } else {
+        updateError = { message: "companyId invalide" };
+      }
       if (updateError) throw updateError;
       toast.add({
         title: "Modifié",
@@ -90,12 +156,24 @@ const saveMagasin = async () => {
       });
     } else {
       // Insert
-      const { error: insertError } = await supabase.from("magasins").insert({
-        nom: currentMagasin.nom,
-        adresse: currentMagasin.adresse,
-        telephone: currentMagasin.telephone,
-        email: currentMagasin.email,
-      });
+      let insertError = null;
+      if (
+        companyId.value &&
+        companyId.value !== "null" &&
+        companyId.value !== "" &&
+        companyId.value !== undefined
+      ) {
+        const result = await supabase.from("magasins").insert({
+          nom: currentMagasin.nom,
+          adresse: currentMagasin.adresse,
+          telephone: currentMagasin.telephone,
+          email: currentMagasin.email,
+          company_id: companyId.value,
+        });
+        insertError = result.error;
+      } else {
+        insertError = { message: "companyId invalide" };
+      }
       if (insertError) throw insertError;
       toast.add({
         title: "Ajouté",
@@ -112,6 +190,7 @@ const saveMagasin = async () => {
     loading.value = false;
   }
 };
+console.log("currentMagasin.id:", currentMagasin.id);
 
 // Supprimer un magasin
 const deleteMagasin = async (id) => {
@@ -142,7 +221,7 @@ onMounted(loadMagasins);
 </script>
 
 <template>
-<div class="w-full max-w-7xl mx-auto px-2 py-8">
+  <div class="w-full max-w-7xl mx-auto px-2 py-8">
     <div
       class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4 w-full max-w-full"
     >
@@ -226,6 +305,15 @@ onMounted(loadMagasins);
                   class="rounded-full"
                   @click="deleteMagasin(magasin.id)"
                   >Supprimer</UButton
+                >
+                <UButton
+                  icon="i-heroicons-arrow-path"
+                  color="primary"
+                  variant="soft"
+                  size="sm"
+                  class="rounded-full"
+                  @click="switchMagasin(magasin.id)"
+                  >Basculer</UButton
                 >
               </td>
             </tr>

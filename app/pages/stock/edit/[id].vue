@@ -2,6 +2,25 @@
 import { ref, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
+import { useCompanySettings } from "../../../composables/useCompanySettings";
+
+const {
+  companyId,
+  isLoadingUser,
+  loadCurrentUser,
+} = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+    if (companyId.value) await fetchCompanySettings(companyId.value);
+
+  await fetchInvoices();
+});
 
 const route = useRoute();
 const productId = route.params.id;
@@ -376,12 +395,12 @@ const updateProduct = async () => {
                   class="w-full"
                 />
               </UFormField>
-              <UFormField label="Prix unitaire (Fcfa)" name="prix" required>
+                <UFormField :label="`Prix unitaire (${companySettings?.currency})`" name="prix" required>
                 <UInput
                   v-model="product.price"
                   type="number"
                   step="0.01"
-                  placeholder="Prix unitaire (Fcfa)"
+                  :placeholder="`Prix unitaire (${companySettings?.currency})`"
                   class="w-full"
                 />
               </UFormField>

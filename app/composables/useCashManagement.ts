@@ -2,8 +2,31 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPOSABLE POUR LA GESTION DE CAISSE AVEC VALIDATION
 // ═══════════════════════════════════════════════════════════════════════════════
+import { useCurrentUser } from "./useCurrentUser";
+import { useCompanySettings } from "./useCompanySettings";
+
+
 
 export const useCashManagement = () => {
+
+  const {
+  companyId,
+  isLoadingUser,
+  loadCurrentUser,
+} = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+    if (companyId.value) await fetchCompanySettings(companyId.value);
+
+  useCashManagement();
+});
+
   const supabase = useSupabaseClient();
   const { currentUser } = useCurrentUser();
   const toast = useToast();
@@ -527,14 +550,15 @@ export const useCashManagement = () => {
   /**
    * Format des montants en euros
    */
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat("fr-FR", {
-      style: "currency",
-      currency: "EUR",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value || 0);
-  };
+  const formatCurrency = (value: number) => {
+  const currency = companySettings?.value?.currency;
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value || 0);
+};
 
   /**
    * Calculer le total d'un comptage (billets + pièces)

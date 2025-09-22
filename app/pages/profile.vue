@@ -37,7 +37,7 @@
           <div
             class="inline-flex px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full text-sm font-medium shadow-lg"
           >
-            {{ getRoleLabel(primaryRole || "employe") }}
+            {{ getRoleLabel(primaryRole) }}
           </div>
         </div>
       </div>
@@ -402,10 +402,13 @@ const roleLabels: Record<string, string> = {
   ROLE_ADMIN: "Administrateur",
   ROLE_MANAGER: "Magasinier",
   ROLE_USER: "Employé",
+  super_admin: "Super Admin",
+  SUPER_ADMIN: "Super Admin",
+  superAdmin: "Super Admin",
 };
 
 const getRoleLabel = (role: string | null): string => {
-  if (!role) return "Employé";
+  if (!role) return "Super Admin";
   return roleLabels[role] || role;
 };
 

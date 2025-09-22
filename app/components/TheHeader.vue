@@ -1,30 +1,187 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from "@nuxt/ui";
-import MagasinSelector from "./MagasinSelector.vue";
 
+import MagasinSelector from "./MagasinSelector.vue";
+import { useCurrentUser } from "../composables/useCurrentUser";
+import TheHeader2 from "./TheHeader2.vue";
+import { useCompanySettings } from "../composables/useCompanySettings";
+import { useDashboardData } from "../composables/useDashboardData";
+import { ref, onMounted, watch } from "vue";
+
+const { companyId, magasinId } = useCurrentUser();
 const user = useSupabaseUser();
 const supabase = useSupabaseClient();
 const emit = defineEmits(["toggleMobileMenu"]);
+const isSuperAdmin = computed(() => userRoles.value.includes("super_admin"));
+
+// Notifications
+const notifications = ref<
+  Array<{ id: string; type: string; message: string; time?: string }>
+>([]);
+const userRoles = ref<string[]>([]);
+const isLoadingRoles = ref(true);
+
+// Stock alerts
+const { stockAlerts } = useDashboardData();
+
+// Forum messages
+const newForumMessage = ref(false);
+
+// Caisse fermeture (à 17h30)
+function checkCaisseFermeture() {
+  const now = new Date();
+  if (now.getHours() === 17 && now.getMinutes() >= 30) {
+    notifications.value.push({
+      id: "fermeture-caisse",
+      type: "caisse",
+      message: "Veuillez fermer la caisse à 17h30.",
+      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    });
+  }
+}
+const loadUserRoles = async () => {
+  if (!user.value) {
+    userRoles.value = [];
+    isLoadingRoles.value = false;
+    return;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from("users")
+      .select("roles")
+      .eq("auth_user_id", user.value.id)
+      .single();
+
+    if (error) {
+      console.error("Erreur lors du chargement des rôles:", error);
+      userRoles.value = ["employe"]; // Rôle par défaut en cas d'erreur
+    } else {
+      userRoles.value = data?.roles || ["employe"];
+    }
+  } catch (error) {
+    console.error("Erreur lors du chargement des rôles:", error);
+    userRoles.value = ["employe"]; // Rôle par défaut
+  } finally {
+    isLoadingRoles.value = false;
+  }
+};
+
+// Surveiller les changements d'utilisateur
+watch(
+  user,
+  (newUser) => {
+    if (newUser) {
+      loadUserRoles();
+    } else {
+      userRoles.value = [];
+      isLoadingRoles.value = false;
+    }
+  },
+  { immediate: true }
+);
+
+// Charger les alertes de stock
+watch(stockAlerts, (alerts) => {
+  if (alerts && alerts.length > 0) {
+    notifications.value = notifications.value.filter((n) => n.type !== "stock");
+    alerts.forEach((alert, idx) => {
+      notifications.value.push({
+        id: `stock-${idx}`,
+        type: "stock",
+        message: `Alerte stock: ${alert.product_name} (${alert.message})`,
+      });
+    });
+  }
+});
+
+// Vérifier les nouveaux messages du forum
+async function checkForumMessages() {
+  if (!companyId.value) return;
+  const { data, error } = await supabase
+    .from("forum_messages")
+    .select("id, created_at")
+    .eq("company_id", companyId.value)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (!error && data && data.length > 0) {
+    if (data[0]) {
+      const lastMsg = data[0] as { id: number; created_at: string };
+      // Si le message est récent (< 10 min)
+      const msgDate = new Date(lastMsg.created_at);
+      const now = new Date();
+      if (now.getTime() - msgDate.getTime() < 10 * 60 * 1000) {
+        notifications.value = notifications.value.filter(
+          (n) => n.type !== "forum"
+        );
+        notifications.value.push({
+          id: `forum-${lastMsg.id}`,
+          type: "forum",
+          message: "Nouveau message dans le forum.",
+          time: msgDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        });
+        newForumMessage.value = true;
+      }
+    }
+  }
+}
+
+onMounted(() => {
+  // Vérifier la fermeture de caisse toutes les minutes
+  setInterval(checkCaisseFermeture, 60000);
+  // Vérifier les nouveaux messages du forum toutes les 2 min
+  setInterval(checkForumMessages, 120000);
+  // Vérifier au montage
+  checkCaisseFermeture();
+  checkForumMessages();
+});
 
 // Utilisation du composable pour les paramètres de l'entreprise
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
 
-// Charger les paramètres de l'entreprise au montage du composant
+// Récupérer les paramètres de l'entreprise au montage
 onMounted(() => {
-  fetchCompanySettings();
+  // Attendre que companyId ET magasinId soient tous les deux définis
+  if (!companyId.value || !magasinId.value) {
+    const stop = watch(
+      [() => companyId.value, () => magasinId.value],
+      ([newCompanyId, newMagasinId]) => {
+        if (newCompanyId && newMagasinId) {
+          console.log("companyId récupéré :", companyId.value);
+          console.log("magasinId récupéré :", magasinId.value);
+
+          fetchMagasins();
+          fetchCompanySettings(newCompanyId);
+          stop();
+        }
+      },
+      { immediate: true }
+    );
+  }
 });
+
+// Liste des magasins filtrés par companyId
+const magasins = ref([]);
+
+async function fetchMagasins() {
+  if (!companyId) return;
+  const { data, error } = await supabase
+    .from("magasins")
+    .select("id, nom, company_id")
+    .eq("company_id", companyId);
+  if (!error) magasins.value = data || [];
+}
 
 const items: DropdownMenuItem[] = [
   {
     label: "Mon compte",
     icon: "heroicons:user-20-solid",
     to: "/profile",
-  },
-  {
-    label: "Paramètres",
-    icon: "heroicons:cog-6-tooth-20-solid",
-    to: "/parametres",
   },
   {
     label: "Déconnexion",
@@ -55,55 +212,58 @@ const toggleMobileMenu = () => {
 </script>
 
 <template>
-  <header
-    class="h-16 flex items-center p-4 shadow fixed top-0 left-0 right-0 bg-primary z-40"
-  >
-    <!-- Bouton hamburger pour mobile -->
-    <button
-      aria-label="Ouvrir le menu"
-      class="lg:hidden mr-4 text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
-      @click="toggleMobileMenu"
-    >
-      <img src="../assets/img/img.png" alt="Logo" class="h-8 w-8" >
-    </button>
-
-    <!-- Titre de l'application (visible sur tablet et desktop) -->
-    <div class="hidden sm:flex items-center text-white">
-      <img src="../assets/img/img.png" alt="Logo" class="h-8 w-8 mr-3" >
-      <h1 class="text-xl font-bold">
-        {{ companySettings?.company_name || "Mon Application" }}
-      </h1>
-    </div>
-
-    <div v-if="user" class="ml-auto flex items-center space-x-6">
-      <!-- Sélecteur de magasin -->
-      <div class="flex items-center">
-        <MagasinSelector
-          class="bg-primary text-white rounded-xl px-6 py-2 font-semibold shadow-lg border-2 border-secondary hover:bg-secondary hover:text-primary transition-all duration-200"
-        />
-      </div>
-      <!-- Notifications (visible sur desktop) -->
-      <button
-        class="hidden lg:flex items-center text-white hover:bg-white/10 p-2 rounded-lg transition-colors relative"
-        aria-label="Notifications"
+  <component :is="isSuperAdmin ? TheHeader2 : 'div'" v-show="!isLoadingRoles">
+    <template v-if="!isSuperAdmin">
+      <header
+        class="h-20 flex items-center p-4 shadow fixed top-0 left-0 right-0 bg-primary z-40"
       >
-        <UIcon name="heroicons:bell-20-solid" class="h-6 w-6" />
-        <!-- Badge de notification -->
-        <span
-          class="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"
-        />
-      </button>
+        <!-- Bouton hamburger pour mobile -->
+        <button
+          aria-label="Ouvrir le menu"
+          class="lg:hidden mr-4 text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
+          @click="toggleMobileMenu"
+        >
+          <CompanyLogo :company-id="companyId ?? ''" :size="48" />
+        </button>
 
-      <!-- Menu utilisateur -->
-      <UDropdownMenu :items="items">
-        <UButton variant="ghost" class="!p-0 !w-12 !h-12">
-          <span class="avatar-circle">
-            {{ user?.email ? user.email.charAt(0).toUpperCase() : "" }}
-          </span>
-        </UButton>
-      </UDropdownMenu>
-    </div>
-  </header>
+        <!-- Titre de l'application (visible sur tablet et desktop) -->
+        <div class="hidden sm:flex items-center text-white">
+          <CompanyLogo :company-id="companyId ?? ''" :size="50" />
+          <!-- Séparation verticale -->
+          <span class="mx-4 h-8 w-px bg-white/30" />
+          <h1 class="text-xl font-bold">
+            <span
+              class="text-2xl font-extrabold tracking-wide uppercase text-white drop-shadow-lg"
+            >
+              {{ companySettings?.company_name || "" }}
+            </span>
+          </h1>
+        </div>
+
+        <div v-if="user" class="ml-auto flex items-center space-x-6">
+          <!-- Sélecteur de magasin -->
+          <div class="flex items-center">
+            <MagasinSelector
+              :magasins="magasins"
+              class="bg-primary text-white rounded-xl px-6 py-2 font-semibold shadow-lg border-2 border-secondary hover:bg-secondary hover:text-primary transition-all duration-200"
+            />
+          </div>
+
+          <!-- Notifications (visible sur desktop) -->
+          <NotificationMenu :notifications="notifications" />
+
+          <!-- Menu utilisateur -->
+          <UDropdownMenu :items="items">
+            <UButton variant="ghost" class="!p-0 !w-12 !h-12">
+              <span class="avatar-circle">
+                {{ user?.email ? user.email.charAt(0).toUpperCase() : "" }}
+              </span>
+            </UButton>
+          </UDropdownMenu>
+        </div>
+      </header>
+    </template>
+  </component>
 </template>
 
 <style scoped>

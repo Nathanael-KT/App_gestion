@@ -1,4 +1,8 @@
 import { jsPDF } from "jspdf";
+import { useCurrentUser } from "./useCurrentUser";
+import { useCompanySettings } from "./useCompanySettings";
+
+// La récupération des paramètres société se fait dans generateDeliveryNote
 
 // Types pour TypeScript
 interface Client {
@@ -46,9 +50,10 @@ interface Invoice {
 export const useDeliveryNoteGenerator = () => {
   const supabase = useSupabaseClient();
 
-
   // Utilisation du composable pour les paramètres de l'entreprise
-  const { settings: companySettings, fetchCompanySettings } = useCompanySettings();
+  const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
+  const { settings: companySettings, fetchCompanySettings } =
+    useCompanySettings();
 
   const fetchOrderDetails = async (invoiceId: string) => {
     try {
@@ -142,8 +147,9 @@ export const useDeliveryNoteGenerator = () => {
 
   const generateDeliveryNote = async (invoiceId: string) => {
     try {
+      if (isLoadingUser.value) await loadCurrentUser();
+      if (companyId.value) await fetchCompanySettings(companyId.value);
       const { invoice, items } = await fetchOrderDetails(invoiceId);
-      await fetchCompanySettings();
 
       // Créer un nouveau document PDF en format A4 avec deux bons identiques
       const doc = new jsPDF();
@@ -171,11 +177,23 @@ export const useDeliveryNoteGenerator = () => {
         doc.setTextColor(...darkColor);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(7);
-        doc.text(companySettings.value?.company_name || "MON ENTREPRISE", 15, currentY + 22);
+        doc.text(
+          companySettings.value?.company_name || "MON ENTREPRISE",
+          15,
+          currentY + 22
+        );
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6);
-        doc.text(companySettings.value?.company_address || "Adresse non définie", 15, currentY + 27);
-        doc.text(`Tél: ${companySettings.value?.company_phone || "N/A"}`, 15, currentY + 32);
+        doc.text(
+          companySettings.value?.company_address || "Adresse non définie",
+          15,
+          currentY + 27
+        );
+        doc.text(
+          `Tél: ${companySettings.value?.company_phone || "N/A"}`,
+          15,
+          currentY + 32
+        );
 
         // Numéro de bon et date (petite taille, à droite)
         doc.setFont("helvetica", "normal");
@@ -186,8 +204,6 @@ export const useDeliveryNoteGenerator = () => {
           140,
           currentY + 30
         );
-
-        
 
         // Informations client
         doc.setFillColor(240, 240, 240);
@@ -329,7 +345,7 @@ export const useDeliveryNoteGenerator = () => {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6);
         doc.setTextColor(...grayColor);
-        doc.text(`Total: ${invoice.total.toFixed(2)}Fcfa TTC`, 15, currentY);
+        doc.text(`Total: ${invoice.total.toFixed(2)}${companySettings.value?.currency} TTC`, 15, currentY);
         doc.text(
           `Généré le ${new Date().toLocaleDateString(
             "fr-FR"

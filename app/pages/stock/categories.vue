@@ -1,6 +1,7 @@
 <script setup>
 // Imports
-import { ref, onMounted, computed } from "vue";
+import { ref, computed, watch } from "vue";
+import { useCurrentUser } from "../../composables/useCurrentUser";
 
 // State variables
 const productTypes = ref([]);
@@ -8,6 +9,7 @@ const newType = ref("");
 const loading = ref(false);
 const error = ref(null);
 const searchQuery = ref("");
+const companyError = ref(null);
 
 const isDeleteModalOpen = ref(false);
 const isDeleting = ref(false);
@@ -18,7 +20,7 @@ const supabase = useSupabaseClient();
 const toast = useToast();
 
 // utilise la composable useCurrentUser pour récupérer les rôles de l'utilisateur
-const { userRoles } = useCurrentUser();
+const { userRoles, companyId, isLoadingUser } = useCurrentUser();
 
 // Computed properties
 const filteredProductTypes = computed(() => {
@@ -34,11 +36,22 @@ const filteredProductTypes = computed(() => {
 const fetchProductTypes = async () => {
   loading.value = true;
   error.value = null;
+  companyError.value = null;
+
+  // Block if companyId is missing/null
+  if (!companyId.value) {
+    companyError.value =
+      "Aucune société sélectionnée. Veuillez choisir une société avant d'afficher les types de produits.";
+    loading.value = false;
+    productTypes.value = [];
+    return;
+  }
 
   try {
     const { data, error: supabaseError } = await supabase
       .from("product_types")
       .select("*")
+      .eq("company_id", companyId.value)
       .order("name", { ascending: true });
 
     if (supabaseError) throw supabaseError;
@@ -82,7 +95,7 @@ const addProductType = async () => {
   try {
     const { error: insertError } = await supabase
       .from("product_types")
-      .insert([{ name: newType.value.trim() }]);
+      .insert([{ name: newType.value.trim(), company_id: companyId.value }]);
 
     if (insertError) throw insertError;
 
@@ -111,7 +124,8 @@ const openDeleteModal = async (type) => {
     const { data: products, error: checkError } = await supabase
       .from("products_carreaux")
       .select("id, name, reference")
-      .eq("type_produit", type.id);
+      .eq("type_produit", type.id)
+      .eq("company_id", companyId.value);
 
     if (checkError) throw checkError;
 
@@ -146,7 +160,8 @@ const deleteProductType = async () => {
     const { error: deleteError } = await supabase
       .from("product_types")
       .delete()
-      .eq("id", typeToDelete.value.id);
+      .eq("id", typeToDelete.value.id)
+      .eq("company_id", companyId.value);
 
     if (deleteError) throw deleteError;
 
@@ -169,8 +184,16 @@ const deleteProductType = async () => {
   }
 };
 
-// Initial fetch
-onMounted(fetchProductTypes);
+// Wait for user profile to load before fetching
+watch(
+  () => isLoadingUser.value,
+  (loadingUser) => {
+    if (!loadingUser) {
+      fetchProductTypes();
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -225,10 +248,21 @@ onMounted(fetchProductTypes);
       </div>
 
       <!-- Loading -->
-      <div v-if="loading" class="flex justify-center items-center py-8">
+      <div
+        v-if="loading || isLoadingUser"
+        class="flex justify-center items-center py-8"
+      >
         <div
           class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"
         />
+      </div>
+
+      <!-- Company Error -->
+      <div
+        v-if="companyError"
+        class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded"
+      >
+        <p>{{ companyError }}</p>
       </div>
 
       <!-- Error -->

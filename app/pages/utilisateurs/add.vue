@@ -303,6 +303,8 @@
 <script setup lang="ts">
 // Import du store magasin
 import { useMagasinStore } from "@/composables/useMagasinStore";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+const { companyId } = useCurrentUser();
 
 // Configuration des rôles
 const availableRoles = [
@@ -494,6 +496,7 @@ const handleSubmit = async () => {
           roles: form.roles,
           phone: form.phone || null,
           magasin_id: form.magasin_id,
+          company_id: companyId.value,
         },
         emailRedirectTo: `${window.location.origin}/login`,
       },
@@ -535,6 +538,7 @@ const handleSubmit = async () => {
           phone: form.phone || null,
           roles: form.roles,
           magasin_id: form.magasin_id,
+          company_id: companyId.value,
         },
       ]);
 

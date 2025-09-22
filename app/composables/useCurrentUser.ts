@@ -11,6 +11,7 @@ interface CurrentUser {
   auth_user_id: string | null;
   created_at: string;
   magasin_id?: string | null;
+  company_id?: string | null;
 }
 
 export const useCurrentUser = () => {
@@ -63,6 +64,7 @@ export const useCurrentUser = () => {
           // Utilisateur trouvé par email, mettre à jour auth_user_id
 
           const { data: updatedData, error: updateError } = await (
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             supabase as any
           )
             .from("users")
@@ -205,5 +207,7 @@ export const useCurrentUser = () => {
       () => currentUser.value?.email || authUser.value?.email || ""
     ),
     userPhone: computed(() => currentUser.value?.phone || null),
+    companyId: computed(() => currentUser.value?.company_id || null),
+    magasinId: computed(() => currentUser.value?.magasin_id || null),
   };
 };

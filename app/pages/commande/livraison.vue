@@ -2,9 +2,13 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useDeliveryNoteGenerator } from "../../composables/useDeliveryNoteGenerator";
+import { useMagasinStore } from "../../composables/useMagasinStore";
+
+
 
 const supabase = useSupabaseClient();
 const router = useRouter();
+const magasinStore = useMagasinStore();
 
 const orders = ref([]);
 const loading = ref(false);
@@ -154,6 +158,7 @@ const fetchOrders = async () => {
         delivery_date,
         delivery_notes,
         clients(name),
+        magasins(nom),
         invoice_items(
           id,
           quantity,
@@ -162,6 +167,7 @@ const fetchOrders = async () => {
         )
       `
       )
+      .eq("magasin_id", magasinStore.magasinId)
       .order("created_at", { ascending: false });
 
     if (fetchError) throw fetchError;

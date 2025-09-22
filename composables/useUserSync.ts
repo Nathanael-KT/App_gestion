@@ -11,7 +11,8 @@ export const useUserSync = () => {
   const syncUserProfile = async (userId: string) => {
     try {
       // Appeler la fonction PostgreSQL pour synchroniser l'utilisateur
-      const { data, error } = await supabase.rpc("sync_user_profile", { user_id: userId } as unknown);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await supabase.rpc("sync_user_profile", { user_id: userId } as any);
 
       if (error) {
         console.error("Erreur lors de la synchronisation utilisateur:", error);

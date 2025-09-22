@@ -2,6 +2,7 @@ import { ref, computed } from "vue";
 
 // Types pour les paramètres de l'entreprise
 export interface CompanySettings {
+  blocked_menus?: string[];
   id?: number;
   company_name?: string;
   company_email?: string;
@@ -82,22 +83,29 @@ export const useCompanySettings = () => {
   });
 
   // Fonction pour récupérer les paramètres de l'entreprise
-  const fetchCompanySettings = async (): Promise<CompanySettings | null> => {
+  const fetchCompanySettings = async (
+    companyId?: string
+  ): Promise<CompanySettings | null> => {
     try {
       loading.value = true;
       error.value = null;
 
+      if (!companyId) {
+        error.value = "Aucun companyId fourni";
+        return null;
+      }
+
       const { data, error: fetchError } = await supabase
         .from("company_settings")
         .select("*")
-        .limit(1)
+        .eq("id", companyId)
         .single();
 
       if (fetchError) {
         if (fetchError.code === "PGRST116") {
           // Aucun enregistrement trouvé, retourner les paramètres par défaut
           console.log(
-            "Aucun paramètre trouvé, utilisation des valeurs par défaut"
+            "Aucun paramètre trouvé pour cette société, utilisation des valeurs par défaut"
           );
           settings.value = { ...defaultSettings };
           return settings.value;
@@ -150,40 +158,19 @@ export const useCompanySettings = () => {
         }
       }
 
-      // Vérifier s'il existe des paramètres existants
-      const { data: existingSettings, error: fetchError } = await supabase
-        .from("company_settings")
-        .select("id")
-        .limit(1);
-
-      let result: unknown = null;
-
-      if (!fetchError && existingSettings && existingSettings.length > 0) {
-        // Mise à jour
-        const settingId = (existingSettings[0] as unknown as { id: number }).id;
-        const { data: updateData, error: updateError } = await supabase
-          .from("company_settings")
-          .update(updatedSettings)
-          .eq("id", settingId)
-          .select()
-          .single();
-
-        if (updateError) throw updateError;
-        result = updateData;
-      } else {
-        // Création
-        const { data: insertData, error: insertError } = await supabase
-          .from("company_settings")
-          .insert(updatedSettings)
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        result = insertData;
+      // Mise à jour uniquement (jamais d'insert)
+      if (!updatedSettings.id) {
+        throw new Error("Impossible de mettre à jour : id manquant");
       }
+      const { data: updateData, error: updateError } = await supabase
+        .from("company_settings")
+        .update(updatedSettings)
+        .eq("id", updatedSettings.id)
+        .select()
+        .single();
 
-      // Mettre à jour l'état local
-      settings.value = result as CompanySettings;
+      if (updateError) throw updateError;
+      settings.value = updateData as CompanySettings;
       return true;
     } catch (err: unknown) {
       const message =

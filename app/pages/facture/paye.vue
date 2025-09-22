@@ -1,6 +1,26 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+import { useCompanySettings } from "../../composables/useCompanySettings";
+
+const {
+  companyId,
+  isLoadingUser,
+  loadCurrentUser,
+} = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+    if (companyId.value) await fetchCompanySettings(companyId.value);
+
+  await fetchInvoices();
+});
 
 const supabase = useSupabaseClient();
 const router = useRouter();
@@ -199,7 +219,7 @@ const addPayment = async () => {
       title: "Erreur",
       description: `Le montant ne peut pas dépasser le reste à payer (${remainingAmount.value.toFixed(
         2
-      )}Fcfa)`,
+      )} {${companySettings?.currency }})`,
       icon: "i-lucide-alert-circle",
       color: "red",
     });
@@ -455,7 +475,7 @@ onMounted(() => {
               </span>
             </h3>
             <p class="text-2xl font-bold text-gray-900">
-              {{ invoice.total.toFixed(2) }}Fcfa
+              {{ invoice.total.toFixed(2) }}{{ companySettings?.currency }}
             </p>
             <p
               v-if="invoice.hasExternalProducts"
@@ -478,7 +498,7 @@ onMounted(() => {
           <div class="text-center p-4 bg-blue-50 rounded-lg">
             <h3 class="text-sm font-medium text-blue-600 mb-2">Total Payé</h3>
             <p class="text-2xl font-bold text-blue-900">
-              {{ totalPaid.toFixed(2) }}Fcfa
+              {{ totalPaid.toFixed(2) }}{{ companySettings?.currency }}
             </p>
           </div>
 
@@ -487,7 +507,7 @@ onMounted(() => {
               Reste à Payer
             </h3>
             <p class="text-2xl font-bold text-orange-900">
-              {{ remainingAmount.toFixed(2) }}Fcfa
+              {{ remainingAmount.toFixed(2) }}{{ companySettings?.currency }}
             </p>
           </div>
 
@@ -508,8 +528,8 @@ onMounted(() => {
         </div>
 
         <div class="flex justify-between text-xs text-gray-600 mt-2">
-          <span>0Fcfa</span>
-          <span>{{ invoice.total.toFixed(2) }}Fcfa</span>
+          <span>0{{ companySettings?.currency }}</span>
+          <span>{{ invoice.total.toFixed(2) }}{{ companySettings?.currency }}</span>
         </div>
       </div>
 
@@ -521,9 +541,10 @@ onMounted(() => {
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2"
-              >Montant (Fcfa)</label
-            >
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Montant ({{ companySettings?.currency }})
+            </label>
+            
             <UInput
               v-model="newPayment.amount"
               type="number"
@@ -645,7 +666,7 @@ onMounted(() => {
               <div>
                 <div class="flex items-center gap-3">
                   <p class="font-semibold text-gray-900">
-                    {{ payment.amount.toFixed(2) }}Fcfa
+                    {{ payment.amount.toFixed(2) }}{{ companySettings?.currency }}
                   </p>
                   <UBadge
                     :label="
@@ -700,7 +721,7 @@ onMounted(() => {
               {{
                 isFullyPaid
                   ? "La facture est entièrement payée"
-                  : `Il reste ${remainingAmount.toFixed(2)}Fcfa à encaisser`
+                  : `Il reste ${remainingAmount.toFixed(2)} ${companySettings?.currency} à encaisser`
               }}
             </p>
           </div>

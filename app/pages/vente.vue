@@ -1,3 +1,5 @@
+<!-- eslint-disable vue/html-self-closing -->
+<!-- eslint-disable vue/attributes-order -->
 <template>
   <div class="vente-page pro">
     <!-- Hero Section -->
@@ -26,11 +28,6 @@
         <div class="hero-visual">
           <div class="dashboard-preview">
             <div class="browser-window">
-              <div class="browser-controls">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
               <div class="dashboard-content">
                 <div class="dashboard-header">
                   <div class="metric">
@@ -46,8 +43,7 @@
                     <strong>74</strong>
                   </div>
                 </div>
-                <div class="chart-placeholder"></div>
-              </div>
+                <div class="chart-placeholder" />
             </div>
           </div>
         </div>
@@ -65,7 +61,7 @@
           <li><span class="icon">⚡</span> Support réactif 7j/7</li>
         </ul>
       </div>
-    </section>
+    </div></section>
 
     <!-- Features Section -->
     <section class="features" id="features">

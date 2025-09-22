@@ -1,108 +1,60 @@
 <template>
   <div>
-    <label for="magasin-select">Magasin :</label>
-    <template v-if="isAdmin">
-      <!-- Seul l'admin peut changer de magasin -->
-      <select
-        id="magasin-select"
-        v-model="selectedMagasinId"
-        @change="onChange"
-      >
-        <option
-          v-for="magasin in magasins"
-          :key="magasin.id"
-          :value="magasin.id"
-        >
-          {{ magasin.nom }}
-        </option>
-      </select>
-    </template>
-    <template v-else>
-      <!-- Les non-admins voient seulement leur magasin, pas de select -->
-      <span class="font-semibold text-gray-700 ml-2">
-        {{ assignedMagasinName }}
-      </span>
-    </template>
+    <label>Magasin :</label>
+    <span class="font-semibold text-gray-700 ml-2">
+      {{ assignedMagasinName }}
+    </span>
   </div>
 </template>
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
 import { useMagasinStore } from "../composables/useMagasinStore";
-import { useSupabaseClient } from "#imports";
 import { useCurrentUser } from "../composables/useCurrentUser";
 
-const magasinStore = useMagasinStore();
-const magasins = ref<Array<{ id: string; nom: string }>>([]);
-const selectedMagasinId = ref("");
-const supabase = useSupabaseClient();
-const { userRoles, currentUser } = useCurrentUser();
-
-const isAdmin = ref(false);
 const assignedMagasinName = ref("");
+const { magasinId } = useCurrentUser();
+const magasinStore = useMagasinStore();
+const supabase = useSupabaseClient();
+const magasins = ref<Array<{ id: string; nom: string }>>([]);
 
 onMounted(async () => {
+  // Charger tous les magasins
   const { data } = await supabase.from("magasins").select("id, nom");
   magasins.value = Array.isArray(data) ? data : [];
   magasinStore.setMagasins(magasins.value);
 
-  // Déterminer si l'utilisateur est admin
-  isAdmin.value = userRoles.value?.includes("admin");
-
-  if (isAdmin.value) {
-    // Admin : peut changer de magasin
-    if (
-      magasinStore.magasinId &&
-      Array.isArray(magasins.value) &&
-      magasins.value.length > 0 &&
-      magasins.value.some((m) => m.id === magasinStore.magasinId)
-    ) {
-      selectedMagasinId.value = magasinStore.magasinId;
-    } else if (
-      Array.isArray(magasins.value) &&
-      magasins.value.length > 0 &&
-      magasins.value[0]
-    ) {
-      selectedMagasinId.value = magasins.value[0].id ?? "";
-      magasinStore.setMagasinId(selectedMagasinId.value);
-    }
-    // Watch la sélection uniquement pour admin
-    watch(
-      selectedMagasinId,
-      (newId) => {
-        magasinStore.setMagasinId(newId);
-      },
-      { immediate: false }
-    );
+  // Sélectionner automatiquement le magasin de l'utilisateur
+  if (
+    magasinId.value &&
+    Array.isArray(magasins.value) &&
+    magasins.value.length > 0 &&
+    magasins.value.some((m) => m.id === magasinId.value)
+  ) {
+    assignedMagasinName.value =
+      magasins.value.find((m) => m.id === magasinId.value)?.nom || "";
+    magasinStore.setMagasinId(magasinId.value);
+  } else {
+    assignedMagasinName.value = "";
+    magasinStore.setMagasinId("");
   }
 });
 
-// Synchronisation pour les non-admins : dès que magasins ou currentUser changent
 watch(
-  [magasins, currentUser],
-  ([magasinsVal, userVal]) => {
-    if (!isAdmin.value) {
-      const userMagasinId =
-        userVal && userVal.magasin_id ? userVal.magasin_id : null;
-      if (
-        userMagasinId &&
-        Array.isArray(magasinsVal) &&
-        magasinsVal.length > 0 &&
-        magasinsVal.some((m) => m.id === userMagasinId)
-      ) {
-        selectedMagasinId.value = userMagasinId;
-        magasinStore.setMagasinId(userMagasinId);
-        assignedMagasinName.value =
-          magasinsVal.find((m) => m.id === userMagasinId)?.nom || "";
-      } else {
-        selectedMagasinId.value = "";
-        assignedMagasinName.value = "";
-      }
+  [magasinId, magasins],
+  ([id, list]) => {
+    if (
+      id &&
+      Array.isArray(list) &&
+      list.length > 0 &&
+      list.some((m) => m.id === id)
+    ) {
+      assignedMagasinName.value = list.find((m) => m.id === id)?.nom || "";
+      magasinStore.setMagasinId(id);
+    } else {
+      assignedMagasinName.value = "";
+      magasinStore.setMagasinId("");
     }
   },
   { immediate: true }
 );
-
-function onChange() {
-  // La sélection n'est possible que pour les admins
-}
 </script>

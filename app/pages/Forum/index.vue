@@ -64,6 +64,7 @@
 </template>
 
 <script setup lang="ts">
+import { useCurrentUser } from "../../composables/useCurrentUser";
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
 
 // Define the table type for forum_messages
@@ -83,6 +84,20 @@ type ForumMessage = {
   content: string;
   created_at: string;
 };
+const {
+  companyId,
+  isLoadingUser,
+  loadCurrentUser,
+} = useCurrentUser();
+
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+  await fetchMessages();
+});
+
 const messages = ref<ForumMessage[]>([]);
 const messagesContainer = ref<HTMLDivElement | null>(null);
 const newMessage = ref("");
@@ -228,6 +243,7 @@ async function fetchMessages() {
   const { data, error } = await supabase
     .from("forum_messages")
     .select("*")
+    .eq("company_id", companyId.value)
     .order("created_at", { ascending: false })
     .limit(50);
   if (!error && data) {
@@ -248,6 +264,7 @@ async function sendMessage() {
     {
       username: user.value.user_metadata?.username || user.value.email,
       content: newMessage.value.trim(),
+      company_id: companyId.value,
     },
   ]);
   sending.value = false;

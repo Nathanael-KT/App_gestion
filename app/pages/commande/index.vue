@@ -3,6 +3,21 @@ import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useDeliveryNoteGenerator } from "../../composables/useDeliveryNoteGenerator";
 import { useMagasinStore } from "../../composables/useMagasinStore";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+import { useCompanySettings } from "../../composables/useCompanySettings";
+
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
+
+onMounted(async () => {
+  if (isLoadingUser.value) {
+    await loadCurrentUser();
+  }
+  if (companyId.value) await fetchCompanySettings(companyId.value);
+
+  await fetchInvoices();
+});
 
 const magasinStore = useMagasinStore();
 
@@ -16,6 +31,7 @@ const successMessage = ref(null);
 const downloadingDeliveryNote = ref(null);
 // utilise la composable useCurrentUser pour récupérer les rôles de l'utilisateur
 const { userRoles } = useCurrentUser();
+const magasinIdError = ref("");
 
 // Search and filters
 const searchQuery = ref("");
@@ -268,25 +284,45 @@ const fetchInvoices = async () => {
 
     if (fetchError) throw fetchError;
 
-    invoices.value =
-      data.map((invoice) => ({
-        ...invoice,
-        reference: invoice.reference || "N/A",
-        client_name: invoice.clients?.name || "Inconnu",
-        total: invoice.total || 0,
-        status: invoice.status || "pending",
-        delivery: invoice.delivery || false,
-        // Formatage de la date pour l'affichage
-        date: new Date(invoice.date).toLocaleDateString("fr-FR"),
-      })) || [];
+    // Vérification du format de la réponse
+    if (!Array.isArray(data)) {
+      error.value =
+        "Réponse inattendue du serveur. Veuillez réessayer plus tard.";
+      invoices.value = [];
+      return;
+    }
+
+    try {
+      invoices.value =
+        data.map((invoice) => ({
+          ...invoice,
+          reference: invoice.reference || "N/A",
+          client_name: invoice.clients?.name || "Inconnu",
+          total: invoice.total || 0,
+          status: invoice.status || "pending",
+          delivery: invoice.delivery || false,
+          // Formatage de la date pour l'affichage
+          date: new Date(invoice.date).toLocaleDateString("fr-FR"),
+        })) || [];
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (parseErr) {
+      error.value =
+        "Erreur de format des données reçues. Contactez un administrateur.";
+      invoices.value = [];
+    }
   } catch (err) {
     error.value = err.message || "Erreur lors de la récupération des factures.";
+    invoices.value = [];
   } finally {
     loading.value = false;
   }
 };
 
 const handleDownloadDeliveryNote = async (invoiceId) => {
+  if (typeof window === "undefined") {
+    error.value = "La génération du PDF n'est pas disponible côté serveur.";
+    return;
+  }
   try {
     downloadingDeliveryNote.value = invoiceId;
     const { downloadDeliveryNote } = useDeliveryNoteGenerator();
@@ -304,6 +340,10 @@ const handleDownloadDeliveryNote = async (invoiceId) => {
 };
 
 const handlePrintDeliveryNote = async (invoiceId) => {
+  if (typeof window === "undefined") {
+    error.value = "L'impression du PDF n'est pas disponible côté serveur.";
+    return;
+  }
   try {
     downloadingDeliveryNote.value = `${invoiceId}_print`;
     const { printDeliveryNote } = useDeliveryNoteGenerator();
@@ -379,27 +419,55 @@ const resetAllFilters = () => {
 
 onMounted(() => {
   loadFiltersFromStorage(); // Charger les filtres sauvegardés
-  fetchInvoices();
+  // Attendre que magasinId soit prêt
+  if (!magasinStore.magasinId) {
+    const stop = watch(
+      () => magasinStore.magasinId,
+      (val) => {
+        if (val) {
+          magasinIdError.value = "";
+          fetchInvoices();
+          stop();
+        }
+      }
+    );
+    // Si après 2 secondes magasinId n'est toujours pas défini, afficher une erreur
+    setTimeout(() => {
+      if (!magasinStore.magasinId) {
+        magasinIdError.value =
+          "Aucun magasin sélectionné. Veuillez choisir un magasin pour afficher les commandes.";
+        loading.value = false;
+      }
+    }, 2000);
+  } else {
+    fetchInvoices();
+  }
 });
-watch(() => magasinStore.magasinId, fetchInvoices);
+watch(
+  () => magasinStore.magasinId,
+  () => {
+    magasinIdError.value = "";
+    fetchInvoices();
+  }
+);
 </script>
 
 <template>
-  <div class="container mx-auto px-6 py-8">
+  <div class="container mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-8">
     <!-- Header Section -->
     <div class="mb-8">
       <div
         class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
       >
         <div>
-          <h1 class="text-3xl font-bold text-gray-900">
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">
             Gestion des Commandes
           </h1>
-          <p class="text-gray-600 mt-1">
+          <p class="text-gray-600 mt-1 text-sm sm:text-base">
             Gérez vos commandes et suivez les livraisons
           </p>
         </div>
-        <div class="flex flex-col sm:flex-row gap-3">
+        <div class="flex flex-wrap gap-3">
           <UButton
             icon="i-lucide-package-plus"
             color="orange"
@@ -426,13 +494,15 @@ watch(() => magasinStore.magasinId, fetchInvoices);
     </div>
 
     <!-- Search and Filters Section -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+    <div
+      class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6"
+    >
       <div class="space-y-4">
         <!-- Première ligne: Recherche -->
         <div
-          class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
+          class="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
         >
-          <div class="flex-1 max-w-md">
+          <div class="flex-1 min-w-0">
             <UInput
               v-model="searchQuery"
               placeholder="Rechercher par référence ou client..."
@@ -442,7 +512,9 @@ watch(() => magasinStore.magasinId, fetchInvoices);
             />
           </div>
 
-          <div class="flex items-center gap-6 text-sm text-gray-600">
+          <div
+            class="flex flex-wrap items-center gap-6 text-xs sm:text-sm text-gray-600"
+          >
             <div class="flex items-center gap-2">
               <div class="w-3 h-3 bg-blue-500 rounded-full" />
               <span
@@ -463,7 +535,7 @@ watch(() => magasinStore.magasinId, fetchInvoices);
 
         <!-- Deuxième ligne: Filtres -->
         <div
-          class="flex flex-col sm:flex-row gap-4 items-start sm:items-center"
+          class="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-wrap"
         >
           <!-- Filtre de statut -->
           <div class="flex items-center gap-2">
@@ -588,7 +660,9 @@ watch(() => magasinStore.magasinId, fetchInvoices);
       >
         <div class="p-4">
           <!-- Ligne principale compacte -->
-          <div class="flex items-center justify-between gap-4">
+          <div
+            class="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+          >
             <!-- Info commande -->
             <div class="flex items-center gap-4 min-w-0 flex-1">
               <div
@@ -598,11 +672,17 @@ watch(() => magasinStore.magasinId, fetchInvoices);
               </div>
 
               <div class="min-w-0 flex-1">
-                <div class="flex items-center gap-4 flex-wrap">
-                  <h3 class="text-lg font-semibold text-gray-900 truncate">
+                <div
+                  class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 flex-wrap"
+                >
+                  <h3
+                    class="text-base sm:text-lg font-semibold text-gray-900 truncate"
+                  >
                     {{ invoice.reference }}
                   </h3>
-                  <div class="flex items-center gap-3 text-sm text-gray-600">
+                  <div
+                    class="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 flex-wrap"
+                  >
                     <div class="flex items-center gap-1">
                       <UIcon
                         name="i-lucide-user"
@@ -625,14 +705,16 @@ watch(() => magasinStore.magasinId, fetchInvoices);
             </div>
 
             <!-- Statut et total -->
-            <div class="flex items-center gap-4 flex-shrink-0">
+            <div
+              class="flex flex-col sm:flex-row items-end gap-2 sm:gap-4 flex-shrink-0"
+            >
               <div class="text-right">
-                <p class="text-xl font-bold text-gray-900">
-                  {{ invoice.total.toFixed(2) }}Fcfa
+                <p class="text-base sm:text-xl font-bold text-gray-900">
+                  {{ invoice.total.toFixed(2) }}{{ companySettings?.currency }}
                 </p>
               </div>
 
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <UBadge
                   :color="getStatusColor(invoice)"
                   :label="getStatusLabel(invoice)"
@@ -877,3 +959,10 @@ watch(() => magasinStore.magasinId, fetchInvoices);
     </div>
   </div>
 </template>
+
+<!-- Message d'erreur magasinId -->
+<div
+  v-if="magasinIdError"
+  class="bg-white rounded-xl shadow-sm border border-orange-200 p-12 text-center mb-6"
+>
+</div>

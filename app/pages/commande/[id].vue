@@ -2,6 +2,12 @@
 import { ref, onMounted, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import CartonCalculator from "@/components/CartonCalculator.vue";
+import { useCurrentUser } from "../../composables/useCurrentUser";
+import { useCompanySettings } from "../../composables/useCompanySettings";
+
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
+const { settings: companySettings, fetchCompanySettings } =
+  useCompanySettings();
 
 const supabase = useSupabaseClient();
 const router = useRouter();
@@ -14,19 +20,7 @@ const error = ref(null);
 const downloadingDeliveryNote = ref(false);
 const successMessage = ref(null);
 
-// Utilisation du composable pour les paramètres de l'entreprise
-const { settings: companySettings, fetchCompanySettings } =
-  useCompanySettings();
-
 // Données de l'entreprise calculées
-const companyInfo = computed(() => ({
-  name: companySettings.value?.company_name || "Nom de l'entreprise",
-  address: companySettings.value?.company_address || "Adresse de l'entreprise",
-  phone: companySettings.value?.company_phone || "Téléphone",
-  email: companySettings.value?.company_email || "email@entreprise.com",
-  siret: companySettings.value?.company_siret || "N° SIRET",
-  vatNumber: companySettings.value?.vat_number || "N° TVA",
-}));
 
 const fetchInvoiceDetails = async () => {
   try {
@@ -145,10 +139,16 @@ const displayTaxRate = computed(() => {
 onMounted(async () => {
   await Promise.all([fetchCompanySettings(), fetchInvoiceDetails()]);
 });
+
+onMounted(async () => {
+  if (isLoadingUser.value) await loadCurrentUser();
+  if (companyId.value) await fetchCompanySettings(companyId.value);
+  await fetchClients();
+});
 </script>
 
 <template>
-  <UContainer class="py-8 bg-gray-100">
+  <UContainer class="py-4 sm:py-8 bg-gray-100">
     <UPageHeader
       title="Détails de la commande"
       :description="
@@ -156,10 +156,10 @@ onMounted(async () => {
           ? `Commande ${invoice.reference || route.params.id}`
           : 'Chargement...'
       "
-      class="mb-8"
+      class="mb-6 sm:mb-8"
     >
       <template #actions>
-        <div class="flex space-x-3">
+        <div class="flex flex-wrap gap-2 sm:gap-3">
           <UButton
             label="Retour"
             icon="i-heroicons-arrow-left"
@@ -245,25 +245,73 @@ onMounted(async () => {
       </template>
 
       <!-- Informations entreprise et client -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 mb-6 sm:mb-8">
         <!-- Information entreprise -->
-        <div class="bg-green-50 p-6 rounded-lg">
-          <h3 class="text-lg font-semibold mb-3 text-green-900">
-            {{ companyInfo.name }}
+        <div class="bg-gray-50 p-4 sm:p-6 rounded-lg">
+          <h3
+            class="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2"
+          >
+            <UIcon name="i-heroicons-building-office" class="w-5 h-5" />
+            Émetteur
           </h3>
-          <div class="space-y-1 text-green-800">
-            <p>{{ companyInfo.address }}</p>
-            <p>Tél: {{ companyInfo.phone }}</p>
-            <p>Email: {{ companyInfo.email }}</p>
-            <div class="mt-3 pt-3 border-t border-green-200">
-              <p class="text-sm">SIRET: {{ companyInfo.siret }}</p>
-              <p class="text-sm">TVA: {{ companyInfo.vatNumber }}</p>
+          <div class="space-y-4">
+            <div>
+              <h4 class="text-xl font-bold text-gray-900 dark:text-white">
+                {{ companySettings?.company_name || "Nom de l'entreprise" }}
+              </h4>
+              <p class="text-sm text-gray-500 dark:text-gray-300 mt-1">
+                {{ companySettings?.company_address || "Adresse du magasin" }}
+              </p>
+            </div>
+
+            <UDivider />
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-heroicons-phone"
+                  class="w-4 h-4 text-primary-500"
+                />
+                <span class="font-medium text-gray-700 dark:text-gray-200">
+                  {{
+                    companySettings?.company_phone || "Téléphone non renseigné"
+                  }}
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-heroicons-envelope"
+                  class="w-4 h-4 text-primary-500"
+                />
+                <span class="font-medium text-gray-700 dark:text-gray-200">
+                  {{ companySettings?.company_email || "Email non renseigné" }}
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-heroicons-identification"
+                  class="w-4 h-4 text-primary-500"
+                />
+                <span class="font-medium text-gray-700 dark:text-gray-200">
+                  SIRET :
+                  {{ companySettings?.company_siret || "Non renseigné" }}
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <UIcon
+                  name="i-heroicons-document-text"
+                  class="w-4 h-4 text-primary-500"
+                />
+                <span class="font-medium text-gray-700 dark:text-gray-200">
+                  TVA : {{ companySettings?.company_tva || "Non renseigné" }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Information client -->
-        <div class="bg-gray-50 p-6 rounded-lg">
+        <div class="bg-gray-50 p-4 sm:p-6 rounded-lg">
           <h3 class="text-lg font-semibold mb-3 text-gray-900">Client</h3>
           <div class="space-y-1 text-gray-700">
             <p class="font-medium">{{ invoice.clients.name }}</p>
@@ -275,42 +323,43 @@ onMounted(async () => {
       </div>
 
       <!-- Articles de la commande -->
-      <div class="mb-8">
-        <h3 class="text-lg font-semibold mb-4 text-gray-800">
+      <div class="mb-6 sm:mb-8">
+        <h3
+          class="text-base sm:text-lg font-semibold mb-3 sm:mb-4 text-gray-800"
+        >
           Articles commandés
         </h3>
-
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
+        <div class="overflow-x-auto rounded-lg border border-gray-200">
+          <table class="min-w-full divide-y divide-gray-200 text-xs sm:text-sm">
             <thead class="bg-gray-50">
               <tr>
                 <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-2 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Description
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-2 sm:px-6 py-2 sm:py-3 text-left font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Référence
                 </th>
                 <th
-                  class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-2 sm:px-6 py-2 sm:py-3 text-center font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Quantité (m²)
                 </th>
                 <th
-                  class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-2 sm:px-6 py-2 sm:py-3 text-center font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Cartons nécessaires
                 </th>
                 <th
-                  class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-2 sm:px-6 py-2 sm:py-3 text-right font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Prix unitaire
                 </th>
                 <th
-                  class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-2 sm:px-6 py-2 sm:py-3 text-right font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Total
                 </th>
@@ -322,9 +371,9 @@ onMounted(async () => {
                 :key="item.id"
                 class="hover:bg-gray-50"
               >
-                <td class="px-6 py-4 whitespace-nowrap">
+                <td class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                   <div
-                    class="text-sm font-medium text-gray-900 flex items-center gap-2"
+                    class="text-xs sm:text-sm font-medium text-gray-900 flex items-center gap-2 flex-wrap"
                   >
                     <span>{{
                       item.is_external
@@ -345,7 +394,7 @@ onMounted(async () => {
                         ? item.external_description
                         : item.products_carreaux?.description
                     "
-                    class="text-sm text-gray-500"
+                    class="text-xs sm:text-sm text-gray-500"
                   >
                     {{
                       item.is_external
@@ -354,7 +403,9 @@ onMounted(async () => {
                     }}
                   </div>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td
+                  class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500"
+                >
                   {{
                     item.is_external
                       ? item.external_reference || "N/A"
@@ -362,11 +413,13 @@ onMounted(async () => {
                   }}
                 </td>
                 <td
-                  class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center"
+                  class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 text-center"
                 >
                   {{ item.quantity }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-center">
+                <td
+                  class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-center"
+                >
                   <template v-if="!item.is_external && item.products_carreaux">
                     <CartonCalculator
                       :product="{
@@ -384,14 +437,15 @@ onMounted(async () => {
                   <span v-else class="text-gray-500">—</span>
                 </td>
                 <td
-                  class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
+                  class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 text-right"
                 >
-                  {{ item.price.toFixed(2) }} Fcfa
+                  {{ item.price.toFixed(2) }} {{ companySettings?.currency }}
                 </td>
                 <td
-                  class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right"
+                  class="px-2 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900 text-right"
                 >
-                  {{ (item.quantity * item.price).toFixed(2) }} Fcfa
+                  {{ (item.quantity * item.price).toFixed(2) }}
+                  {{ companySettings?.currency }}
                 </td>
               </tr>
             </tbody>
@@ -400,32 +454,37 @@ onMounted(async () => {
       </div>
 
       <!-- Totaux -->
-      <div class="border-t border-gray-200 pt-6">
-        <div class="max-w-md ml-auto space-y-3">
-          <div class="flex justify-between text-sm">
+      <div class="border-t border-gray-200 pt-4 sm:pt-6">
+        <div class="max-w-full sm:max-w-md ml-auto space-y-2 sm:space-y-3">
+          <div class="flex justify-between text-xs sm:text-sm">
             <span class="text-gray-600">Sous-total HT:</span>
             <span class="font-medium"
-              >{{ calculateSubtotal().toFixed(2) }} Fcfa</span
+              >{{ calculateSubtotal().toFixed(2) }}
+              {{ companySettings?.currency }}</span
             >
           </div>
-          <div class="flex justify-between text-sm">
+          <div class="flex justify-between text-xs sm:text-sm">
             <span class="text-gray-600">TVA ({{ displayTaxRate }}%):</span>
             <span class="font-medium"
-              >{{ calculateTax().toFixed(2) }} Fcfa</span
+              >{{ calculateTax().toFixed(2) }}
+              {{ companySettings?.currency }}</span
             >
           </div>
           <div
-            class="flex justify-between text-lg font-bold border-t border-gray-200 pt-3"
+            class="flex justify-between text-base sm:text-lg font-bold border-t border-gray-200 pt-2 sm:pt-3"
           >
             <span>Total TTC:</span>
-            <span>{{ invoice.total.toFixed(2) }} Fcfa</span>
+            <span
+              >{{ invoice.total.toFixed(2) }}
+              {{ companySettings?.currency }}</span
+            >
           </div>
         </div>
       </div>
 
       <!-- Informations de livraison -->
-      <div class="mt-8 pt-6 border-t border-gray-200">
-        <div class="text-sm text-gray-600 space-y-1">
+      <div class="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-gray-200">
+        <div class="text-xs sm:text-sm text-gray-600 space-y-1">
           <p>
             <strong>Statut de livraison:</strong>
             <span
