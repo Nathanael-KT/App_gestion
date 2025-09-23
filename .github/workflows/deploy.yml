@@ -196,6 +196,7 @@ jobs:
             deploy \
             --prod \
             --project=app-gestion-prod \
+            --name=app-gestion-production \
             --token=${{ secrets.DENO_DEPLOY_TOKEN }} \
             --env="SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
             --env="SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
@@ -228,8 +229,9 @@ jobs:
         run: |
           if [ "${{ needs.deploy.result }}" == "success" ]; then
             echo "🎉 Deployment successful!"
-            echo "🌐 Application live: https://app-gestion-prod.deno.dev"
+            echo "🌐 Application live: https://app-gestion-production.deno.dev"
             echo "🐳 Docker image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+            echo "📱 URL fixe configurée avec le nom: app-gestion-production"
           else
             echo "❌ Deployment failed!"
             echo "🔍 Check the workflow logs for details"

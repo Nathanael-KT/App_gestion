@@ -57,7 +57,7 @@ export const useBackupTest = () => {
         body: {
           filename: `test_backup_${
             testCompany.company_name
-          }_${Date.now()}.xlsx`,
+          }_${Date.now()}.json`,
           data: JSON.stringify(testData),
           companyName: `TEST_${testCompany.company_name}`,
         },
