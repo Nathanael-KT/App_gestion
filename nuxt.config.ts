@@ -41,8 +41,8 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    // Variables côté serveur (sensibles)
-    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    // Variables côté serveur (sensibles) - AUCUNE clé service_role exposée !
+    // supabaseServiceKey: SUPPRIMÉ pour sécurité multi-tenant
 
     public: {
       // Variables côté client (publiques) - avec fallbacks multiples
