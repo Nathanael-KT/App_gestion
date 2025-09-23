@@ -45,11 +45,14 @@ export default defineNuxtConfig({
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
 
     public: {
-      // Variables côté client (publiques)
+      // Variables côté client (publiques) - avec fallbacks multiples
       supabaseUrl:
-        process.env.SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL,
+        process.env.NUXT_PUBLIC_SUPABASE_URL || 
+        process.env.SUPABASE_URL,
       supabaseKey:
-        process.env.SUPABASE_KEY || process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY,
+        process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || 
+        process.env.SUPABASE_ANON_KEY || 
+        process.env.SUPABASE_KEY,
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || "http://localhost:3000",
     },
   },

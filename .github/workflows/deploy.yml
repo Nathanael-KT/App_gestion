@@ -2,9 +2,9 @@ name: Build & Deploy with Docker
 
 on:
   push:
-    branches: [main]
+    branches: [main, 10-déploiement]
   pull_request:
-    branches: [main]
+    branches: [main, 10-déploiement]
     types: [opened, synchronize, reopened]
 
 env:
@@ -167,6 +167,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           NUXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: pnpm build
@@ -179,24 +180,17 @@ jobs:
       - name: Deploy to Deno Deploy
         run: |
           echo "Deploying to Deno Deploy..."
-          # Installation de Deno
-          curl -fsSL https://deno.land/install.sh | sh
-          export PATH="$HOME/.deno/bin:$PATH"
-          
-          # Vérification de l'installation
+
+          # Vérification de l'installation Deno
           deno --version
-          
-          # Téléchargement et exécution de deployctl
+
+          # Téléchargement et mise en cache de deployctl
           echo "Downloading deployctl..."
           deno cache --reload https://deno.land/x/deploy@1.12.0/deployctl.ts
-          
+
           echo "Starting deployment..."
           timeout 300 deno run \
-            --allow-read \
-            --allow-net \
-            --allow-env \
-            --allow-run \
-            --allow-sys \
+            -A \
             --no-check \
             https://deno.land/x/deploy@1.12.0/deployctl.ts \
             deploy \
@@ -205,6 +199,7 @@ jobs:
             --token=${{ secrets.DENO_DEPLOY_TOKEN }} \
             --env="SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
             --env="SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
+            --env="SUPABASE_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
             --env="NUXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
             --env="NUXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
             .output/server/index.mjs
