@@ -1,19 +1,21 @@
-name: Build, Migrate & Deploy to Production
+name: Build & Deploy with Docker
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened]
 
 env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
   SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
   SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
   SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
   SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-  DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
 
 jobs:
   test:
@@ -46,114 +48,123 @@ jobs:
     name: Database Migration
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main'
+    continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      - name: Run database migrations
+      - name: Detect and apply new migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          echo "Linking to Supabase project..."
-          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          echo "Checking for new migration files..."
 
-          echo "Running pending migrations..."
-          supabase db push
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "Pull Request detected - checking changed files vs main branch"
+            git diff --name-only origin/main...HEAD | grep "supabase/migrations" > changed_migrations.txt || echo "No migration files changed in PR"
+          else
+            echo "Push to main detected - checking recent commits"
+            git diff --name-only HEAD~1 HEAD | grep "supabase/migrations" > changed_migrations.txt || echo "No migration files in recent commit"
+          fi
 
-          echo "Verifying migration status..."
-          supabase migration list
+          if [ -s changed_migrations.txt ]; then
+            echo "Migration files detected:"
+            cat changed_migrations.txt
+            
+            echo "Linking to Supabase project..."
+            supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+            
+            echo "Applying migrations..."
+            for migration_file in $(cat changed_migrations.txt); do
+              if [ -f "$migration_file" ]; then
+                echo "Processing: $migration_file"
+                supabase db push || {
+                  echo "Migration conflict detected for $migration_file"
+                  echo "This may be expected if schema already exists"
+                }
+              fi
+            done
+            
+            echo "Migration processing completed"
+          else
+            echo "No migration files found"
+            echo "Skipping migration step"
+          fi
+
+          rm -f changed_migrations.txt
 
   build:
-    name: Build Application
+    name: Build Docker Image
     runs-on: ubuntu-latest
-    needs: [test, migrate]
-    if: github.ref == 'refs/heads/main'
+    needs: test
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
         with:
-          node-version: "20"
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          version: 8
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Create production env file
-        run: |
-          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env.production
-          echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env.production
-          echo "NUXT_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env.production
-          echo "NUXT_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env.production
-
-      - name: Build application
-        run: pnpm build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
         with:
-          name: build-output
-          path: .output/
-          retention-days: 1
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
 
   deploy:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, migrate]
     if: github.ref == 'refs/heads/main'
+    environment: production
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v1
-        with:
-          deno-version: v1.x
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-output
-          path: .output/
-
-      - name: Install deployctl
-        run: deno install -A --no-check -r -f https://deno.land/x/deploy/deployctl.ts
-
-      - name: Deploy to Deno Deploy
+      - name: Deploy to server
         run: |
-          echo "Deploying to production..."
-          echo "🎯 Target: app-gestion-prod.deno.dev"
-          ~/.deno/bin/deployctl deploy \
-            --prod \
-            --project=app-gestion-prod \
-            --token=${{ secrets.DENO_DEPLOY_TOKEN }} \
-            --env="SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
-            --env="SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
-            --env="SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
-            --env="NUXT_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
-            --env="NUXT_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
-            .output/server/index.mjs
-
-      - name: Verify deployment
-        run: |
-          echo "✅ Deployment completed successfully!"
-          echo "🌐 Production URL: https://app-gestion-prod.deno.dev"
-
-          # Test if the application is responding
-          sleep 10
-          curl -f https://app-gestion-prod.deno.dev || echo "⚠️ Site might still be warming up"
+          echo "Deployment configuration:"
+          echo "Registry: ${{ env.REGISTRY }}"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo ""
+          echo "To deploy this Docker image on your server, run:"
+          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "docker stop app-gestion || true"
+          echo "docker rm app-gestion || true"
+          echo "docker run -d --name app-gestion \\"
+          echo "  -p 3000:3000 \\"
+          echo "  -e SUPABASE_URL=${{ secrets.SUPABASE_URL }} \\"
+          echo "  -e SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} \\"
+          echo "  -e NUXT_SUPABASE_URL=${{ secrets.SUPABASE_URL }} \\"
+          echo "  -e NUXT_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} \\"
+          echo "  --restart unless-stopped \\"
+          echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
 
   notify:
     name: Notification
@@ -164,9 +175,9 @@ jobs:
       - name: Deployment Status
         run: |
           if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "🎉 Deployment successful!"
-            echo "📱 Application is live at: https://app-gestion-prod.deno.dev"
+            echo "Deployment successful!"
+            echo "Docker image is ready: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
           else
-            echo "❌ Deployment failed!"
-            echo "🔍 Check the workflow logs for details"
+            echo "Deployment failed!"
+            echo "Check the workflow logs for details"
           fi

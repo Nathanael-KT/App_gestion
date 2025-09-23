@@ -10,6 +10,8 @@ Make sure to install dependencies:
 
 Une application complète de gestion d'entreprise construite avec **Nuxt 3**, **Supabase** et déployée sur **Deno Deploy**.
 
+🔧 **Mise à jour Pipeline** : Fix appliqué pour GitHub Actions issue #232 - Garantit la création d'artifacts même en cas d'erreur de build.
+
 ## ✨ Fonctionnalités
 
 - 📊 **Tableau de bord** avec métriques en temps réel

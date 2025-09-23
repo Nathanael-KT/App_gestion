@@ -1,0 +1,79 @@
+# Fichiers et dossiers à ignorer lors du build Docker
+
+# Dépendances
+node_modules
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Production
+dist
+.output
+.nuxt
+
+# Cache
+.cache
+.parcel-cache
+.npm
+.eslintcache
+.stylelintcache
+
+# Logs
+logs
+*.log
+
+# Environnement
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+docs/
+*.md
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+
+# Coverage
+coverage/
+
+# Tests
+__tests__/
+test/
+tests/
+*.test.*
+*.spec.*
+
+# Deployment
+deploy.sh
+deployment-guide.md
+DEPLOYMENT.md
+NUXTHUB-SETUP.md
+
+# Misc
+.dockerignore
+Dockerfile*
