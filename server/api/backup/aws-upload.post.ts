@@ -1,9 +1,9 @@
 /**
  * API pour sauvegarder les backups sur AWS S3
  * Assure la récupération des données même en cas de crash complet de la BDD
+ * Compatible Deno Deploy - utilise JSON au lieu d'Excel
  */
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import * as XLSX from "xlsx";
 
 export default defineEventHandler(async (event) => {
   try {
@@ -40,23 +40,7 @@ export default defineEventHandler(async (event) => {
       // Mode simulation pour les tests locaux
       console.log("🧪 Mode test AWS S3 - Simulation du backup");
 
-      // Générer le fichier Excel pour validation
       const workbookData = JSON.parse(data);
-      const workbook = XLSX.utils.book_new();
-
-      // Ajouter les informations de la compagnie
-      const companyInfo = [
-        ["Nom de la compagnie", workbookData.company],
-        ["ID de la compagnie", workbookData.metadata.companyId],
-        ["Date de génération", workbookData.metadata.generatedAt],
-        ["Type de backup", "Test - Simulation AWS S3"],
-        ["Nombre de tables", workbookData.tables.length],
-      ];
-
-      const infoWS = XLSX.utils.aoa_to_sheet(companyInfo);
-      XLSX.utils.book_append_sheet(workbook, infoWS, "Informations_Test");
-
-      // Calculer la taille simulée
       const simulatedSize = workbookData.tables.length * 1024 * 100; // ~100KB par table
 
       // Retourner une réponse simulée
@@ -92,74 +76,47 @@ export default defineEventHandler(async (event) => {
       },
     });
 
-    // Conversion des données en fichier Excel binaire
-    let excelBuffer: Buffer;
+    // Création du fichier de backup JSON (compatible Deno Deploy)
+    let backupBuffer: Buffer;
 
     try {
-      // Parse les données et créer un vrai fichier Excel
       const workbookData = JSON.parse(data);
-      const workbook = XLSX.utils.book_new();
-
-      // Ajouter les informations de la compagnie
-      const companyInfo = [
-        ["Nom de la compagnie", workbookData.company],
-        ["ID de la compagnie", workbookData.metadata.companyId],
-        ["Date de génération", workbookData.metadata.generatedAt],
-        ["Type de backup", "Automatique - AWS S3"],
-        ["Nombre de tables", workbookData.tables.length],
-      ];
-
-      const infoWS = XLSX.utils.aoa_to_sheet(companyInfo);
-      XLSX.utils.book_append_sheet(workbook, infoWS, "Informations_Backup");
-
-      // Ajouter chaque table comme feuille
-      for (const table of workbookData.tables) {
-        if (table.data && table.data.length > 0) {
-          const worksheet = XLSX.utils.json_to_sheet(table.data);
-          XLSX.utils.book_append_sheet(workbook, worksheet, table.name);
-        } else {
-          // Feuille vide si pas de données
-          const emptyWS = XLSX.utils.aoa_to_sheet([
-            ["Aucune donnée disponible"],
-            [`Table: ${table.name}`],
-            [`Nombre d'entrées: 0`],
-          ]);
-          XLSX.utils.book_append_sheet(workbook, emptyWS, `${table.name}_vide`);
-        }
-      }
-
-      // Ajouter un résumé
-      const summaryData = [
-        ["Résumé du Backup Automatique"],
-        ["Compagnie", workbookData.company],
-        ["Date", new Date().toLocaleDateString("fr-FR")],
-        ["Heure", new Date().toLocaleTimeString("fr-FR")],
-        ["Tables sauvegardées", workbookData.tables.length],
-        [
-          "Total des enregistrements",
-          workbookData.tables.reduce(
+      
+      // Créer un backup JSON structuré et lisible
+      const backupContent = {
+        metadata: {
+          company: workbookData.company,
+          companyId: workbookData.metadata.companyId,
+          generatedAt: workbookData.metadata.generatedAt,
+          backupType: "Automatique - AWS S3",
+          format: "JSON",
+          tablesCount: workbookData.tables.length,
+          totalRecords: workbookData.tables.reduce(
             (sum: number, table: { count: number }) => sum + table.count,
             0
           ),
-        ],
-        ["Statut", "Backup réussi - Stocké sur AWS S3"],
-        ["Disponibilité", "99.99% - Récupération instantanée"],
-      ];
+          version: "1.0",
+          deno_compatible: true
+        },
+        summary: {
+          company: workbookData.company,
+          backupDate: new Date().toLocaleDateString("fr-FR"),
+          backupTime: new Date().toLocaleTimeString("fr-FR"),
+          tablesBackedUp: workbookData.tables.length,
+          status: "Backup réussi - Stocké sur AWS S3",
+          availability: "99.99% - Récupération instantanée"
+        },
+        tables: workbookData.tables
+      };
 
-      const summaryWS = XLSX.utils.aoa_to_sheet(summaryData);
-      XLSX.utils.book_append_sheet(workbook, summaryWS, "Résumé_Backup");
-
-      // Convertir en buffer
-      excelBuffer = XLSX.write(workbook, {
-        bookType: "xlsx",
-        type: "buffer",
-        compression: true,
-      });
-    } catch (excelError) {
-      console.error("Erreur génération Excel:", excelError);
+      // Convertir en buffer JSON pretty-printed
+      backupBuffer = Buffer.from(JSON.stringify(backupContent, null, 2), 'utf-8');
+      
+    } catch (parseError) {
+      console.error("Erreur parsing des données:", parseError);
       throw createError({
         statusCode: 500,
-        statusMessage: "Erreur lors de la génération du fichier Excel",
+        statusMessage: "Erreur lors du traitement des données de backup",
       });
     }
 
@@ -169,24 +126,27 @@ export default defineEventHandler(async (event) => {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
 
+    // Utiliser .json au lieu de .xlsx pour la compatibilité
+    const jsonFilename = filename.replace(/\.xlsx?$/i, '.json');
     const s3Key = `backups/${year}/${month}/${day}/${companyName.replace(
       /[^a-zA-Z0-9]/g,
       "_"
-    )}/${filename}`;
+    )}/${jsonFilename}`;
 
     // Upload vers S3
     const uploadCommand = new PutObjectCommand({
       Bucket: bucketName,
       Key: s3Key,
-      Body: excelBuffer,
-      ContentType:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      Body: backupBuffer,
+      ContentType: "application/json",
       Metadata: {
         "company-name": companyName,
         "backup-type": "automatic",
         "generated-at": date.toISOString(),
-        "file-size": String(excelBuffer.length),
+        "file-size": String(backupBuffer.length),
         "tables-count": String(JSON.parse(data).tables.length),
+        "format": "json",
+        "deno-compatible": "true"
       },
       // Chiffrement et stockage durable
       ServerSideEncryption: "AES256",
@@ -195,7 +155,7 @@ export default defineEventHandler(async (event) => {
 
     const uploadResult = await s3Client.send(uploadCommand);
 
-    // Construire l'URL de récupération (sera signée côté client si nécessaire)
+    // Construire l'URL de récupération
     const s3Url = `https://${bucketName}.s3.${
       process.env.AWS_REGION || "us-east-1"
     }.amazonaws.com/${s3Key}`;
@@ -204,19 +164,21 @@ export default defineEventHandler(async (event) => {
 
     return {
       success: true,
-      message: "Backup sauvegardé avec succès sur AWS S3",
+      message: "Backup sauvegardé avec succès sur AWS S3 (format JSON)",
       s3Key,
       s3Url,
       bucketName,
-      size: excelBuffer.length,
+      size: backupBuffer.length,
       etag: uploadResult.ETag,
+      format: "JSON",
       metadata: {
         company: companyName,
-        filename,
+        filename: jsonFilename,
         uploadedAt: date.toISOString(),
         region: process.env.AWS_REGION || "us-east-1",
         storageClass: "STANDARD_IA",
         encryption: "AES256",
+        denoCompatible: true,
       },
     };
   } catch (error) {

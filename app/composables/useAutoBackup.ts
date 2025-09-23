@@ -345,7 +345,7 @@ export const useAutoBackup = () => {
 
     const filename = `auto_backup_${company.company_name}_${
       new Date().toISOString().split("T")[0]
-    }.xlsx`;
+    }.json`;
     const checksum = btoa(company.id + company.company_name + Date.now()).slice(
       0,
       8
