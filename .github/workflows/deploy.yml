@@ -171,18 +171,28 @@ jobs:
           NUXT_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: pnpm build
 
-      - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@v1
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
         with:
-          project: "app-gestion-prod"
-          entrypoint: ".output/server/index.mjs"
-          root: "."
-          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          NUXT_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NUXT_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          deno-version: v1.46
+
+      - name: Deploy to Deno Deploy
+        run: |
+          echo "Deploying to Deno Deploy..."
+          # Utiliser curl pour télécharger deployctl directement
+          curl -fsSL https://deno.land/install.sh | sh
+          export PATH="$HOME/.deno/bin:$PATH"
+
+          # Utiliser la version stable de deployctl
+          deno run -A --no-check https://deno.land/x/deploy@1.12.0/deployctl.ts deploy \
+            --prod \
+            --project=app-gestion-prod \
+            --token=${{ secrets.DENO_DEPLOY_TOKEN }} \
+            --env="SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
+            --env="SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
+            --env="NUXT_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
+            --env="NUXT_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
+            .output/server/index.mjs
 
       - name: Show Docker deployment info
         run: |
