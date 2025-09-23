@@ -10,19 +10,19 @@ export default defineNuxtConfig({
     "@nuxt/ui",
     "@nuxt/eslint",
     "@nuxtjs/supabase",
-    "@nuxthub/core", // ✅ Activé pour NuxtHub
+    // "@nuxthub/core", // Désactivé pour Deno Deploy
     "@nuxt/image",
     "@pinia/nuxt",
   ],
   css: ["~/assets/css/main.css"],
 
-  // Configuration pour NuxtHub (remplace Deno Deploy)
+  // Configuration pour Deno Deploy
   nitro: {
-    preset: "cloudflare-pages",
+    preset: "deno-server",
     serveStatic: true,
   },
 
-  // SSR requis
+  // SSR requis pour Deno Deploy
   ssr: true,
 
   // Optimisations de build
@@ -61,11 +61,5 @@ export default defineNuxtConfig({
       callback: "/",
       exclude: ["/vente"],
     },
-  },
-
-  // Configuration NuxtHub
-  hub: {
-    // Configuration automatique via les variables d'environnement
-    // NUXT_HUB_USER_TOKEN et NUXT_HUB_PROJECT_KEY
   },
 });
