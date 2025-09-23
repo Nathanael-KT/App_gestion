@@ -908,7 +908,8 @@
 </template>
 
 <script setup>
-import * as XLSX from "xlsx";
+// Alternative compatible Deno Deploy - JSON au lieu d'Excel
+// import * as XLSX from "xlsx"; // Supprimé pour compatibilité Deno Deploy
 
 // Métadonnées de la page
 definePageMeta({
@@ -985,15 +986,8 @@ const companyOptions = computed(() =>
 
 // Charger les compagnies au montage
 onMounted(async () => {
-  // Vérifier si XLSX est disponible
-  if (typeof XLSX === "undefined") {
-    useNuxtApp().$toast.add({
-      title: "Erreur",
-      description: "Bibliothèque XLSX non disponible",
-      color: "red",
-    });
-    return;
-  }
+  // Note: Utilisation de JSON au lieu d'Excel pour compatibilité Deno Deploy
+  console.log("📋 Mode backup JSON activé (compatible Deno Deploy)");
 
   await loadCompanies();
   loadLastBackupDate();
@@ -1095,11 +1089,32 @@ async function backupSingleCompany(company) {
   backupProgress.value[company.id] = true;
 
   try {
-    await backupCompanyData(company);
+    const { blob, filename, backupData } = await backupCompanyData(company);
+
+    // Déclencher le téléchargement automatique du fichier JSON
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // Ajouter à la liste des backups terminés
+    completedBackups.value.push({
+      filename: filename,
+      company: company.company_name,
+      date: new Date(),
+      backupData: backupData,
+      successfulTables: backupData.summary.tablesProcessed,
+      totalTables: backupData.summary.totalTables,
+      format: 'JSON'
+    });
 
     useNuxtApp().$toast.add({
       title: "Backup terminé",
-      description: `Données de ${company.company_name} sauvegardées`,
+      description: `Données de ${company.company_name} sauvegardées (format JSON)`,
       color: "green",
     });
   } catch (error) {
@@ -1137,24 +1152,25 @@ async function backupCompanyData(company) {
     "forum_messages",
   ];
 
-  const workbook = XLSX.utils.book_new();
-
-  // Ajouter les informations de la compagnie
-  const companyInfo = [
-    ["Nom de la compagnie", company.company_name || "Non défini"],
-    ["ID", company.id],
-    ["Date de création", formatDate(company.created_at)],
-    ["Date du backup", new Date().toLocaleDateString("fr-FR")],
-    ["Heure du backup", new Date().toLocaleTimeString("fr-FR")],
-  ];
-
-  const infoWS = XLSX.utils.aoa_to_sheet(companyInfo);
-  XLSX.utils.book_append_sheet(workbook, infoWS, "Informations");
+  // Créer un objet backup JSON au lieu d'un workbook Excel
+  const backupData = {
+    metadata: {
+      company: company.company_name || "Non défini",
+      companyId: company.id,
+      createdAt: formatDate(company.created_at),
+      backupDate: new Date().toLocaleDateString("fr-FR"),
+      backupTime: new Date().toLocaleTimeString("fr-FR"),
+      format: "JSON",
+      version: "1.0",
+      denoCompatible: true
+    },
+    tables: []
+  };
 
   let successfulTables = 0;
   const totalTables = tables.length;
 
-  // Exporter chaque table
+  // Exporter chaque table avec JSON au lieu d'Excel
   for (const table of tables) {
     try {
       let query = supabase.from(table).select("*");
@@ -1193,16 +1209,18 @@ async function backupCompanyData(company) {
           query = query.in("magasin_id", magasinIds);
         } else {
           // Pas de magasins, donc pas de données pour ces tables
-          const emptyWS = XLSX.utils.aoa_to_sheet([
-            ["Aucune donnée - Aucun magasin trouvé"],
-          ]);
-          XLSX.utils.book_append_sheet(workbook, emptyWS, table);
+          backupData.tables.push({
+            name: table,
+            data: [],
+            count: 0,
+            status: "no_store_found",
+            message: "Aucune donnée - Aucun magasin trouvé"
+          });
           successfulTables++;
           continue;
         }
       } else if (table === "invoices") {
         // Les factures peuvent utiliser company_id ou être liées via magasin_id
-        // Vérifions d'abord la structure
         query = query.eq("company_id", company.id).limit(1);
         const { error: testError } = await query;
 
@@ -1223,10 +1241,13 @@ async function backupCompanyData(company) {
               .select("*")
               .in("magasin_id", magasinIds);
           } else {
-            const emptyWS = XLSX.utils.aoa_to_sheet([
-              ["Aucune donnée - Aucun magasin trouvé"],
-            ]);
-            XLSX.utils.book_append_sheet(workbook, emptyWS, table);
+            backupData.tables.push({
+              name: table,
+              data: [],
+              count: 0,
+              status: "no_store_found",
+              message: "Aucune donnée - Aucun magasin trouvé"
+            });
             successfulTables++;
             continue;
           }
@@ -1240,70 +1261,64 @@ async function backupCompanyData(company) {
       if (error && error.code !== "PGRST116") {
         // Ignorer si la table n'existe pas
         console.warn(`Erreur pour la table ${table}:`, error);
-        // Créer une feuille avec l'erreur
-        const errorWS = XLSX.utils.aoa_to_sheet([
-          ["Erreur lors du chargement"],
-          [error.message || "Erreur inconnue"],
-        ]);
-        XLSX.utils.book_append_sheet(workbook, errorWS, `${table}_erreur`);
+        backupData.tables.push({
+          name: table,
+          data: [],
+          count: 0,
+          status: "error",
+          error: error.message || "Erreur inconnue"
+        });
         continue;
       }
 
       if (data && data.length > 0) {
-        const worksheet = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(workbook, worksheet, table);
+        backupData.tables.push({
+          name: table,
+          data: data,
+          count: data.length,
+          status: "success"
+        });
         successfulTables++;
       } else {
-        // Créer une feuille vide si pas de données
-        const emptyWS = XLSX.utils.aoa_to_sheet([["Aucune donnée"]]);
-        XLSX.utils.book_append_sheet(workbook, emptyWS, table);
+        backupData.tables.push({
+          name: table,
+          data: [],
+          count: 0,
+          status: "empty",
+          message: "Aucune donnée"
+        });
         successfulTables++;
       }
     } catch (error) {
       console.warn(`Erreur lors de l'export de ${table}:`, error);
-      // Créer une feuille avec l'erreur
-      const errorWS = XLSX.utils.aoa_to_sheet([
-        ["Erreur lors de l'export"],
-        [error.message || "Erreur inconnue"],
-      ]);
-      XLSX.utils.book_append_sheet(workbook, errorWS, `${table}_erreur`);
+      backupData.tables.push({
+        name: table,
+        data: [],
+        count: 0,
+        status: "error",
+        error: error.message || "Erreur inconnue"
+      });
     }
   }
 
-  // Ajouter un résumé du backup
-  const summaryWS = XLSX.utils.aoa_to_sheet([
-    ["Résumé du Backup"],
-    ["Tables traitées avec succès", successfulTables],
-    ["Total des tables", totalTables],
-    [
-      "Pourcentage de réussite",
-      `${Math.round((successfulTables / totalTables) * 100)}%`,
-    ],
-  ]);
-  XLSX.utils.book_append_sheet(workbook, summaryWS, "Résumé");
+  // Ajouter un résumé du backup au JSON
+  backupData.summary = {
+    tablesProcessed: successfulTables,
+    totalTables: totalTables,
+    successRate: Math.round((successfulTables / totalTables) * 100),
+    totalRecords: backupData.tables.reduce((sum, table) => sum + table.count, 0),
+    status: successfulTables === totalTables ? "complete" : "partial"
+  };
 
-  // Générer le fichier
-  const fileName = `backup_${company.company_name.replace(
-    /[^a-zA-Z0-9]/g,
-    "_"
-  )}_${new Date().toISOString().split("T")[0]}.xlsx`;
+  // Générer le fichier JSON au lieu d'Excel
+  const jsonContent = JSON.stringify(backupData, null, 2);
+  const blob = new Blob([jsonContent], { type: "application/json" });
+  
+  const filename = `backup_${company.company_name}_${
+    new Date().toISOString().split("T")[0]
+  }.json`;
 
-  try {
-    // Sauvegarder le fichier
-    XLSX.writeFile(workbook, fileName);
-  } catch (error) {
-    throw new Error(`Impossible de sauvegarder le fichier: ${error.message}`);
-  }
-
-  // Ajouter à la liste des backups terminés
-  completedBackups.value.push({
-    filename: fileName,
-    company: company.company_name,
-    date: new Date(),
-    workbook: workbook,
-    successfulTables,
-    totalTables,
-  });
+  return { blob, filename, backupData };
 }
 
 async function previewCompanyData(company) {
