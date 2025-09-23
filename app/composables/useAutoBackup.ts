@@ -368,10 +368,12 @@ export const useAutoBackup = () => {
             },
           })) as {
             success: boolean;
+            status?: string;
             s3Url?: string;
             s3Key?: string;
             size?: number;
             metadata?: Record<string, unknown>;
+            message?: string;
           };
 
           if (awsResult.success) {
@@ -380,6 +382,11 @@ export const useAutoBackup = () => {
               key: awsResult.s3Key,
               size: awsResult.size,
             });
+          } else if (awsResult.status === "aws_not_configured") {
+            console.log("ℹ️ AWS S3 non configuré:", awsResult.message);
+            // Ce n'est pas une erreur critique, continuer sans AWS
+          } else {
+            console.warn("⚠️ Erreur AWS S3:", awsResult.message);
           }
         } catch (awsError) {
           console.warn("⚠️ Échec backup AWS S3, continuons...", awsError);
