@@ -7,6 +7,21 @@ import * as XLSX from "xlsx";
 
 export default defineEventHandler(async (event) => {
   try {
+    // Vérifier si AWS est configuré
+    const awsAccessKey = process.env.AWS_ACCESS_KEY_ID;
+    const awsSecretKey = process.env.AWS_SECRET_ACCESS_KEY;
+    const bucketName = process.env.AWS_S3_BUCKET_NAME;
+
+    if (!awsAccessKey || !awsSecretKey || !bucketName) {
+      return {
+        success: false,
+        status: 'aws_not_configured',
+        message: 'AWS S3 n est pas configuré sur ce serveur',
+        info: 'Le backup automatique AWS S3 sera disponible après configuration des clés AWS',
+        fallback: 'Les backups manuels locaux restent disponibles'
+      };
+    }
+
     const body = await readBody(event);
     const { filename, data, companyName } = body;
 
@@ -18,8 +33,6 @@ export default defineEventHandler(async (event) => {
     }
 
     // Vérifier si on est en mode test/développement
-    const awsAccessKey = process.env.AWS_ACCESS_KEY_ID;
-    const awsSecretKey = process.env.AWS_SECRET_ACCESS_KEY;
     const isTestMode =
       !awsAccessKey || !awsSecretKey || awsAccessKey === "test_access_key";
 
@@ -78,8 +91,6 @@ export default defineEventHandler(async (event) => {
         secretAccessKey: awsSecretKey,
       },
     });
-
-    const bucketName = process.env.AWS_S3_BUCKET_NAME || "app-gestion-backups";
 
     // Conversion des données en fichier Excel binaire
     let excelBuffer: Buffer;

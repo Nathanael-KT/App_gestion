@@ -137,7 +137,7 @@
               <p class="text-gray-600 dark:text-gray-400 mb-4">
                 Exporte automatiquement toutes les données de toutes les
                 compagnies en fichiers Excel séparés.
-                <br />
+                <br >
                 <span class="text-sm text-blue-600 dark:text-blue-400">
                   ⚡ Traitement en parallèle pour une vitesse optimale
                 </span>
@@ -191,7 +191,7 @@
               <p class="text-gray-600 dark:text-gray-400 mb-4">
                 Sélectionnez une compagnie spécifique pour exporter uniquement
                 ses données.
-                <br />
+                <br >
                 <span class="text-sm text-green-600 dark:text-green-400">
                   🎯 Export ciblé et rapide
                 </span>
@@ -269,7 +269,7 @@
               <p class="text-gray-600 dark:text-gray-400 mb-4">
                 Vérifie que les clés AWS sont correctes et que le bucket S3 est
                 accessible avant de faire des backups.
-                <br />
+                <br >
                 <span class="text-sm text-blue-600 dark:text-blue-400">
                   🔧 Diagnostic complet de la configuration AWS S3
                 </span>
@@ -357,7 +357,7 @@
               <p class="text-gray-600 dark:text-gray-400 mb-4">
                 Teste le backup automatique vers AWS S3 pour s'assurer que vos
                 données sont protégées contre les crashs de base de données.
-                <br />
+                <br >
                 <span class="text-sm text-orange-600 dark:text-orange-400">
                   🛡️ Protection 99.99% - Récupération en moins de 10 minutes
                 </span>
@@ -450,7 +450,7 @@
               <p class="text-gray-600 dark:text-gray-400 mb-4">
                 Simule différents scénarios de crash de base de données pour
                 tester la récupération depuis AWS S3.
-                <br />
+                <br >
                 <span class="text-sm text-red-600 dark:text-red-400">
                   ⚠️ Mode simulation - Aucun impact sur les données réelles
                 </span>
@@ -534,7 +534,7 @@
             <p class="text-gray-600 dark:text-gray-400 mb-3">
               🛡️ Protection automatique de vos données tous les mois avec
               stockage sécurisé sur AWS S3
-              <br />
+              <br >
               <span class="text-sm text-purple-600 dark:text-purple-400">
                 ✨ Même en cas de crash complet de la base de données, vos
                 données restent récupérables depuis AWS S3
