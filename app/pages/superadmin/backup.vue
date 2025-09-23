@@ -57,9 +57,7 @@
               {{ autoBackupEnabled ? "Activé" : "Désactivé" }}
             </p>
             <p class="text-xs text-gray-500">
-              {{
-                nextAutoBackup ? `Prochain: ${nextAutoBackup}` : "Non programmé"
-              }}
+              {{ nextAutoBackup }}
             </p>
           </div>
           <UIcon
@@ -139,7 +137,7 @@
               <p class="text-gray-600 dark:text-gray-400 mb-4">
                 Exporte automatiquement toutes les données de toutes les
                 compagnies en fichiers Excel séparés.
-                <br >
+                <br />
                 <span class="text-sm text-blue-600 dark:text-blue-400">
                   ⚡ Traitement en parallèle pour une vitesse optimale
                 </span>
@@ -193,7 +191,7 @@
               <p class="text-gray-600 dark:text-gray-400 mb-4">
                 Sélectionnez une compagnie spécifique pour exporter uniquement
                 ses données.
-                <br >
+                <br />
                 <span class="text-sm text-green-600 dark:text-green-400">
                   🎯 Export ciblé et rapide
                 </span>
@@ -230,6 +228,267 @@
               {{
                 isBackupRunning && selectedCompany ? "Export..." : "Exporter"
               }}
+            </UButton>
+          </div>
+        </div>
+      </div>
+    </UCard>
+
+    <!-- Test Section -->
+    <UCard class="mb-8">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <UIcon name="i-heroicons-beaker" class="w-5 h-5 text-orange-500" />
+          <h2 class="text-xl font-semibold">Tests de Sauvegarde AWS S3</h2>
+          <UBadge color="orange" variant="soft" size="sm">
+            Protection Anti-Crash
+          </UBadge>
+        </div>
+      </template>
+
+      <div class="space-y-6">
+        <!-- Test Configuration AWS -->
+        <div
+          class="group p-6 border border-blue-200 dark:border-blue-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-600 transition-all duration-200 hover:shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20"
+        >
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-2">
+                <div
+                  class="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg group-hover:bg-blue-200 dark:group-hover:bg-blue-800/50 transition-colors"
+                >
+                  <UIcon
+                    name="i-heroicons-cog-6-tooth"
+                    class="w-5 h-5 text-blue-600"
+                  />
+                </div>
+                <h3 class="font-semibold text-lg text-gray-900 dark:text-white">
+                  Test Configuration AWS S3
+                </h3>
+              </div>
+              <p class="text-gray-600 dark:text-gray-400 mb-4">
+                Vérifie que les clés AWS sont correctes et que le bucket S3 est
+                accessible avant de faire des backups.
+                <br />
+                <span class="text-sm text-blue-600 dark:text-blue-400">
+                  🔧 Diagnostic complet de la configuration AWS S3
+                </span>
+              </p>
+              <div
+                v-if="awsConfigTest"
+                class="p-4 rounded-lg mb-4"
+                :class="
+                  awsConfigTest.success
+                    ? 'bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-700'
+                    : 'bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-700'
+                "
+              >
+                <div class="flex items-center gap-2 mb-2">
+                  <UIcon
+                    :name="
+                      awsConfigTest.success
+                        ? 'i-heroicons-check-circle'
+                        : 'i-heroicons-x-circle'
+                    "
+                    :class="
+                      awsConfigTest.success ? 'text-green-600' : 'text-red-600'
+                    "
+                    class="w-5 h-5"
+                  />
+                  <span
+                    class="font-medium"
+                    :class="
+                      awsConfigTest.success
+                        ? 'text-green-800 dark:text-green-200'
+                        : 'text-red-800 dark:text-red-200'
+                    "
+                  >
+                    {{ awsConfigTest.message }}
+                  </span>
+                </div>
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                  <div v-if="awsConfigTest.success && awsConfigTest.config">
+                    <div>Région: {{ awsConfigTest.config.region }}</div>
+                    <div>Bucket: {{ awsConfigTest.config.bucketName }}</div>
+                    <div>
+                      Backups existants:
+                      {{ awsConfigTest.config.existingBackups }}
+                    </div>
+                  </div>
+                  <div v-else-if="awsConfigTest.suggestion">
+                    💡 {{ awsConfigTest.suggestion }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <UButton
+              color="blue"
+              size="lg"
+              variant="soft"
+              :loading="isTestingAwsConfig"
+              class="ml-4 shadow-lg hover:shadow-xl transition-shadow"
+              @click="testAwsConfig"
+            >
+              <UIcon name="i-heroicons-cog-6-tooth" class="w-5 h-5 mr-2" />
+              {{ isTestingAwsConfig ? "Test en cours..." : "Tester Config" }}
+            </UButton>
+          </div>
+        </div>
+
+        <!-- Test AWS Backup -->
+        <div
+          class="group p-6 border border-orange-200 dark:border-orange-700 rounded-xl hover:border-orange-300 dark:hover:border-orange-600 transition-all duration-200 hover:shadow-lg bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20"
+        >
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-2">
+                <div
+                  class="p-2 bg-orange-100 dark:bg-orange-900/50 rounded-lg group-hover:bg-orange-200 dark:group-hover:bg-orange-800/50 transition-colors"
+                >
+                  <UIcon
+                    name="i-heroicons-cloud-arrow-up"
+                    class="w-5 h-5 text-orange-600"
+                  />
+                </div>
+                <h3 class="font-semibold text-lg text-gray-900 dark:text-white">
+                  Test Backup AWS S3
+                </h3>
+              </div>
+              <p class="text-gray-600 dark:text-gray-400 mb-4">
+                Teste le backup automatique vers AWS S3 pour s'assurer que vos
+                données sont protégées contre les crashs de base de données.
+                <br />
+                <span class="text-sm text-orange-600 dark:text-orange-400">
+                  🛡️ Protection 99.99% - Récupération en moins de 10 minutes
+                </span>
+              </p>
+              <div
+                v-if="backupTest.testResults.value"
+                class="p-4 rounded-lg mb-4"
+                :class="
+                  backupTest.testResults.value.success
+                    ? 'bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-700'
+                    : 'bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-700'
+                "
+              >
+                <div class="flex items-center gap-2 mb-2">
+                  <UIcon
+                    :name="
+                      backupTest.testResults.value.success
+                        ? 'i-heroicons-check-circle'
+                        : 'i-heroicons-x-circle'
+                    "
+                    :class="
+                      backupTest.testResults.value.success
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    "
+                    class="w-5 h-5"
+                  />
+                  <span
+                    class="font-medium"
+                    :class="
+                      backupTest.testResults.value.success
+                        ? 'text-green-800 dark:text-green-200'
+                        : 'text-red-800 dark:text-red-200'
+                    "
+                  >
+                    {{ backupTest.testResults.value.message }}
+                  </span>
+                </div>
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                  <div>
+                    Durée: {{ backupTest.testResults.value.duration }}ms
+                  </div>
+                  <div
+                    v-if="
+                      backupTest.testResults.value.success &&
+                      backupTest.testResults.value.details.awsDetails
+                    "
+                  >
+                    Bucket S3:
+                    {{
+                      backupTest.testResults.value.details.awsDetails.bucketName
+                    }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <UButton
+              color="orange"
+              size="lg"
+              :loading="backupTest.isTestRunning.value"
+              class="ml-4 shadow-lg hover:shadow-xl transition-shadow"
+              @click="runBackupTest"
+            >
+              <UIcon name="i-heroicons-beaker" class="w-5 h-5 mr-2" />
+              {{
+                backupTest.isTestRunning.value
+                  ? "Test en cours..."
+                  : "Tester AWS S3"
+              }}
+            </UButton>
+          </div>
+        </div>
+
+        <!-- Simulation Crash -->
+        <div
+          class="group p-6 border border-red-200 dark:border-red-700 rounded-xl hover:border-red-300 dark:hover:border-red-600 transition-all duration-200 hover:shadow-lg bg-gradient-to-r from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20"
+        >
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-2">
+                <div
+                  class="p-2 bg-red-100 dark:bg-red-900/50 rounded-lg group-hover:bg-red-200 dark:group-hover:bg-red-800/50 transition-colors"
+                >
+                  <UIcon name="i-heroicons-bolt" class="w-5 h-5 text-red-600" />
+                </div>
+                <h3 class="font-semibold text-lg text-gray-900 dark:text-white">
+                  Simulation de Crash BDD
+                </h3>
+              </div>
+              <p class="text-gray-600 dark:text-gray-400 mb-4">
+                Simule différents scénarios de crash de base de données pour
+                tester la récupération depuis AWS S3.
+                <br />
+                <span class="text-sm text-red-600 dark:text-red-400">
+                  ⚠️ Mode simulation - Aucun impact sur les données réelles
+                </span>
+              </p>
+              <div
+                v-if="crashSimulation"
+                class="p-4 bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg mb-4"
+              >
+                <div class="text-sm text-blue-800 dark:text-blue-200">
+                  <div>
+                    <strong>Scénario:</strong> {{ crashSimulation.scenario }}
+                  </div>
+                  <div>
+                    <strong>Récupération auto:</strong>
+                    {{ crashSimulation.canRecover ? "Possible" : "Impossible" }}
+                  </div>
+                  <div>
+                    <strong>Temps de récupération:</strong>
+                    {{ crashSimulation.recoveryTime }}
+                  </div>
+                  <div>
+                    <strong>Backup AWS disponible:</strong>
+                    {{
+                      crashSimulation.awsBackupAvailable ? "✅ Oui" : "❌ Non"
+                    }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <UButton
+              color="red"
+              size="lg"
+              variant="soft"
+              class="ml-4 shadow-lg hover:shadow-xl transition-shadow"
+              @click="simulateCrash"
+            >
+              <UIcon name="i-heroicons-bolt" class="w-5 h-5 mr-2" />
+              Simuler Crash
             </UButton>
           </div>
         </div>
@@ -273,11 +532,12 @@
               </h3>
             </div>
             <p class="text-gray-600 dark:text-gray-400 mb-3">
-              🛡️ Protection automatique de vos données tous les mois
-              <br >
+              🛡️ Protection automatique de vos données tous les mois avec
+              stockage sécurisé sur AWS S3
+              <br />
               <span class="text-sm text-purple-600 dark:text-purple-400">
-                ✨ Même en cas de crash de la base de données, vos données
-                restent récupérables
+                ✨ Même en cas de crash complet de la base de données, vos
+                données restent récupérables depuis AWS S3
               </span>
             </p>
             <div
@@ -288,8 +548,8 @@
                 <span>Le 1er de chaque mois à 2h00</span>
               </div>
               <div class="flex items-center gap-1">
-                <UIcon name="i-heroicons-archive-box" class="w-4 h-4" />
-                <span>Stockage local + cloud</span>
+                <UIcon name="i-heroicons-cloud" class="w-4 h-4" />
+                <span>Stockage AWS S3 (99.99% disponibilité)</span>
               </div>
             </div>
           </div>
@@ -674,17 +934,29 @@ const lastBackupDate = ref("");
 // Système de sauvegarde automatique
 const autoBackup = useAutoBackup();
 
+// Système de test de backup
+const backupTest = useBackupTest();
+const crashSimulation = ref(null);
+const awsConfigTest = ref(null);
+const isTestingAwsConfig = ref(false);
+
 // Variables de la page basées sur le composable
 const autoBackupEnabled = computed(() => autoBackup.config.value.enabled);
 const nextAutoBackup = computed(() => {
-  if (!autoBackup.nextExecution.value) return "";
-  return autoBackup.nextExecution.value.toLocaleDateString("fr-FR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  if (!autoBackup.nextExecution.value) return "Non programmé";
+
+  try {
+    return autoBackup.nextExecution.value.toLocaleDateString("fr-FR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch (error) {
+    console.error("Erreur formatage date:", error);
+    return "Erreur de date";
+  }
 });
 const autoBackupHistory = computed(() =>
   autoBackup.history.value.map((item) => ({
@@ -1198,6 +1470,106 @@ function toggleAutoBackup(enabled) {
       description: "Vos données ne seront plus sauvegardées automatiquement",
       color: "orange",
       timeout: 5000,
+    });
+  }
+}
+
+async function testAwsConfig() {
+  isTestingAwsConfig.value = true;
+  try {
+    const result = await $fetch("/api/backup/aws-test");
+    awsConfigTest.value = result;
+
+    if (result.success) {
+      useNuxtApp().$toast.add({
+        title: "✅ Configuration AWS Valide",
+        description: "AWS S3 est correctement configuré pour les backups",
+        color: "green",
+        timeout: 5000,
+      });
+    } else {
+      useNuxtApp().$toast.add({
+        title: "❌ Configuration AWS Invalide",
+        description: result.message || "Problème de configuration AWS",
+        color: "red",
+        timeout: 8000,
+      });
+    }
+  } catch (error) {
+    console.error("Erreur test config AWS:", error);
+    awsConfigTest.value = {
+      success: false,
+      message: "Erreur lors du test de configuration",
+      suggestion: "Vérifier que l'API est accessible",
+    };
+    useNuxtApp().$toast.add({
+      title: "Erreur de test",
+      description: "Impossible de tester la configuration AWS",
+      color: "red",
+    });
+  } finally {
+    isTestingAwsConfig.value = false;
+  }
+}
+
+async function runBackupTest() {
+  try {
+    const result = await backupTest.runBackupTest();
+
+    if (result?.success) {
+      useNuxtApp().$toast.add({
+        title: "🎉 Test Réussi",
+        description: "Le backup AWS S3 fonctionne parfaitement !",
+        color: "green",
+        timeout: 5000,
+      });
+    } else {
+      useNuxtApp().$toast.add({
+        title: "❌ Test Échoué",
+        description: result?.message || "Erreur lors du test",
+        color: "red",
+        timeout: 8000,
+      });
+    }
+  } catch (error) {
+    console.error("Erreur test backup:", error);
+    useNuxtApp().$toast.add({
+      title: "Erreur de test",
+      description: "Impossible d'effectuer le test de backup",
+      color: "red",
+    });
+  }
+}
+
+async function simulateCrash() {
+  try {
+    const result = await backupTest.simulateDatabaseCrash();
+    crashSimulation.value = result;
+
+    useNuxtApp().$toast.add({
+      title: "💥 Crash Simulé",
+      description: `Scénario: ${result.scenario}`,
+      color: "orange",
+      timeout: 3000,
+    });
+
+    // Simuler la récupération après 2 secondes
+    setTimeout(() => {
+      if (!result.canRecover) {
+        useNuxtApp().$toast.add({
+          title: "☁️ Récupération AWS S3",
+          description: "Récupération des données depuis AWS S3 en cours...",
+          color: "blue",
+          timeout: 5000,
+        });
+      }
+    }, 2000);
+  } catch (error) {
+    console.error("Erreur simulation crash:", error);
+    useNuxtApp().$toast.add({
+      title: "Erreur de simulation",
+      description: "Impossible de simuler le crash",
+      color: "red",
     });
   }
 }

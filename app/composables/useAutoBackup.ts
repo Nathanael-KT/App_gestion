@@ -11,6 +11,9 @@ interface BackupConfig {
   notifications: boolean;
   cloudSync: boolean;
   retentionDays: number;
+  hour: number;
+  dayOfMonth: number;
+  maxHistory: number;
 }
 
 interface BackupRecord {
@@ -48,6 +51,9 @@ export const useAutoBackup = () => {
     notifications: true,
     cloudSync: true, // ✅ Sync cloud activé
     retentionDays: 90,
+    hour: 2, // 2h00 du matin
+    dayOfMonth: 1, // Le 1er du mois
+    maxHistory: 10, // Garder 10 backups en historique
   }; // État réactif
   const config = ref({ ...DEFAULT_CONFIG });
   const isRunning = ref(false);
@@ -163,19 +169,19 @@ export const useAutoBackup = () => {
     switch (config.value.frequency) {
       case "daily":
         next.setDate(now.getDate() + 1);
-        next.setHours(config.value.hour, 0, 0, 0);
+        next.setHours(config.value.hour || 2, 0, 0, 0);
         break;
 
       case "weekly":
         next.setDate(now.getDate() + (7 - now.getDay()));
-        next.setHours(config.value.hour, 0, 0, 0);
+        next.setHours(config.value.hour || 2, 0, 0, 0);
         break;
 
       case "monthly":
       default:
         next.setMonth(now.getMonth() + 1);
-        next.setDate(config.value.dayOfMonth);
-        next.setHours(config.value.hour, 0, 0, 0);
+        next.setDate(config.value.dayOfMonth || 1);
+        next.setHours(config.value.hour || 2, 0, 0, 0);
 
         if (next <= now) {
           next.setMonth(next.getMonth() + 1);
@@ -350,22 +356,34 @@ export const useAutoBackup = () => {
       const workbookData = await generateExcelWorkbook(company, tables);
       const estimatedSize = tables.length * 1024 * 1024;
 
-      // Sauvegarde vers Google Drive (ou autre cloud)
+      // Sauvegarde vers AWS S3 (protection contre les crashs de BDD)
       if (config.value.cloudSync) {
         try {
-          const cloudResult = (await $fetch("/api/backup/cloud-upload", {
+          const awsResult = (await $fetch("/api/backup/aws-upload", {
             method: "POST",
             body: {
               filename,
               data: JSON.stringify(workbookData),
               companyName: company.company_name,
             },
-          })) as { shareableUrl?: string };
+          })) as {
+            success: boolean;
+            s3Url?: string;
+            s3Key?: string;
+            size?: number;
+            metadata?: Record<string, unknown>;
+          };
 
-          console.log("✅ Backup cloud réussi:", cloudResult.shareableUrl);
-        } catch (cloudError) {
-          console.warn("⚠️ Échec backup cloud, continuons...", cloudError);
-          // Ne pas faire échouer le backup si le cloud échoue
+          if (awsResult.success) {
+            console.log("✅ Backup AWS S3 réussi:", {
+              url: awsResult.s3Url,
+              key: awsResult.s3Key,
+              size: awsResult.size,
+            });
+          }
+        } catch (awsError) {
+          console.warn("⚠️ Échec backup AWS S3, continuons...", awsError);
+          // Ne pas faire échouer le backup si AWS échoue
         }
       }
       return {

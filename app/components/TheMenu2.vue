@@ -87,7 +87,11 @@ const menuItems: Array<{
     children: [
       { name: "Company", path: "/superadmin" },
       { name: "Abonnements", path: "/superadmin/abonnements" },
+      { name: "Utilisateurs", path: "/superadmin/utilisateurs" },
+      { name: "Backups", path: "/superadmin/backup" },
       { name: "Logs", path: "/superadmin/logs" },
+      { name: "Paramètres", path: "/superadmin/settings" },
+
     ],
   },
   {
