@@ -397,6 +397,12 @@ const getInitials = (name: string) => {
 
 // Charger les utilisateurs
 const loadUsers = async () => {
+  // Guard: don't load if magasinId is not set
+  if (!magasinStore.magasinId) {
+    users.value = [];
+    return;
+  }
+
   try {
     isLoading.value = true;
 
@@ -408,7 +414,15 @@ const loadUsers = async () => {
       .order("created_at", { ascending: false });
 
     if (error) {
-      throw error;
+      console.error("Error loading users:", error);
+      useToast().add({
+        title: "Erreur",
+        description: "Impossible de charger les utilisateurs. Veuillez réessayer.",
+        icon: "heroicons:x-circle-20-solid",
+        color: "error",
+      });
+      users.value = [];
+      return;
     }
 
     users.value = data || [];
@@ -420,6 +434,7 @@ const loadUsers = async () => {
       icon: "heroicons:x-circle-20-solid",
       color: "error",
     });
+    users.value = [];
   } finally {
     isLoading.value = false;
   }
