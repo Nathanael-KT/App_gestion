@@ -46,19 +46,19 @@ export const useCurrentUser = () => {
         .from("users")
         .select("*")
         .eq("auth_user_id", authUser.value.id)
-        .single();
+        .maybeSingle();
 
       let finalData = userData;
       let finalError = userError;
 
       // Si pas trouvé par auth_user_id, essayer par email
-      if (userError && userError.code === "PGRST116" && authUser.value.email) {
+      if (!userData && authUser.value.email) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: emailData, error: emailError } = await (supabase as any)
           .from("users")
           .select("*")
           .eq("email", authUser.value.email)
-          .single();
+          .maybeSingle();
 
         if (!emailError && emailData) {
           // Utilisateur trouvé par email, mettre à jour auth_user_id
@@ -71,12 +71,14 @@ export const useCurrentUser = () => {
             .update({ auth_user_id: authUser.value.id })
             .eq("id", emailData.id)
             .select()
-            .single();
+            .maybeSingle();
 
           if (!updateError && updatedData) {
             finalData = updatedData;
             finalError = null;
           }
+        } else {
+          finalError = emailError;
         }
       }
 
@@ -85,25 +87,25 @@ export const useCurrentUser = () => {
           "Erreur lors du chargement de l'utilisateur:",
           finalError
         );
-        // Si l'utilisateur n'existe pas du tout, lui donner un accès minimal
-        if (finalError.code === "PGRST116") {
-          console.warn(
-            "Utilisateur authentifié mais pas trouvé en base de données"
-          );
-          error.value =
-            "Profil utilisateur non trouvé. Contactez un administrateur.";
-          userRoles.value = []; // Pas de rôles = pas d'accès
-        } else {
-          throw finalError;
-        }
+        error.value =
+          "Erreur lors du chargement du profil utilisateur. Veuillez réessayer.";
+        userRoles.value = [];
       } else if (finalData) {
         currentUser.value = finalData as CurrentUser;
         userRoles.value = (finalData as CurrentUser).roles || [];
+      } else {
+        // User authenticated but not in database
+        console.warn(
+          "Utilisateur authentifié mais pas trouvé en base de données"
+        );
+        error.value =
+          "Profil utilisateur non trouvé. Contactez un administrateur.";
+        userRoles.value = [];
       }
     } catch (err) {
       console.error("Erreur lors du chargement de l'utilisateur:", err);
       error.value = "Erreur lors du chargement du profil utilisateur";
-      userRoles.value = []; // Pas de rôles en cas d'erreur
+      userRoles.value = [];
     } finally {
       isLoadingUser.value = false;
     }

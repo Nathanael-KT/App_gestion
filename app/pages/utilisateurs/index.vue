@@ -32,7 +32,8 @@
           </div>
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-600">Total utilisateurs</p>
-            <p class="text-2xl font-bold text-gray-900">{{ totalUsers }}</p>
+            <div v-if="isLoading" class="h-8 w-16 bg-gray-200 animate-pulse rounded mt-1" />
+            <p v-else class="text-2xl font-bold text-gray-900">{{ totalUsers }}</p>
           </div>
         </div>
       </div>
@@ -47,7 +48,8 @@
           </div>
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-600">Administrateurs</p>
-            <p class="text-2xl font-bold text-gray-900">{{ adminCount }}</p>
+            <div v-if="isLoading" class="h-8 w-16 bg-gray-200 animate-pulse rounded mt-1" />
+            <p v-else class="text-2xl font-bold text-gray-900">{{ adminCount }}</p>
           </div>
         </div>
       </div>
@@ -62,7 +64,8 @@
           </div>
           <div class="ml-4">
             <p class="text-sm font-medium text-gray-600">Actifs ce mois</p>
-            <p class="text-2xl font-bold text-gray-900">
+            <div v-if="isLoading" class="h-8 w-16 bg-gray-200 animate-pulse rounded mt-1" />
+            <p v-else class="text-2xl font-bold text-gray-900">
               {{ activeUsersCount }}
             </p>
           </div>
