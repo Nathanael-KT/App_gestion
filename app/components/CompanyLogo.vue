@@ -1,7 +1,17 @@
 <template>
   <div class="flex justify-center items-center">
+    <!-- Show loading skeleton while fetching -->
+    <div
+      v-if="isLoading"
+      class="animate-pulse bg-gray-200 rounded"
+      :style="{
+        height: logoSize + 'px',
+        width: logoSize + 'px',
+      }"
+    />
+    <!-- Show logo if loaded successfully -->
     <img
-      v-if="logoUrl"
+      v-else-if="logoUrl"
       :src="logoUrl"
       alt="Logo compagnie"
       class="object-contain rounded"
@@ -10,15 +20,20 @@
         maxWidth: logoSize * 2 + 'px',
       }"
     >
+    <!-- Show fallback icon only after loading completes and no logo found -->
     <div
-      v-else
-      class="flex items-center justify-center border rounded text-gray-400 text-xs"
+      v-else-if="!isLoading && hasAttemptedLoad"
+      class="flex items-center justify-center rounded bg-gray-100"
       :style="{
-        height: size + 'px',
-        width: size + 'px',
+        height: logoSize + 'px',
+        width: logoSize + 'px',
       }"
     >
-      Pas de logo
+      <UIcon 
+        name="i-lucide-building-2" 
+        class="text-gray-400"
+        :style="{ fontSize: (logoSize * 0.5) + 'px' }"
+      />
     </div>
   </div>
 </template>
@@ -38,33 +53,46 @@ const logoSize = computed(() => props.size ?? 64);
 
 const supabase = useSupabaseClient();
 const logoUrl = ref<string | null>(null);
+const isLoading = ref(false);
+const hasAttemptedLoad = ref(false);
 
 async function fetchSignedLogo() {
   if (!props.companyId) {
     logoUrl.value = null;
+    hasAttemptedLoad.value = false;
     return;
   }
 
-  const possiblePaths = [
-    `${props.companyId}/logo.jpg`,
-    `${props.companyId}/logo.png`,
-    `${props.companyId}/logo.jpeg`,
-  ];
+  try {
+    isLoading.value = true;
+    
+    const possiblePaths = [
+      `${props.companyId}/logo.jpg`,
+      `${props.companyId}/logo.png`,
+      `${props.companyId}/logo.jpeg`,
+    ];
 
-  let signedUrl: string | null = null;
+    let signedUrl: string | null = null;
 
-  for (const path of possiblePaths) {
-    const { data, error } = await supabase.storage
-      .from("logo")
-      .createSignedUrl(path, props.expireIn || 60 * 60);
+    for (const path of possiblePaths) {
+      const { data, error } = await supabase.storage
+        .from("logo")
+        .createSignedUrl(path, props.expireIn || 60 * 60);
 
-    if (!error && data?.signedUrl) {
-      signedUrl = data.signedUrl;
-      break;
+      if (!error && data?.signedUrl) {
+        signedUrl = data.signedUrl;
+        break;
+      }
     }
-  }
 
-  logoUrl.value = signedUrl;
+    logoUrl.value = signedUrl;
+  } catch (error) {
+    console.error("Error loading company logo:", error);
+    logoUrl.value = null;
+  } finally {
+    isLoading.value = false;
+    hasAttemptedLoad.value = true;
+  }
 }
 
 onMounted(fetchSignedLogo);
