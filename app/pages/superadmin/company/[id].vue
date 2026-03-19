@@ -24,6 +24,7 @@ const loading = ref(false);
 const error = ref("");
 
 const blockedMenus = ref<string[]>([]);
+const companyBlocked = ref(false);
 const lastUpdate = ref<Date | null>(null);
 const allMenus = [
   "Accueil",
@@ -85,10 +86,14 @@ async function fetchCompanyInfo() {
 async function fetchBlockedMenus() {
   const { data, error: supaError } = await supabase
     .from("company_settings")
-    .select("blocked_menus, updated_at")
+    .select("blocked_menus, updated_at, blocked")
     .eq("id", companyId)
     .single();
-  type BlockedMenusResponse = { blocked_menus?: string[]; updated_at?: string };
+  type BlockedMenusResponse = {
+    blocked_menus?: string[];
+    updated_at?: string;
+    blocked?: boolean;
+  };
   const typedData = data as BlockedMenusResponse | null;
   const blockedMenusArr = typedData?.blocked_menus;
   if (!supaError && Array.isArray(blockedMenusArr)) {
@@ -96,12 +101,15 @@ async function fetchBlockedMenus() {
     lastUpdate.value = typedData?.updated_at
       ? new Date(typedData.updated_at)
       : null;
+    companyBlocked.value = !!typedData?.blocked;
   } else {
     blockedMenus.value = [];
     lastUpdate.value = null;
+    companyBlocked.value = false;
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function setMenuStatus(menu: string, blocked: boolean) {
   menuActionLoading.value = menu;
   let newBlockedMenus: string[];
@@ -120,8 +128,21 @@ async function setMenuStatus(menu: string, blocked: boolean) {
     lastUpdate.value = new Date();
   } else {
     error.value = supaError?.message || "Erreur lors de la mise à jour";
-    // Optionnel : toast error si tu utilises un composant de toast
-    // if (window?.$nuxt?.$toast) window.$nuxt.$toast.error(error.value);
+  }
+}
+
+async function setCompanyBlocked(blocked: boolean) {
+  loading.value = true;
+  const { error: supaError } = await supabase
+    .from("company_settings")
+    .update({ blocked })
+    .eq("id", companyId);
+  loading.value = false;
+  if (!supaError) {
+    companyBlocked.value = blocked;
+    lastUpdate.value = new Date();
+  } else {
+    error.value = supaError?.message || "Erreur lors du blocage global";
   }
 }
 
@@ -129,7 +150,6 @@ onMounted(async () => {
   await fetchCompanyInfo();
   await fetchBlockedMenus();
 
-  // Bloque dynamiquement l'accès aux pages des menus désactivés
   if (blockedMenus.value.length > 0) {
     const blockedPaths = blockedMenus.value
       .map((menu) => menuToPath[menu])
@@ -174,6 +194,17 @@ onMounted(async () => {
           class="inline-block h-4 w-4 mr-1"
         />
         Dernière modification: {{ lastUpdate.toLocaleString() }}
+      </div>
+    </div>
+    <div v-if="companyBlocked" class="mt-2 mb-2 text-center">
+      <div class="bg-red-100 border border-red-400 rounded p-4">
+        <span class="text-red-600 font-bold text-lg block mb-2"
+          >⚠️ Cette compagnie est actuellement bloquée globalement.</span
+        >
+        <span class="text-red-700 font-semibold"
+          >Aucun accès n'est autorisé tant que le blocage global est actif.<br />Les
+          switches de menu sont désactivés.</span
+        >
       </div>
     </div>
 
@@ -224,6 +255,24 @@ onMounted(async () => {
       </div>
       <div class="bg-white shadow rounded-lg p-6">
         <h2 class="text-lg font-semibold mb-2">Statut des menus</h2>
+        <div class="mb-4 flex items-center gap-4">
+          <span class="font-medium text-gray-700"
+            >Blocage global de la compagnie :</span
+          >
+          <button
+            :class="
+              companyBlocked
+                ? 'bg-red-500 text-white'
+                : 'bg-green-500 text-white'
+            "
+            class="px-4 py-2 rounded-lg shadow"
+            @click="setCompanyBlocked(!companyBlocked)"
+          >
+            {{
+              companyBlocked ? "Débloquer la compagnie" : "Bloquer la compagnie"
+            }}
+          </button>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
           <div
             v-for="menu in allMenus"
@@ -247,13 +296,19 @@ onMounted(async () => {
               <span class="font-medium text-gray-800 truncate">{{ menu }}</span>
               <span
                 :class="
-                  blockedMenus.includes(menu)
+                  companyBlocked || blockedMenus.includes(menu)
                     ? 'text-red-500 font-semibold'
                     : 'text-green-600 font-semibold'
                 "
                 class="ml-2 text-xs flex-shrink-0"
               >
-                {{ blockedMenus.includes(menu) ? "Bloqué" : "Actif" }}
+                {{
+                  companyBlocked
+                    ? "Bloqué"
+                    : blockedMenus.includes(menu)
+                    ? "Bloqué"
+                    : "Actif"
+                }}
               </span>
             </div>
             <div class="flex items-center justify-center" style="width: 90px">
@@ -269,13 +324,8 @@ onMounted(async () => {
                   type="checkbox"
                   class="sr-only peer"
                   :checked="blockedMenus.includes(menu)"
-                  :disabled="menuActionLoading === menu"
-                  @change="
-                    setMenuStatus(
-                      menu,
-                      !($event.target as HTMLInputElement).checked
-                    )
-                  "
+                  :disabled="true"
+                  @change.prevent
                 />
                 <div
                   class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-all duration-200 relative"
@@ -321,7 +371,11 @@ onMounted(async () => {
         </div>
         <p class="mt-4 text-sm text-gray-500">
           Utilisez le switch pour activer ou bloquer chaque menu. Le statut est
-          sauvegardé et affiché après chaque rafraîchissement.
+          sauvegardé et affiché après chaque rafraîchissement.<br />
+          <span class="text-red-600 font-semibold"
+            >Si la compagnie est globalement bloquée, tous les accès sont
+            désactivés.</span
+          >
         </p>
       </div>
     </div>

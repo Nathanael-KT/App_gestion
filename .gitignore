@@ -23,3 +23,6 @@ logs
 .env
 .env.*
 !.env.example
+
+# Vercel local metadata
+.vercel

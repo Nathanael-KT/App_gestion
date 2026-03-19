@@ -8,7 +8,7 @@ Make sure to install dependencies:
 
 # 🚀 App Gestion - Application de Gestion d'Entreprise
 
-Une application complète de gestion d'entreprise construite avec **Nuxt 3**, **Supabase** et déployée sur **Deno Deploy**.
+Une application complète de gestion d'entreprise construite avec **Nuxt 3**, **Supabase** et déployée sur **Vercel**.
 
 🔧 **Mise à jour Pipeline** : Fix appliqué pour GitHub Actions issue #232 - Garantit la création d'artifacts même en cas d'erreur de build.
 
@@ -27,7 +27,7 @@ Une application complète de gestion d'entreprise construite avec **Nuxt 3**, **
 
 - **Frontend**: Nuxt 3, Vue 3, TailwindCSS, Nuxt UI
 - **Backend**: Supabase (PostgreSQL + Auth + Storage)
-- **Déploiement**: Deno Deploy
+- **Déploiement**: Vercel
 - **CI/CD**: GitHub Actions
 
 ## 🚀 Pipeline CI/CD Automatique
@@ -37,22 +37,19 @@ Une application complète de gestion d'entreprise construite avec **Nuxt 3**, **
 Le pipeline se déclenche automatiquement lors d'un **merge sur la branche `main`** et exécute :
 
 1. **🧪 Tests et Vérifications**
-
    - Linting du code
    - Vérification des types TypeScript
 
 2. **�️ Migration de Base de Données**
-
    - Application automatique des migrations Supabase
    - Vérification de l'état de la base de données
 
 3. **🏗️ Build de l'Application**
-
    - Build optimisé pour la production
    - Configuration des variables d'environnement
 
 4. **🚀 Déploiement en Production**
-   - Déploiement automatique sur Deno Deploy
+   - Déploiement automatique sur Vercel
    - Configuration des variables d'environnement
    - Vérification de la disponibilité
 
@@ -68,8 +65,10 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_PROJECT_ID=your-project-id
 SUPABASE_DB_PASSWORD=your-db-password
 
-# Deno Deploy
-DENO_DEPLOY_TOKEN=your-deno-deploy-token
+# Vercel
+VERCEL_TOKEN=your-vercel-token
+VERCEL_ORG_ID=your-vercel-org-id
+VERCEL_PROJECT_ID=your-vercel-project-id
 ```
 
 ### Utilisation du Script de Configuration
@@ -366,19 +365,16 @@ docs/                # Documentation
 Le pipeline automatique comprend :
 
 1. **Tests** 🧪
-
    - Linting ESLint
    - Vérification TypeScript
    - Tests unitaires (si présents)
 
 2. **Migration DB** 🗄️
-
    - Connexion à Supabase
    - Application des migrations pendantes
    - Vérification du statut
 
 3. **Build** 🔨
-
    - Build Nuxt optimisé
    - Génération des assets
    - Préparation pour Deno Deploy

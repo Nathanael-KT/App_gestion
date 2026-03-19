@@ -1,15 +1,28 @@
 <template>
   <component :is="isSuperAdmin ? superadmin : 'div'">
     <!-- Show loading state while user roles are being determined -->
-    <div v-if="isLoadingRoles" class="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div
+      v-if="isLoadingRoles"
+      class="min-h-screen bg-gray-50 flex items-center justify-center"
+    >
       <div class="text-center">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+        <div
+          class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"
+        />
         <p class="text-gray-600">Chargement de votre profil...</p>
       </div>
     </div>
-    
+
     <template v-else-if="!isSuperAdmin">
       <div class="min-h-screen bg-gray-50">
+        <div
+          v-if="companySettings?.blocked"
+          class="bg-red-100 text-red-700 px-4 py-3 rounded mb-6 text-center font-semibold"
+        >
+          Votre entreprise est actuellement bloquée par l'administrateur. Aucun
+          accès n'est autorisé tant que le blocage global est actif.<br />
+          Veuillez contacter votre administrateur pour plus d'informations.
+        </div>
         <!-- Indicateur de chargement global -->
         <div v-if="loading" class="fixed top-4 right-4 z-50">
           <div
@@ -810,6 +823,7 @@
 </template>
 
 <script setup>
+import { useRouter } from "vue-router";
 import { ref, onMounted } from "vue";
 import { useMagasinStore } from "../composables/useMagasinStore";
 import { useCurrentUser } from "../composables/useCurrentUser";
@@ -826,11 +840,49 @@ const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
 
+const router = useRouter();
 onMounted(async () => {
   if (isLoadingUser.value) {
     await loadCurrentUser();
   }
   if (companyId.value) await fetchCompanySettings(companyId.value);
+  // Si la compagnie est bloquée, redirige vers une page d'erreur
+  if (!isSuperAdmin.value && companySettings?.blocked) {
+    router.replace({
+      path: "/error",
+      query: {
+        message:
+          "Votre entreprise est actuellement bloquée par l'administrateur. Aucun accès n'est autorisé tant que le blocage global est actif. Veuillez contacter votre administrateur.",
+      },
+    });
+  }
+  if (!isSuperAdmin.value && companySettings?.blocked) {
+    router.replace({
+      path: "/error",
+      query: {
+        message:
+          "Votre entreprise est actuellement bloquée par l'administrateur. Aucun accès n'est autorisé tant que le blocage global est actif. Veuillez contacter votre administrateur.",
+      },
+    });
+  }
+  if (blockedMenus.value.length > 0) {
+    const blockedPaths = blockedMenus.value
+      .map((menu) => menuToPath[menu])
+      .filter(Boolean);
+    if (
+      blockedPaths.some(
+        (p) => route.path === p || route.path.startsWith(p + "/")
+      )
+    ) {
+      router.replace({
+        path: "/error",
+        query: {
+          message:
+            "Vous n'avez pas le droit d'accéder à cette page. Contactez votre administrateur.",
+        },
+      });
+    }
+  }
 });
 
 const { userRoles, userName, userEmail, userPhone } = useCurrentUser();

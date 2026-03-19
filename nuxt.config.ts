@@ -10,19 +10,18 @@ export default defineNuxtConfig({
     "@nuxt/ui",
     "@nuxt/eslint",
     "@nuxtjs/supabase",
-    // "@nuxthub/core", // Désactivé pour Deno Deploy
+    // "@nuxthub/core",
     "@nuxt/image",
     "@pinia/nuxt",
   ],
   css: ["~/assets/css/main.css"],
 
-  // Configuration pour Deno Deploy
+  // Runtime Nitro neutre (Vercel detecte automatiquement le preset en CI)
   nitro: {
-    preset: "deno-server",
     serveStatic: true,
   },
 
-  // SSR requis pour Deno Deploy
+  // SSR requis pour le rendu serveur
   ssr: true,
 
   // Optimisations de build
@@ -47,11 +46,10 @@ export default defineNuxtConfig({
     public: {
       // Variables côté client (publiques) - avec fallbacks multiples
       supabaseUrl:
-        process.env.NUXT_PUBLIC_SUPABASE_URL || 
-        process.env.SUPABASE_URL,
+        process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
       supabaseKey:
-        process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || 
-        process.env.SUPABASE_ANON_KEY || 
+        process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ||
+        process.env.SUPABASE_ANON_KEY ||
         process.env.SUPABASE_KEY,
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || "http://localhost:3000",
     },
