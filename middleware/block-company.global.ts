@@ -1,5 +1,7 @@
 // middleware/block-company.global.ts
-export default defineNuxtRouteMiddleware(() => {
+export default defineNuxtRouteMiddleware((to: { path: string }) => {
+  if (to.path.startsWith("/auth/") || to.path === "/login") return;
+
   // Ne bloque pas l'accès pour le superadmin
   const userRoles = useNuxtApp().$currentUser?.userRoles || [];
   if (userRoles.includes("super_admin")) return;

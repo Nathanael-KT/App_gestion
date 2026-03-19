@@ -65,7 +65,7 @@ export default defineNuxtConfig({
     url: supabaseUrl,
     key: supabaseKey,
     redirectOptions: {
-      login: "/login",
+      login: "/login", 
       callback: "",
       exclude: ["/vente"],
     },

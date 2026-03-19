@@ -1,11 +1,11 @@
 import { useCurrentUser } from "~/composables/useCurrentUser";
 
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware((to: { path: string }) => {
   const { user } = useCurrentUser();
 
   // Exclure certaines routes de cette vérification
   const excludedRoutes = ["/login", "/error", "/profile"];
-  if (excludedRoutes.includes(to.path)) {
+  if (excludedRoutes.includes(to.path) || to.path.startsWith("/auth/")) {
     return;
   }
 
