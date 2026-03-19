@@ -1,5 +1,8 @@
 # 🚀 DÉPLOIEMENT COMPLET - App Gestion
 
+> ⚠️ Ce document décrit un flux historique orienté Deno Deploy.
+> Utilisez désormais `docs/DEPLOY_VERCEL.md` pour le déploiement actif.
+
 ## 📋 Résumé de votre projet
 
 Votre application de gestion est une **application fullstack moderne** comprenant :

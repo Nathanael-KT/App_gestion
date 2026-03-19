@@ -1,5 +1,14 @@
 import process from "node:process";
 
+const supabaseUrl =
+  process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+const supabaseKey =
+  process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ||
+  process.env.NUXT_PUBLIC_SUPABASE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_KEY ||
+  "";
+
 export default defineNuxtConfig({
   compatibilityDate: "2024-11-01",
   devtools: { enabled: true },
@@ -10,19 +19,18 @@ export default defineNuxtConfig({
     "@nuxt/ui",
     "@nuxt/eslint",
     "@nuxtjs/supabase",
-    // "@nuxthub/core", // Désactivé pour Deno Deploy
+    // "@nuxthub/core",
     "@nuxt/image",
     "@pinia/nuxt",
   ],
   css: ["~/assets/css/main.css"],
 
-  // Configuration pour Deno Deploy
+  // Runtime Nitro neutre (Vercel detecte automatiquement le preset en CI)
   nitro: {
-    preset: "deno-server",
     serveStatic: true,
   },
 
-  // SSR requis pour Deno Deploy
+  // SSR requis pour le rendu serveur
   ssr: true,
 
   // Optimisations de build
@@ -46,22 +54,19 @@ export default defineNuxtConfig({
 
     public: {
       // Variables côté client (publiques) - avec fallbacks multiples
-      supabaseUrl:
-        process.env.NUXT_PUBLIC_SUPABASE_URL || 
-        process.env.SUPABASE_URL,
-      supabaseKey:
-        process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY || 
-        process.env.SUPABASE_ANON_KEY || 
-        process.env.SUPABASE_KEY,
+      supabaseUrl,
+      supabaseKey,
       siteUrl: process.env.NUXT_PUBLIC_SITE_URL || "http://localhost:3000",
     },
   },
 
   // Configuration Supabase
   supabase: {
+    url: supabaseUrl,
+    key: supabaseKey,
     redirectOptions: {
       login: "/login",
-      callback: "/",
+      callback: "",
       exclude: ["/vente"],
     },
   },

@@ -16,7 +16,8 @@ env:
   SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
   SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
   SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-  DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
 jobs:
   test:
@@ -163,47 +164,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build for Deno Deploy
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          NUXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NUXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        run: pnpm build
+      - name: Pull Vercel Environment
+        run: pnpm dlx vercel@latest pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v1
-        with:
-          deno-version: v1.46
+      - name: Build Vercel Artifacts
+        run: pnpm dlx vercel@latest build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Deploy to Deno Deploy
-        run: |
-          echo "Deploying to Deno Deploy..."
-
-          # Vérification de l'installation Deno
-          deno --version
-
-          # Téléchargement et mise en cache de deployctl
-          echo "Downloading deployctl..."
-          deno cache --reload https://deno.land/x/deploy@1.12.0/deployctl.ts
-
-          echo "Starting deployment..."
-          timeout 300 deno run \
-            -A \
-            --no-check \
-            https://deno.land/x/deploy@1.12.0/deployctl.ts \
-            deploy \
-            --prod \
-            --project=app-gestion-prod \
-            --name=app-gestion-production \
-            --token=${{ secrets.DENO_DEPLOY_TOKEN }} \
-            --env="SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
-            --env="SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
-            --env="SUPABASE_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
-            --env="NUXT_PUBLIC_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" \
-            --env="NUXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" \
-            .output/server/index.mjs
+      - name: Deploy to Vercel
+        run: pnpm dlx vercel@latest deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Show Docker deployment info
         run: |
@@ -229,9 +197,9 @@ jobs:
         run: |
           if [ "${{ needs.deploy.result }}" == "success" ]; then
             echo "🎉 Deployment successful!"
-            echo "🌐 Application live: https://app-gestion-production.deno.dev"
+            echo "🌐 Application live: https://app-gestion.vercel.app"
             echo "🐳 Docker image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-            echo "📱 URL fixe configurée avec le nom: app-gestion-production"
+            echo "📱 URL Vercel disponible dans le dashboard du projet"
           else
             echo "❌ Deployment failed!"
             echo "🔍 Check the workflow logs for details"

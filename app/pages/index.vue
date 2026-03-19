@@ -1,7 +1,28 @@
 <template>
-  <component :is="isSuperAdmin ? superadmin : 'div'" v-show="!isLoadingRoles">
-    <template v-if="!isSuperAdmin">
+  <component :is="isSuperAdmin ? superadmin : 'div'">
+    <!-- Show loading state while user roles are being determined -->
+    <div
+      v-if="isLoadingRoles"
+      class="min-h-screen bg-gray-50 flex items-center justify-center"
+    >
+      <div class="text-center">
+        <div
+          class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"
+        />
+        <p class="text-gray-600">Chargement de votre profil...</p>
+      </div>
+    </div>
+
+    <template v-else-if="!isSuperAdmin">
       <div class="min-h-screen bg-gray-50">
+        <div
+          v-if="companySettings?.blocked"
+          class="bg-red-100 text-red-700 px-4 py-3 rounded mb-6 text-center font-semibold"
+        >
+          Votre entreprise est actuellement bloquée par l'administrateur. Aucun
+          accès n'est autorisé tant que le blocage global est actif.<br />
+          Veuillez contacter votre administrateur pour plus d'informations.
+        </div>
         <!-- Indicateur de chargement global -->
         <div v-if="loading" class="fixed top-4 right-4 z-50">
           <div
@@ -82,7 +103,21 @@
                   <UIcon name="i-lucide-trending-up" class="w-5 h-5 mr-2" />
                   Aperçu Rapide
                 </h3>
-                <div class="space-y-3">
+                <div v-if="loading" class="space-y-3">
+                  <div class="flex justify-between items-center">
+                    <div class="h-5 w-32 bg-white/20 animate-pulse rounded" />
+                    <div class="h-6 w-24 bg-white/20 animate-pulse rounded" />
+                  </div>
+                  <div class="flex justify-between items-center">
+                    <div class="h-5 w-32 bg-white/20 animate-pulse rounded" />
+                    <div class="h-6 w-16 bg-white/20 animate-pulse rounded" />
+                  </div>
+                  <div class="flex justify-between items-center">
+                    <div class="h-5 w-32 bg-white/20 animate-pulse rounded" />
+                    <div class="h-6 w-16 bg-white/20 animate-pulse rounded" />
+                  </div>
+                </div>
+                <div v-else class="space-y-3">
                   <div class="flex justify-between items-center">
                     <span class="text-blue-100">Ventes du mois</span>
                     <span class="text-xl font-bold"
@@ -109,6 +144,7 @@
           <div
             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
           >
+            <!-- Produits Card -->
             <div
               class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 group"
             >
@@ -122,10 +158,16 @@
                   />
                 </div>
                 <div class="text-right">
-                  <p class="text-2xl font-bold text-gray-900">
-                    {{ totalProducts.toLocaleString() }}
-                  </p>
-                  <p class="text-sm text-gray-500">Produits</p>
+                  <div v-if="loading" class="space-y-2">
+                    <div class="h-8 w-20 bg-gray-200 animate-pulse rounded" />
+                    <div class="h-4 w-16 bg-gray-200 animate-pulse rounded" />
+                  </div>
+                  <template v-else>
+                    <p class="text-2xl font-bold text-gray-900">
+                      {{ totalProducts.toLocaleString() }}
+                    </p>
+                    <p class="text-sm text-gray-500">Produits</p>
+                  </template>
                 </div>
               </div>
               <div class="flex items-center justify-between">
@@ -147,6 +189,7 @@
               </div>
             </div>
 
+            <!-- Clients Card -->
             <div
               class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 group"
             >
@@ -157,10 +200,16 @@
                   <UIcon name="i-lucide-users" class="w-8 h-8 text-green-600" />
                 </div>
                 <div class="text-right">
-                  <p class="text-2xl font-bold text-gray-900">
-                    {{ totalClients.toLocaleString() }}
-                  </p>
-                  <p class="text-sm text-gray-500">Clients</p>
+                  <div v-if="loading" class="space-y-2">
+                    <div class="h-8 w-20 bg-gray-200 animate-pulse rounded" />
+                    <div class="h-4 w-16 bg-gray-200 animate-pulse rounded" />
+                  </div>
+                  <template v-else>
+                    <p class="text-2xl font-bold text-gray-900">
+                      {{ totalClients.toLocaleString() }}
+                    </p>
+                    <p class="text-sm text-gray-500">Clients</p>
+                  </template>
                 </div>
               </div>
               <div class="flex items-center justify-between">
@@ -182,6 +231,7 @@
               </div>
             </div>
 
+            <!-- Commandes Card -->
             <div
               class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 group"
             >
@@ -195,10 +245,16 @@
                   />
                 </div>
                 <div class="text-right">
-                  <p class="text-2xl font-bold text-gray-900">
-                    {{ activeOrders.toLocaleString() }}
-                  </p>
-                  <p class="text-sm text-gray-500">Commandes</p>
+                  <div v-if="loading" class="space-y-2">
+                    <div class="h-8 w-20 bg-gray-200 animate-pulse rounded" />
+                    <div class="h-4 w-16 bg-gray-200 animate-pulse rounded" />
+                  </div>
+                  <template v-else>
+                    <p class="text-2xl font-bold text-gray-900">
+                      {{ activeOrders.toLocaleString() }}
+                    </p>
+                    <p class="text-sm text-gray-500">Commandes</p>
+                  </template>
                 </div>
               </div>
               <div class="flex items-center justify-between">
@@ -220,6 +276,7 @@
               </div>
             </div>
 
+            <!-- CA du mois Card -->
             <div
               class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 group"
             >
@@ -230,11 +287,17 @@
                   <UIcon name="i-lucide-euro" class="w-8 h-8 text-purple-600" />
                 </div>
                 <div class="text-right">
-                  <p class="text-2xl font-bold text-gray-900">
-                    {{ monthSales.toLocaleString() }}
-                    {{ companySettings?.currency }}
-                  </p>
-                  <p class="text-sm text-gray-500">CA du mois</p>
+                  <div v-if="loading" class="space-y-2">
+                    <div class="h-8 w-24 bg-gray-200 animate-pulse rounded" />
+                    <div class="h-4 w-20 bg-gray-200 animate-pulse rounded" />
+                  </div>
+                  <template v-else>
+                    <p class="text-2xl font-bold text-gray-900">
+                      {{ monthSales.toLocaleString() }}
+                      {{ companySettings?.currency }}
+                    </p>
+                    <p class="text-sm text-gray-500">CA du mois</p>
+                  </template>
                 </div>
               </div>
               <div class="flex items-center justify-between">
@@ -760,6 +823,7 @@
 </template>
 
 <script setup>
+import { useRouter } from "vue-router";
 import { ref, onMounted } from "vue";
 import { useMagasinStore } from "../composables/useMagasinStore";
 import { useCurrentUser } from "../composables/useCurrentUser";
@@ -776,11 +840,49 @@ const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
 
+const router = useRouter();
 onMounted(async () => {
   if (isLoadingUser.value) {
     await loadCurrentUser();
   }
   if (companyId.value) await fetchCompanySettings(companyId.value);
+  // Si la compagnie est bloquée, redirige vers une page d'erreur
+  if (!isSuperAdmin.value && companySettings?.blocked) {
+    router.replace({
+      path: "/error",
+      query: {
+        message:
+          "Votre entreprise est actuellement bloquée par l'administrateur. Aucun accès n'est autorisé tant que le blocage global est actif. Veuillez contacter votre administrateur.",
+      },
+    });
+  }
+  if (!isSuperAdmin.value && companySettings?.blocked) {
+    router.replace({
+      path: "/error",
+      query: {
+        message:
+          "Votre entreprise est actuellement bloquée par l'administrateur. Aucun accès n'est autorisé tant que le blocage global est actif. Veuillez contacter votre administrateur.",
+      },
+    });
+  }
+  if (blockedMenus.value.length > 0) {
+    const blockedPaths = blockedMenus.value
+      .map((menu) => menuToPath[menu])
+      .filter(Boolean);
+    if (
+      blockedPaths.some(
+        (p) => route.path === p || route.path.startsWith(p + "/")
+      )
+    ) {
+      router.replace({
+        path: "/error",
+        query: {
+          message:
+            "Vous n'avez pas le droit d'accéder à cette page. Contactez votre administrateur.",
+        },
+      });
+    }
+  }
 });
 
 const { userRoles, userName, userEmail, userPhone } = useCurrentUser();

@@ -5,6 +5,7 @@
   "scripts": {
     "build": "nuxt build",
     "build:ci": "nuxt build --no-typecheck",
+    "build:vercel": "NITRO_PRESET=vercel nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
@@ -13,8 +14,8 @@
     "lint:fix": "eslint --fix .",
     "prepare": "husky",
     "deploy": "./deploy.sh",
-    "deploy:manual": "deployctl deploy --project=app-gestion .output/server/index.mjs",
-    "build:production": "NITRO_PRESET=deno-deploy nuxt build",
+    "deploy:manual": "pnpm dlx vercel@latest deploy --prod --yes",
+    "build:production": "pnpm build:vercel",
     "supabase:setup": "npx supabase start",
     "supabase:push": "npx supabase db push",
     "supabase:types": "npx supabase gen types typescript --local > types/supabase.ts",
@@ -23,7 +24,7 @@
     "db:migrate": "supabase db push",
     "db:reset": "supabase db reset",
     "db:seed": "supabase db reset --with-seed",
-    "deploy:prod": "pnpm build && deployctl deploy --prod .output/server/index.mjs",
+    "deploy:prod": "pnpm dlx vercel@latest deploy --prod --yes",
     "setup:secrets": "./scripts/setup-github-secrets.sh"
   },
   "dependencies": {

@@ -42,72 +42,6 @@ interface CompanySettings {
 export function useDashboardData() {
   const { companyId, magasinId, currentUser } = useCurrentUser();
 
-  onMounted(() => {
-    // Attendre que companyId ET magasinId soient tous les deux définis
-    if (!companyId.value || !magasinId.value) {
-      const stop = watch(
-        [() => companyId.value, () => magasinId.value],
-        ([newCompanyId, newMagasinId]) => {
-          if (newCompanyId && newMagasinId) {
-            fetchTotalProducts();
-            fetchTotalClients();
-            fetchActiveOrders();
-            fetchMonthSales();
-            fetchRecentActivities();
-            fetchStockAlerts();
-            fetchSalesData();
-            stop();
-          }
-        },
-        { immediate: true }
-      );
-    } else {
-      fetchTotalProducts();
-      fetchTotalClients();
-      fetchActiveOrders();
-      fetchMonthSales();
-      fetchRecentActivities();
-      fetchStockAlerts();
-      fetchSalesData();
-    }
-  });
-  onMounted(() => {
-    // Priorité : charger les produits d'abord, puis les clients
-    const tryFetch = () => {
-      if (companyId.value && magasinId.value) {
-        // Vérification stricte : le magasin doit appartenir à la compagnie
-        // On suppose que currentUser.value.magasin_id et currentUser.value.company_id sont fiables
-        if (
-          currentUser.value &&
-          currentUser.value.company_id === companyId.value &&
-          currentUser.value.magasin_id === magasinId.value
-        ) {
-          fetchTotalProducts().then(() => {
-            fetchTotalClients();
-          });
-          return true;
-        } else {
-          error.value =
-            "Le magasin sélectionné n'appartient pas à votre compagnie. Veuillez sélectionner un magasin valide.";
-          totalProducts.value = 0;
-          totalClients.value = 0;
-          return false;
-        }
-      }
-      return false;
-    };
-
-    if (!tryFetch()) {
-      const stop = watch(
-        [() => companyId.value, () => magasinId.value],
-        () => {
-          if (tryFetch()) stop();
-        },
-        { immediate: true }
-      );
-    }
-  });
-
   const supabase = useSupabaseClient();
 
   // États réactifs pour les données
@@ -121,6 +55,52 @@ export function useDashboardData() {
   const loading = ref(false);
   const error = ref<string | null>(null);
 
+  // Single onMounted hook to handle all initialization
+  onMounted(() => {
+    // Attendre que companyId ET magasinId soient tous les deux définis
+    const tryInitialize = () => {
+      if (!companyId.value || !magasinId.value) {
+        return false;
+      }
+
+      // Vérification stricte : le magasin doit appartenir à la compagnie
+      if (
+        currentUser.value &&
+        currentUser.value.company_id === companyId.value &&
+        currentUser.value.magasin_id === magasinId.value
+      ) {
+        // Charger toutes les données en parallèle
+        fetchTotalProducts();
+        fetchTotalClients();
+        fetchActiveOrders();
+        fetchMonthSales();
+        fetchRecentActivities();
+        fetchStockAlerts();
+        fetchSalesData();
+        return true;
+      } else if (currentUser.value) {
+        error.value =
+          "Le magasin sélectionné n'appartient pas à votre compagnie. Veuillez sélectionner un magasin valide.";
+        totalProducts.value = 0;
+        totalClients.value = 0;
+        return false;
+      }
+      return false;
+    };
+
+    if (!tryInitialize()) {
+      const stop = watch(
+        [() => companyId.value, () => magasinId.value, () => currentUser.value],
+        () => {
+          if (tryInitialize()) {
+            stop();
+          }
+        },
+        { immediate: true }
+      );
+    }
+  });
+
   // Fonction pour récupérer le nombre total de produits
   async function fetchTotalProducts() {
     try {
@@ -133,60 +113,72 @@ export function useDashboardData() {
         .select("*", { count: "exact", head: true })
         .eq("company_id", companyId.value);
 
-      if (prodError) throw prodError;
+      if (prodError) {
+        console.error("Error fetching products:", prodError);
+        totalProducts.value = 0;
+        return;
+      }
       totalProducts.value = count || 0;
     } catch (err) {
       console.error("Erreur lors de la récupération des produits:", err);
-      error.value = (err as Error).message;
+      totalProducts.value = 0;
     }
   }
 
   // Fonction pour récupérer le nombre total de clients
   async function fetchTotalClients() {
     try {
-      if (!companyId.value) {
-        totalProducts.value = 0;
+      if (!magasinId.value) {
+        totalClients.value = 0;
         return;
       }
       const { count, error: clientError } = await supabase
         .from("clients")
         .select("*", { count: "exact", head: true })
-        .eq("magasin_id", magasinId.value ?? "");
+        .eq("magasin_id", magasinId.value);
 
-      if (clientError) throw clientError;
+      if (clientError) {
+        console.error("Error fetching clients:", clientError);
+        totalClients.value = 0;
+        return;
+      }
       totalClients.value = count || 0;
     } catch (err) {
       console.error("Erreur lors de la récupération des clients:", err);
-      error.value = (err as Error).message;
+      totalClients.value = 0;
     }
   }
 
   // Fonction pour récupérer le nombre de commandes actives (factures non payées)
   async function fetchActiveOrders() {
     try {
-      if (!companyId.value) {
-        totalProducts.value = 0;
+      if (!magasinId.value) {
+        activeOrders.value = 0;
         return;
       }
       const { count, error: orderError } = await supabase
         .from("invoices")
         .select("*", { count: "exact", head: true })
         .neq("status", "paid")
-        .eq("magasin_id", magasinId.value ?? "");
+        .eq("magasin_id", magasinId.value);
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error("Error fetching orders:", orderError);
+        activeOrders.value = 0;
+        return;
+      }
       activeOrders.value = count || 0;
     } catch (err) {
       console.error("Erreur lors de la récupération des commandes:", err);
-      error.value = (err as Error).message;
+      activeOrders.value = 0;
     }
   }
 
   // Fonction pour récupérer les ventes du mois
   async function fetchMonthSales() {
     try {
-      if (!companyId.value) {
-        totalProducts.value = 0;
+      if (!magasinId.value) {
+        monthSales.value = 0;
         return;
       }
       const currentDate = new Date();
@@ -207,28 +199,32 @@ export function useDashboardData() {
         .eq("status", "paid")
         .gte("date", firstDayOfMonth.toISOString().split("T")[0])
         .lte("date", lastDayOfMonth.toISOString().split("T")[0])
-        .eq("magasin_id", magasinId.value ?? "");
+        .eq("magasin_id", magasinId.value);
 
-      if (salesError) throw salesError;
+      if (salesError) {
+        console.error("Error fetching month sales:", salesError);
+        monthSales.value = 0;
+        return;
+      }
 
       const totalSales =
         data?.reduce(
           (sum: number, invoice: { total: number }) =>
-            sum + Number(invoice.total),
+            sum + Number(invoice.total || 0),
           0
         ) || 0;
       monthSales.value = totalSales;
     } catch (err) {
       console.error("Erreur lors de la récupération des ventes:", err);
-      error.value = (err as Error).message;
+      monthSales.value = 0;
     }
   }
 
   // Fonction pour récupérer les données de ventes pour le graphique
   async function fetchSalesData(period: string = "month") {
     try {
-      if (!companyId.value) {
-        totalProducts.value = 0;
+      if (!magasinId.value) {
+        salesData.value = [];
         return;
       }
       const now = new Date();
@@ -259,10 +255,14 @@ export function useDashboardData() {
         )
         .eq("status", "paid")
         .gte("date", startDate.toISOString().split("T")[0])
-        .eq("magasin_id", magasinId.value ?? "")
+        .eq("magasin_id", magasinId.value)
         .order("date", { ascending: true });
 
-      if (salesError) throw salesError;
+      if (salesError) {
+        console.error("Error fetching sales data:", salesError);
+        salesData.value = [];
+        return;
+      }
 
       salesData.value = data || [];
     } catch (err) {
@@ -270,15 +270,15 @@ export function useDashboardData() {
         "Erreur lors de la récupération des données de ventes:",
         err
       );
-      error.value = (err as Error).message;
+      salesData.value = [];
     }
   }
 
   // Fonction pour récupérer les activités récentes
   async function fetchRecentActivities() {
     try {
-      if (!companyId.value) {
-        totalProducts.value = 0;
+      if (!magasinId.value) {
+        recentActivities.value = [];
         return;
       }
       // Récupérer les 10 dernières factures avec leurs clients
@@ -297,21 +297,25 @@ export function useDashboardData() {
           )
         `
         )
-        .eq("magasin_id", magasinId.value ?? "")
+        .eq("magasin_id", magasinId.value)
         .order("created_at", { ascending: false })
         .limit(10);
 
-      if (invoicesError) throw invoicesError;
+      if (invoicesError) {
+        console.error("Error fetching invoices:", invoicesError);
+      }
 
       // Récupérer les 5 derniers clients créés
       const { data: clientsData, error: clientsError } = await supabase
         .from("clients")
         .select("name, created_at")
-        .eq("magasin_id", magasinId.value ?? "")
+        .eq("magasin_id", magasinId.value)
         .order("created_at", { ascending: false })
         .limit(5);
 
-      if (clientsError) throw clientsError;
+      if (clientsError) {
+        console.error("Error fetching clients:", clientsError);
+      }
 
       // Récupérer les 5 derniers paiements
       const { data: paymentsData, error: paymentsError } = await supabase
@@ -326,11 +330,13 @@ export function useDashboardData() {
           )
         `
         )
-        .eq("magasin_id", magasinId.value ?? "")
+        .eq("magasin_id", magasinId.value)
         .order("created_at", { ascending: false })
         .limit(5);
 
-      if (paymentsError) throw paymentsError;
+      if (paymentsError) {
+        console.error("Error fetching payments:", paymentsError);
+      }
 
       // Combiner et formatter les activités
       const activities: Activity[] = [];
@@ -353,8 +359,8 @@ export function useDashboardData() {
               iconColor: "text-green-600",
               borderColor: "border-green-100",
               title: `Facture ${invoice.reference} livrée`,
-              description: `Client: ${invoice.clients?.name} - ${Number(
-                invoice.total
+              description: `Client: ${invoice.clients?.name || "N/A"} - ${Number(
+                invoice.total || 0
               ).toLocaleString()}`,
               time: timeAgo,
               timestamp: invoice.created_at,
@@ -373,7 +379,7 @@ export function useDashboardData() {
           iconColor: "text-blue-600",
           borderColor: "border-blue-100",
           title: "Nouveau client enregistré",
-          description: client.name,
+          description: client.name || "N/A",
           time: timeAgo,
           timestamp: client.created_at,
         });
@@ -394,8 +400,8 @@ export function useDashboardData() {
             iconColor: "text-purple-600",
             borderColor: "border-purple-100",
             title: "Facture payée",
-            description: `Facture ${payment.invoices?.reference} - ${Number(
-              payment.amount
+            description: `Facture ${payment.invoices?.reference || "N/A"} - ${Number(
+              payment.amount || 0
             ).toLocaleString()}`,
             time: timeAgo,
             timestamp: payment.created_at,
@@ -411,7 +417,7 @@ export function useDashboardData() {
       recentActivities.value = activities.slice(0, 5);
     } catch (err) {
       console.error("Erreur lors de la récupération des activités:", err);
-      error.value = (err as Error).message;
+      recentActivities.value = [];
     }
   }
 
@@ -420,23 +426,19 @@ export function useDashboardData() {
     try {
       // Vérifier et attendre que companyId soit disponible
       if (!companyId.value) {
-        const stop = watch(
-          () => companyId.value,
-          (val) => {
-            if (val) {
-              fetchStockAlerts();
-              stop();
-            }
-          }
-        );
         stockAlerts.value = [];
         return;
       }
-      const { data: companySettings } = await supabase
+
+      const { data: companySettings, error: settingsError } = await supabase
         .from("company_settings")
         .select("low_stock_threshold, critical_stock_threshold")
-        .eq("id", companyId.value ?? "")
+        .eq("id", companyId.value)
         .single();
+
+      if (settingsError) {
+        console.error("Error fetching company settings:", settingsError);
+      }
 
       const lowThreshold =
         (companySettings as unknown as CompanySettings)?.low_stock_threshold ||
@@ -448,12 +450,16 @@ export function useDashboardData() {
       const { data: productsData, error: stockError } = await supabase
         .from("products_carreaux")
         .select("name, stock, unite")
-        .eq("company_id", companyId.value ?? "")
+        .eq("company_id", companyId.value)
         .lte("stock", lowThreshold)
         .order("stock", { ascending: true })
         .limit(10);
 
-      if (stockError) throw stockError;
+      if (stockError) {
+        console.error("Error fetching stock alerts:", stockError);
+        stockAlerts.value = [];
+        return;
+      }
 
       const alerts =
         productsData?.map(
@@ -508,7 +514,7 @@ export function useDashboardData() {
         "Erreur lors de la récupération des alertes de stock:",
         err
       );
-      error.value = (err as Error).message;
+      stockAlerts.value = [];
     }
   };
 
