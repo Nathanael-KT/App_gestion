@@ -4,7 +4,7 @@ export default defineNuxtRouteMiddleware((to: { path: string }) => {
   const { user } = useCurrentUser();
 
   // Exclure certaines routes de cette vérification
-  const excludedRoutes = ["/login", "/error", "/profile"];
+  const excludedRoutes = ["/login", "/error", "/profile", "/auth/"];
   if (excludedRoutes.includes(to.path) || to.path.startsWith("/auth/")) {
     return;
   }
