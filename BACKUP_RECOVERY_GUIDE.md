@@ -16,7 +16,6 @@ Ce guide explique comment récupérer vos données en cas de crash de la base de
 
 ### Tables Sauvegardées
 
-njdcnskjlbsbcsbjkc
 
 
 ✅ **Données Utilisateurs**
