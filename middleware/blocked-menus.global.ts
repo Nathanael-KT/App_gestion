@@ -1,9 +1,14 @@
 import { useSupabaseClient } from "#imports";
 import { useCurrentUser } from "~/composables/useCurrentUser";
 
-export default defineNuxtRouteMiddleware(async (to) => {
+export default defineNuxtRouteMiddleware(async (to: { path: string }) => {
   // éviter boucle infinie
-  if (to.path.startsWith("/error") || to.path.startsWith("/login")) return;
+  if (
+    to.path.startsWith("/error") ||
+    to.path.startsWith("/login") ||
+    to.path.startsWith("/auth/")
+  )
+    return;
 
   // récupérer companyId depuis ton composable
   const current = useCurrentUser?.();
