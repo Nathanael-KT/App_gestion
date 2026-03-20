@@ -167,13 +167,25 @@ async function sendResetLink(event: FormSubmitEvent<EmailSchema>) {
 
   loading.value = true;
   try {
+    if (!config.public.supabaseUrl || !config.public.supabaseKey) {
+      toast.add({
+        icon: "i-lucide-exclamation-triangle",
+        title: "Configuration Supabase invalide",
+        description:
+          "Variables SUPABASE manquantes sur cet environnement (preview/production).",
+        color: "error",
+      });
+      return;
+    }
+
     const siteUrl =
       (import.meta.client ? window.location.origin : "") ||
       config.public.siteUrl;
     const redirectTo = `${siteUrl.replace(/\/$/, "")}/auth/reset-password`;
+    const normalizedEmail = emailForm.email.trim().toLowerCase();
 
     const { error } = await supabase.auth.resetPasswordForEmail(
-      emailForm.email,
+      normalizedEmail,
       {
         redirectTo,
       },
@@ -191,9 +203,9 @@ async function sendResetLink(event: FormSubmitEvent<EmailSchema>) {
 
     toast.add({
       icon: "i-lucide-mail-check",
-      title: "Email envoye",
+      title: "Demande envoyee",
       description:
-        "Consultez votre boite mail pour reinitialiser le mot de passe.",
+        "Si un compte existe pour cet email, vous recevrez un lien de reinitialisation.",
       color: "success",
     });
   } catch (err: unknown) {
