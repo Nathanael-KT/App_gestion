@@ -168,8 +168,8 @@ async function sendResetLink(event: FormSubmitEvent<EmailSchema>) {
   loading.value = true;
   try {
     const siteUrl =
-      config.public.siteUrl ||
-      (import.meta.client ? window.location.origin : "");
+      (import.meta.client ? window.location.origin : "") ||
+      config.public.siteUrl;
     const redirectTo = `${siteUrl.replace(/\/$/, "")}/auth/reset-password`;
 
     const { error } = await supabase.auth.resetPasswordForEmail(
