@@ -50,7 +50,6 @@ jobs:
     name: Database Migration
     runs-on: ubuntu-latest
     needs: test
-    continue-on-error: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -65,7 +64,9 @@ jobs:
       - name: Detect and apply new migrations
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
+          set -euo pipefail
           echo "Checking for new migration files..."
 
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -81,18 +82,10 @@ jobs:
             cat changed_migrations.txt
             
             echo "Linking to Supabase project..."
-            supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+            supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }} --password "$SUPABASE_DB_PASSWORD"
             
             echo "Applying migrations..."
-            for migration_file in $(cat changed_migrations.txt); do
-              if [ -f "$migration_file" ]; then
-                echo "Processing: $migration_file"
-                supabase db push || {
-                  echo "Migration conflict detected for $migration_file"
-                  echo "This may be expected if schema already exists"
-                }
-              fi
-            done
+            supabase db push --password "$SUPABASE_DB_PASSWORD"
             
             echo "Migration processing completed"
           else
