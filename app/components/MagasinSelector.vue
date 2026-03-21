@@ -15,11 +15,15 @@ const assignedMagasinName = ref("");
 const { magasinId } = useCurrentUser();
 const magasinStore = useMagasinStore();
 const supabase = useSupabaseClient();
-const magasins = ref<Array<{ id: string; nom: string }>>([]);
+const magasins = ref<Array<{ id: string; nom: string; company_id: string }>>(
+  [],
+);
 
 onMounted(async () => {
   // Charger tous les magasins
-  const { data } = await supabase.from("magasins").select("id, nom");
+  const { data } = await supabase
+    .from("magasins")
+    .select("id, nom, company_id");
   magasins.value = Array.isArray(data) ? data : [];
   magasinStore.setMagasins(magasins.value);
 
@@ -55,6 +59,6 @@ watch(
       magasinStore.setMagasinId("");
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 </script>

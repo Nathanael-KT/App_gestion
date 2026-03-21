@@ -24,7 +24,7 @@ export default defineNuxtRouteMiddleware(async (to: { path: string }) => {
       .from("company_settings")
       .select("blocked_menus")
       .eq("id", companyId)
-      .single();
+      .single<{ blocked_menus: string[] | null }>();
     if (!error && data?.blocked_menus) {
       blockedState.value = data.blocked_menus;
     }
