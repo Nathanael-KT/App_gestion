@@ -9,7 +9,7 @@
  */
 export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  delay: number = 300
+  delay: number = 300,
 ): (...args: Parameters<T>) => void {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -31,7 +31,7 @@ export function debounce<T extends (...args: unknown[]) => unknown>(
  */
 export function throttle<T extends (...args: unknown[]) => unknown>(
   fn: T,
-  limit: number = 300
+  limit: number = 300,
 ): (...args: Parameters<T>) => void {
   let inThrottle: boolean = false;
 
@@ -50,10 +50,8 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
  * Simple in-memory cache with TTL
  */
 export class Cache<T> {
-  private cache: Map<
-    string,
-    { data: T; timestamp: number; ttl: number }
-  > = new Map();
+  private cache: Map<string, { data: T; timestamp: number; ttl: number }> =
+    new Map();
 
   /**
    * Set cache value
@@ -127,16 +125,16 @@ export class Cache<T> {
 export async function batchProcess<T, R>(
   items: T[],
   batchSize: number,
-  processor: (batch: T[]) => Promise<R>
+  processor: (batch: T[]) => Promise<R>,
 ): Promise<R[]> {
   const results: R[] = [];
-  
+
   for (let i = 0; i < items.length; i += batchSize) {
     const batch = items.slice(i, i + batchSize);
     const result = await processor(batch);
     results.push(result);
   }
-  
+
   return results;
 }
 
@@ -149,10 +147,10 @@ export async function batchProcess<T, R>(
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   maxRetries: number = 3,
-  delay: number = 1000
+  delay: number = 1000,
 ): Promise<T> {
   let lastError: Error | null = null;
-  
+
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
@@ -160,10 +158,12 @@ export async function retryWithBackoff<T>(
       lastError = error as Error;
       if (i < maxRetries - 1) {
         // Wait with exponential backoff
-        await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+        await new Promise((resolve) =>
+          setTimeout(resolve, delay * Math.pow(2, i)),
+        );
       }
     }
   }
-  
+
   throw lastError;
 }
