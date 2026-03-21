@@ -63,7 +63,8 @@ export const useAutoBackup = () => {
   const error = ref<string | null>(null);
 
   // Variable pour le scheduler
-  let schedulerInterval: ReturnType<typeof globalThis.setInterval> | null = null;
+  let schedulerInterval: ReturnType<typeof globalThis.setInterval> | null =
+    null;
 
   /**
    * Initialise le système de sauvegarde automatique
@@ -99,7 +100,7 @@ export const useAutoBackup = () => {
       }
     } catch {
       console.warn(
-        "Configuration corrompue, utilisation des valeurs par défaut"
+        "Configuration corrompue, utilisation des valeurs par défaut",
       );
       config.value = { ...DEFAULT_CONFIG };
     }
@@ -298,7 +299,7 @@ export const useAutoBackup = () => {
         showNotification(
           "success",
           "🛡️ Sauvegarde Automatique Terminée",
-          `${record.companiesCount} compagnies sauvegardées (${record.size})`
+          `${record.companiesCount} compagnies sauvegardées (${record.size})`,
         );
       }
     } catch (err) {
@@ -312,7 +313,7 @@ export const useAutoBackup = () => {
         showNotification(
           "error",
           "⚠️ Échec de la Sauvegarde Automatique",
-          "Vérifiez les logs pour plus de détails"
+          "Vérifiez les logs pour plus de détails",
         );
       }
     } finally {
@@ -348,7 +349,7 @@ export const useAutoBackup = () => {
     }.json`;
     const checksum = btoa(company.id + company.company_name + Date.now()).slice(
       0,
-      8
+      8,
     );
 
     try {
@@ -482,7 +483,7 @@ export const useAutoBackup = () => {
   const showNotification = (
     type: "success" | "error",
     title: string,
-    message: string
+    message: string,
   ) => {
     const toast = useToast?.();
     if (toast) {

@@ -75,12 +75,7 @@ type ForumMessage = {
   content: string;
   created_at: string;
 };
-const {
-  companyId,
-  isLoadingUser,
-  loadCurrentUser,
-} = useCurrentUser();
-
+const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 
 onMounted(async () => {
   if (isLoadingUser.value) {

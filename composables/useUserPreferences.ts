@@ -31,9 +31,7 @@ export function useUserPreferences() {
   async function savePreferences(newPrefs: Partial<UserPreferences>) {
     if (!user.value) return;
     const payload = [{ user_id: user.value.id, ...newPrefs }];
-    const { error } = await supabase
-      .from("user_preferences")
-      .upsert(payload);
+    const { error } = await supabase.from("user_preferences").upsert(payload);
     if (!error) {
       await fetchPreferences();
     }

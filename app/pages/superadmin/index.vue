@@ -80,8 +80,16 @@
                     type="file"
                     accept="image/*"
                     class="w-full border rounded p-2"
-                    @change="(e) => { const target = e.target as HTMLInputElement; createForm.logo_file = (target && target.files && target.files[0]) ? target.files[0] : null; }"
-                  >
+                    @change="
+                      (e) => {
+                        const target = e.target as HTMLInputElement;
+                        createForm.logo_file =
+                          target && target.files && target.files[0]
+                            ? target.files[0]
+                            : null;
+                      }
+                    "
+                  />
                 </div>
               </div>
             </UFormField>
@@ -187,7 +195,7 @@ async function createCompany() {
       window.location.reload();
       loading.value = false;
       return;
-    } catch  {
+    } catch {
       error.value = "Erreur lors de l'upload du logo.";
       loading.value = false;
       return;

@@ -680,7 +680,7 @@ onMounted(async () => {
           await loadCashSummary();
           stop();
         }
-      }
+      },
     );
   } else {
     await loadCashSummary();
@@ -696,7 +696,7 @@ async function loadCashSummary() {
     // Vérifier magasinId
     if (!isValidMagasinId(magasinStore.magasinId)) {
       throw new Error(
-        "Aucun magasin sélectionné ou identifiant magasin invalide."
+        "Aucun magasin sélectionné ou identifiant magasin invalide.",
       );
     }
 
@@ -710,7 +710,7 @@ async function loadCashSummary() {
           name,
           email
         )
-      `
+      `,
       )
       .eq("magasin_id", magasinStore.magasinId)
       .order("created_at", { ascending: false });
@@ -731,7 +731,7 @@ async function loadCashSummary() {
           name,
           email
         )
-      `
+      `,
       )
       .eq("magasin_id", magasinStore.magasinId)
       .order("created_at", { ascending: false });
@@ -739,7 +739,7 @@ async function loadCashSummary() {
     if (emptyingError) {
       console.warn(
         "Erreur lors de la récupération des vidages:",
-        emptyingError
+        emptyingError,
       );
     }
 
@@ -757,7 +757,7 @@ async function loadCashSummary() {
           const amount = Number(count.actual_amount) || 0;
           return sum + amount;
         },
-        0
+        0,
       );
 
       totalExpected = cashCounts.reduce((sum: number, count: CashCount) => {
@@ -782,7 +782,7 @@ async function loadCashSummary() {
           difference: Number(count.difference) || 0,
           counted_by: count.users?.name || count.users?.email || "N/A",
           notes: count.notes,
-        })
+        }),
       );
     } else {
       dailyClosings.value = [];
@@ -796,7 +796,7 @@ async function loadCashSummary() {
           const amount = Number(emptying.amount) || 0;
           return sum + amount;
         },
-        0
+        0,
       );
     }
 
@@ -824,7 +824,7 @@ async function loadCashSummary() {
         destination: emptying.destination || "",
         emptied_by: emptying.users?.name || emptying.users?.email || "N/A",
         notes: emptying.notes || "",
-      })
+      }),
     );
 
     console.log("Historique des vidages:", emptyingHistory.value.length);
@@ -957,7 +957,7 @@ async function confirmEmptying() {
     toast.add({
       title: "Vidage réalisé avec succès",
       description: `${formatCurrency(
-        emptyingForm.value.amount
+        emptyingForm.value.amount,
       )} transféré vers ${getDestinationLabel(emptyingForm.value.destination)}`,
       color: "success",
     });

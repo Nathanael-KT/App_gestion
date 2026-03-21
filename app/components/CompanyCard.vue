@@ -83,7 +83,7 @@
         >
           <p>
             Cette compagnie ne peut pas être supprimée car des magasins y sont
-            actuellement associés.<br >
+            actuellement associés.<br />
             Veuillez d'abord dissocier ou supprimer les magasins liés avant de
             poursuivre la suppression.
           </p>
@@ -153,13 +153,13 @@
                 accept="image/*"
                 class="w-full border rounded p-2"
                 @change="onLogoFileChange"
-              >
+              />
               <div class="mt-2 flex justify-center">
                 <img
                   v-if="editForm.logo_preview"
                   :src="editForm.logo_preview"
                   class="h-20 w-auto object-contain rounded"
-                >
+                />
               </div>
             </div>
             <div class="flex justify-end gap-2 mt-4">
@@ -315,7 +315,7 @@ const performDeleteCompany = async (id: string) => {
         if (removeError) {
           console.error(
             "Erreur lors de la suppression des fichiers logo:",
-            removeError.message
+            removeError.message,
           );
         }
       }
