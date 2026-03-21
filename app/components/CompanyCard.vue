@@ -206,7 +206,7 @@ type CompanySettings = z.infer<typeof CompanySettingsSchema> & {
   logo_url?: string | null;
 };
 
-const supabase = useSupabaseClient<CompanySettings>();
+const supabase = useSupabaseClient();
 const companySettingsList = ref<CompanySettings[]>([]);
 const editingCompany = ref(false);
 const editingCompanyId = ref<string | null>(null);

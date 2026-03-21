@@ -4,25 +4,25 @@
  */
 export const useMultiTenantSecurity = () => {
   const supabase = useSupabaseClient();
-  const { user } = useCurrentUser();
+  const { currentUser } = useCurrentUser();
 
   /**
    * Vérifie si l'utilisateur a accès à une ressource d'une entreprise spécifique
    */
   const hasCompanyAccess = (companyId: string): boolean => {
-    if (!user.value?.company_id) {
+    if (!currentUser.value?.company_id) {
       console.warn("🚨 Utilisateur sans company_id");
       return false;
     }
 
-    const userCompanyId = user.value.company_id;
+    const userCompanyId = currentUser.value.company_id;
     const hasAccess = userCompanyId === companyId;
 
     if (!hasAccess) {
       console.warn("🚨 Tentative d'accès non autorisé:", {
         userCompanyId,
         requestedCompanyId: companyId,
-        userEmail: user.value.email,
+        userEmail: currentUser.value.email,
       });
     }
 
@@ -33,23 +33,23 @@ export const useMultiTenantSecurity = () => {
    * Filtre automatiquement les requêtes pour la company de l'utilisateur
    */
   const getSecureQuery = (tableName: string) => {
-    if (!user.value?.company_id) {
+    if (!currentUser.value?.company_id) {
       throw new Error("Utilisateur non autorisé - company_id manquant");
     }
 
     return supabase
       .from(tableName)
       .select("*")
-      .eq("company_id", user.value.company_id);
+      .eq("company_id", currentUser.value.company_id);
   };
 
   /**
    * Vérifie les permissions de rôle
    */
   const hasRole = (requiredRoles: string[]): boolean => {
-    if (!user.value?.roles) return false;
+    if (!currentUser.value?.roles) return false;
 
-    return requiredRoles.some((role) => user.value.roles.includes(role));
+    return requiredRoles.some((role) => currentUser.value.roles.includes(role));
   };
 
   /**
@@ -68,8 +68,8 @@ export const useMultiTenantSecurity = () => {
   ) => {
     console.log("🔒 Événement sécurité:", {
       timestamp: new Date().toISOString(),
-      user: user.value?.email,
-      company_id: user.value?.company_id,
+      user: currentUser.value?.email,
+      company_id: currentUser.value?.company_id,
       action,
       details,
     });
@@ -105,6 +105,6 @@ export const useMultiTenantSecurity = () => {
     isAdmin,
     logSecurityEvent,
     validateMagasinAccess,
-    userCompanyId: computed(() => user.value?.company_id),
+    userCompanyId: computed(() => currentUser.value?.company_id),
   };
 };

@@ -30,10 +30,10 @@ export function useUserPreferences() {
 
   async function savePreferences(newPrefs: Partial<UserPreferences>) {
     if (!user.value) return;
-    // Cast en tableau pour éviter l'erreur de typage Supabase
+    const payload = [{ user_id: user.value.id, ...newPrefs }];
     const { error } = await supabase
-      .from<UserPreferences>("user_preferences")
-      .upsert([{ user_id: user.value.id, ...newPrefs }]);
+      .from("user_preferences")
+      .upsert(payload);
     if (!error) {
       await fetchPreferences();
     }

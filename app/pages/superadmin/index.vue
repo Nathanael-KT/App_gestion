@@ -129,7 +129,7 @@ type CompanySettings = {
   company_email: string;
   logo_url?: string;
 };
-const supabase = useSupabaseClient<CompanySettings>();
+const supabase = useSupabaseClient();
 
 const CompanySettingsSchema = z.object({
   company_name: z.string(),

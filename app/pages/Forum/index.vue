@@ -67,16 +67,7 @@
 import { useCurrentUser } from "../../composables/useCurrentUser";
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
 
-// Define the table type for forum_messages
-type ForumMessagesTable = {
-  id: number;
-  username: string;
-  content: string;
-  created_at: string;
-};
-const supabase = useSupabaseClient<{
-  forum_messages: ForumMessagesTable;
-}>();
+const supabase = useSupabaseClient();
 const user = useSupabaseUser();
 type ForumMessage = {
   id: number;

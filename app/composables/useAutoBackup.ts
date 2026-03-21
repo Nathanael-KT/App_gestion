@@ -63,7 +63,7 @@ export const useAutoBackup = () => {
   const error = ref<string | null>(null);
 
   // Variable pour le scheduler
-  let schedulerInterval: number | null = null;
+  let schedulerInterval: ReturnType<typeof globalThis.setInterval> | null = null;
 
   /**
    * Initialise le système de sauvegarde automatique
@@ -489,7 +489,7 @@ export const useAutoBackup = () => {
       toast.add({
         title,
         description: message,
-        color: type === "success" ? "green" : "red",
+        color: type === "success" ? "success" : "error",
         timeout: type === "success" ? 5000 : 10000,
       });
     }
