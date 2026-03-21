@@ -4,7 +4,7 @@
  */
 
 export const useBackupTest = () => {
-  const supabase = useSupabaseClient();
+  const supabase = useSupabaseClient() as any;
   const isTestRunning = ref(false);
   const testResults = ref<{
     success: boolean;
@@ -43,8 +43,11 @@ export const useBackupTest = () => {
       }
 
       const testCompany = companies[0];
+      if (!testCompany) {
+        throw new Error("Aucune compagnie disponible pour le test");
+      }
       console.log(
-        `✅ Base de données OK - Test avec: ${testCompany.company_name}`
+        `✅ Base de données OK - Test avec: ${testCompany.company_name}`,
       );
 
       // 2. Générer des données de test
@@ -52,7 +55,7 @@ export const useBackupTest = () => {
       console.log("✅ Données de test générées");
 
       // 3. Tester l'upload AWS S3
-      const awsResult = await $fetch("/api/backup/aws-upload", {
+      const awsResult = (await $fetch("/api/backup/aws-upload", {
         method: "POST",
         body: {
           filename: `test_backup_${
@@ -61,7 +64,7 @@ export const useBackupTest = () => {
           data: JSON.stringify(testData),
           companyName: `TEST_${testCompany.company_name}`,
         },
-      });
+      })) as Record<string, any>;
 
       console.log("✅ Upload AWS S3 réussi:", awsResult);
 
@@ -159,7 +162,7 @@ export const useBackupTest = () => {
             .eq("company_id", company.id)
             .limit(1);
 
-          if (magasins && magasins.length > 0) {
+          if (magasins && magasins.length > 0 && magasins[0]) {
             query = query.eq("magasin_id", magasins[0].id);
           }
         }
@@ -232,18 +235,21 @@ export const useBackupTest = () => {
 
     const randomScenario =
       crashScenarios[Math.floor(Math.random() * crashScenarios.length)];
+    if (!randomScenario) {
+      throw new Error("Aucun scénario de crash disponible");
+    }
     const result = randomScenario.simulate();
 
     console.log(`✅ Simulation terminée: ${randomScenario.name}`);
     console.log(
-      `🔄 Récupération possible: ${result.canRecover ? "Oui" : "Non"}`
+      `🔄 Récupération possible: ${result.canRecover ? "Oui" : "Non"}`,
     );
     console.log(`⏱️ Temps de récupération: ${result.recoveryTime}`);
 
     if (!result.canRecover) {
       console.log("☁️ Récupération depuis les backups AWS S3 en cours...");
       console.log(
-        "📦 Fichiers disponibles sur S3 dans le bucket app-gestion-backups"
+        "📦 Fichiers disponibles sur S3 dans le bucket app-gestion-backups",
       );
       console.log("⚡ Temps de récupération estimé: 5-10 minutes");
     }

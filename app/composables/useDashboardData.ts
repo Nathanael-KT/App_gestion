@@ -42,7 +42,7 @@ interface CompanySettings {
 export function useDashboardData() {
   const { companyId, magasinId, currentUser } = useCurrentUser();
 
-  const supabase = useSupabaseClient();
+  const supabase = useSupabaseClient() as any;
 
   // États réactifs pour les données
   const totalProducts = ref(0);
@@ -96,7 +96,7 @@ export function useDashboardData() {
             stop();
           }
         },
-        { immediate: true }
+        { immediate: true },
       );
     }
   });
@@ -185,12 +185,12 @@ export function useDashboardData() {
       const firstDayOfMonth = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth(),
-        1
+        1,
       );
       const lastDayOfMonth = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth() + 1,
-        0
+        0,
       );
 
       const { data, error: salesError } = await supabase
@@ -211,7 +211,7 @@ export function useDashboardData() {
         data?.reduce(
           (sum: number, invoice: { total: number }) =>
             sum + Number(invoice.total || 0),
-          0
+          0,
         ) || 0;
       monthSales.value = totalSales;
     } catch (err) {
@@ -251,7 +251,7 @@ export function useDashboardData() {
           invoice_items (
             quantity
           )
-        `
+        `,
         )
         .eq("status", "paid")
         .gte("date", startDate.toISOString().split("T")[0])
@@ -268,7 +268,7 @@ export function useDashboardData() {
     } catch (err) {
       console.error(
         "Erreur lors de la récupération des données de ventes:",
-        err
+        err,
       );
       salesData.value = [];
     }
@@ -295,7 +295,7 @@ export function useDashboardData() {
           clients (
             name
           )
-        `
+        `,
         )
         .eq("magasin_id", magasinId.value)
         .order("created_at", { ascending: false })
@@ -328,7 +328,7 @@ export function useDashboardData() {
           invoices (
             reference
           )
-        `
+        `,
         )
         .eq("magasin_id", magasinId.value)
         .order("created_at", { ascending: false })
@@ -360,13 +360,13 @@ export function useDashboardData() {
               borderColor: "border-green-100",
               title: `Facture ${invoice.reference} livrée`,
               description: `Client: ${invoice.clients?.name || "N/A"} - ${Number(
-                invoice.total || 0
+                invoice.total || 0,
               ).toLocaleString()}`,
               time: timeAgo,
               timestamp: invoice.created_at,
             });
           }
-        }
+        },
       );
 
       // Ajouter les nouveaux clients
@@ -401,18 +401,18 @@ export function useDashboardData() {
             borderColor: "border-purple-100",
             title: "Facture payée",
             description: `Facture ${payment.invoices?.reference || "N/A"} - ${Number(
-              payment.amount || 0
+              payment.amount || 0,
             ).toLocaleString()}`,
             time: timeAgo,
             timestamp: payment.created_at,
           });
-        }
+        },
       );
 
       // Trier par timestamp et prendre les 5 plus récents
       activities.sort(
         (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       );
       recentActivities.value = activities.slice(0, 5);
     } catch (err) {
@@ -478,41 +478,41 @@ export function useDashboardData() {
               bgColor: isCritical
                 ? "bg-red-50"
                 : isLow
-                ? "bg-yellow-50"
-                : "bg-orange-50",
+                  ? "bg-yellow-50"
+                  : "bg-orange-50",
               borderColor: isCritical
                 ? "border-red-100"
                 : isLow
-                ? "border-yellow-100"
-                : "border-orange-100",
+                  ? "border-yellow-100"
+                  : "border-orange-100",
               iconColor: isCritical
                 ? "text-red-600"
                 : isLow
-                ? "text-yellow-600"
-                : "text-orange-600",
+                  ? "text-yellow-600"
+                  : "text-orange-600",
               icon: isCritical
                 ? "i-lucide-alert-circle"
                 : isLow
-                ? "i-lucide-alert-triangle"
-                : "i-lucide-clock",
+                  ? "i-lucide-alert-triangle"
+                  : "i-lucide-clock",
               message: isCritical
                 ? `Stock critique: ${product.stock} ${
                     product.unite || "unités"
                   }`
                 : isLow
-                ? `Stock faible: ${product.stock} ${product.unite || "unités"}`
-                : `À réapprovisionner: ${product.stock} ${
-                    product.unite || "unités"
-                  }`,
+                  ? `Stock faible: ${product.stock} ${product.unite || "unités"}`
+                  : `À réapprovisionner: ${product.stock} ${
+                      product.unite || "unités"
+                    }`,
             };
-          }
+          },
         ) || [];
 
       stockAlerts.value = alerts;
     } catch (err) {
       console.error(
         "Erreur lors de la récupération des alertes de stock:",
-        err
+        err,
       );
       stockAlerts.value = [];
     }
@@ -523,7 +523,7 @@ export function useDashboardData() {
     const now = new Date();
     const past = new Date(timestamp);
     const diffInMinutes = Math.floor(
-      (now.getTime() - past.getTime()) / (1000 * 60)
+      (now.getTime() - past.getTime()) / (1000 * 60),
     );
 
     if (diffInMinutes < 60) {

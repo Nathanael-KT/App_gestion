@@ -233,7 +233,7 @@ import { useSupabaseClient } from "#imports";
 
 const route = useRoute();
 const router = useRouter();
-const supabase = useSupabaseClient();
+const supabase = useSupabaseClient() as any;
 const toast = useToast();
 
 const userId = route.params.id as string;
@@ -332,7 +332,7 @@ const fetchUser = async () => {
       .from("users")
       .select("id, name, email, phone, roles")
       .eq("id", userId)
-      .single<UserData>();
+      .single();
     if (error || !data) {
       throw new Error("Utilisateur introuvable");
     }

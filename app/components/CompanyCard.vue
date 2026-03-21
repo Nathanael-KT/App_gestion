@@ -206,7 +206,7 @@ type CompanySettings = z.infer<typeof CompanySettingsSchema> & {
   logo_url?: string | null;
 };
 
-const supabase = useSupabaseClient();
+const supabase = useSupabaseClient() as any;
 const companySettingsList = ref<CompanySettings[]>([]);
 const editingCompany = ref(false);
 const editingCompanyId = ref<string | null>(null);
@@ -305,7 +305,7 @@ const performDeleteCompany = async (id: string) => {
 
       if (!listError && files && files.length > 0) {
         // Construire les chemins complets
-        const paths = files.map((f) => `${id}/${f.name}`);
+        const paths = files.map((f: { name: string }) => `${id}/${f.name}`);
 
         // Supprimer tous les fichiers
         const { error: removeError } = await supabase.storage

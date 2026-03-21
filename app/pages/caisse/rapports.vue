@@ -600,7 +600,7 @@ interface TableRow {
 const magasinStore = useMagasinStore();
 const { formatCurrency } = useCashManagement();
 const { currentUser } = useCurrentUser();
-const supabase = useSupabaseClient();
+const supabase = useSupabaseClient() as any;
 const toast = useToast();
 
 // États réactifs

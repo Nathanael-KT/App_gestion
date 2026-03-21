@@ -33,12 +33,15 @@ export default defineEventHandler(async (_event) => {
       };
     }
 
+    const accessKeyId = awsConfig.accessKeyId as string;
+    const secretAccessKey = awsConfig.secretAccessKey as string;
+
     // Créer le client S3
     const s3Client = new S3Client({
       region: awsConfig.region,
       credentials: {
-        accessKeyId: awsConfig.accessKeyId,
-        secretAccessKey: awsConfig.secretAccessKey,
+        accessKeyId,
+        secretAccessKey,
       },
     });
 
@@ -59,7 +62,7 @@ export default defineEventHandler(async (_event) => {
           region: awsConfig.region,
           suggestion: "Créer le bucket dans la console AWS S3",
         };
-      } else if (bucketError.name === "Forbidden") {
+      } else if (error.name === "Forbidden") {
         return {
           success: false,
           status: "access_denied",
@@ -94,7 +97,7 @@ export default defineEventHandler(async (_event) => {
       config: {
         region: awsConfig.region,
         bucketName: awsConfig.bucketName,
-        accessKeyId: awsConfig.accessKeyId.substring(0, 8) + "...",
+        accessKeyId: accessKeyId.substring(0, 8) + "...",
         existingBackups,
       },
       bucketUrl: `https://${awsConfig.bucketName}.s3.${awsConfig.region}.amazonaws.com`,

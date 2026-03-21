@@ -9,7 +9,7 @@ export type UserPreferences = {
 };
 
 export function useUserPreferences() {
-  const supabase = useSupabaseClient();
+  const supabase = useSupabaseClient() as any;
   const user = useSupabaseUser();
   const preferences = ref<UserPreferences | null>(null);
   const loading = ref(false);

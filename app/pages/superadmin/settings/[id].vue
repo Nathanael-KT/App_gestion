@@ -3,8 +3,14 @@
     <div class="flex flex-col md:flex-row items-center justify-between gap-6">
       <div class="flex items-center gap-4">
         <div>
-          <div class="h-14 w-14 rounded-full overflow-hidden flex items-center justify-center bg-white shadow border border-gray-200">
-            <CompanyLogo :company-id="companyId" :size="56" class="object-cover h-full w-full" />
+          <div
+            class="h-14 w-14 rounded-full overflow-hidden flex items-center justify-center bg-white shadow border border-gray-200"
+          >
+            <CompanyLogo
+              :company-id="companyId"
+              :size="56"
+              class="object-cover h-full w-full"
+            />
           </div>
         </div>
         <div>
@@ -257,7 +263,7 @@
                         userForm.roles.push(role.value);
                     } else {
                       userForm.roles = userForm.roles.filter(
-                        (r) => r !== role.value
+                        (r) => r !== role.value,
                       );
                     }
                   }
@@ -354,7 +360,7 @@ import { useRoute } from "vue-router";
 
 const route = useRoute();
 const companyId = route.params.id as string;
-const supabase = useSupabaseClient();
+const supabase = useSupabaseClient() as any;
 
 // Utilisateurs
 interface User {
@@ -525,7 +531,7 @@ async function saveUser() {
       showUserForm.value = false;
     } catch (error) {
       alert(
-        error instanceof Error ? error.message : "Erreur création utilisateur"
+        error instanceof Error ? error.message : "Erreur création utilisateur",
       );
     }
   } else {

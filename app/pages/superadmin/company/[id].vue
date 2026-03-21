@@ -7,7 +7,7 @@ const router = useRouter();
 const route = useRoute();
 
 const companyId = route.params.id as string;
-const supabase = useSupabaseClient();
+const supabase = useSupabaseClient() as any;
 
 interface Company {
   id: string;
@@ -156,7 +156,7 @@ onMounted(async () => {
       .filter(Boolean);
     if (
       blockedPaths.some(
-        (p) => route.path === p || route.path.startsWith(p + "/")
+        (p) => route.path === p || route.path.startsWith(p + "/"),
       )
     ) {
       router.replace({
@@ -306,8 +306,8 @@ onMounted(async () => {
                   companyBlocked
                     ? "Bloqué"
                     : blockedMenus.includes(menu)
-                    ? "Bloqué"
-                    : "Actif"
+                      ? "Bloqué"
+                      : "Actif"
                 }}
               </span>
             </div>

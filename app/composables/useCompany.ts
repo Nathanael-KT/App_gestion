@@ -3,8 +3,8 @@ import { useSupabaseClient } from "#imports";
 import { useCurrentUser } from "./useCurrentUser";
 
 export function useCurrentCompany() {
-  const supabase = useSupabaseClient();
-  const company = ref(null);
+  const supabase = useSupabaseClient() as any;
+  const company = ref<any>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
 

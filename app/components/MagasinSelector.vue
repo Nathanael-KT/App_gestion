@@ -24,7 +24,11 @@ onMounted(async () => {
   const { data } = await supabase
     .from("magasins")
     .select("id, nom, company_id");
-  magasins.value = Array.isArray(data) ? data : [];
+  magasins.value = Array.isArray(data)
+    ? data.filter((m): m is { id: string; nom: string; company_id: string } =>
+        Boolean(m.company_id),
+      )
+    : [];
   magasinStore.setMagasins(magasins.value);
 
   // Sélectionner automatiquement le magasin de l'utilisateur
