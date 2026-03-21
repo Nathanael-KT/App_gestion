@@ -7,7 +7,7 @@
  * @param fn Function to debounce
  * @param delay Delay in milliseconds
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
   delay: number = 300
 ): (...args: Parameters<T>) => void {
@@ -29,7 +29,7 @@ export function debounce<T extends (...args: any[]) => any>(
  * @param fn Function to throttle
  * @param limit Time limit in milliseconds
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
   fn: T,
   limit: number = 300
 ): (...args: Parameters<T>) => void {
