@@ -1,4 +1,3 @@
-import { useSupabaseClient } from "#imports";
 import { useCurrentUser } from "~/composables/useCurrentUser";
 
 export default defineNuxtRouteMiddleware(async (to: { path: string }) => {

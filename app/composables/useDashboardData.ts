@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import { useCurrentUser } from "./useCurrentUser";
+import { useCurrentUser } from "./useCurrentUser.ts";
 
 interface Activity {
   type: string;
