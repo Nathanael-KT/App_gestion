@@ -1,6 +1,4 @@
 import { ref } from "vue";
-import { useSupabaseClient, useSupabaseUser } from "#imports";
-
 export type UserPreferences = {
   user_id: string;
   theme: "light" | "dark";

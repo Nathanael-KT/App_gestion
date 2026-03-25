@@ -130,13 +130,6 @@ const createForm = ref({
 });
 const error = ref("");
 const loading = ref(false);
-type CompanySettings = {
-  company_name: string;
-  company_phone: string;
-  company_address: string;
-  company_email: string;
-  logo_url?: string;
-};
 const supabase = useSupabaseClient() as any;
 
 const CompanySettingsSchema = z.object({

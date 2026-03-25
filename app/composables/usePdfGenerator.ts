@@ -422,7 +422,7 @@ export const usePdfGenerator = () => {
       const url = URL.createObjectURL(pdfBlob);
 
       // Ouvrir dans une nouvelle fenêtre et déclencher l'impression
-      const printWindow = window.open(url, "_blank");
+      const printWindow = (window as Window).open(url, "_blank");
       if (printWindow) {
         printWindow.onload = function () {
           printWindow.focus();
