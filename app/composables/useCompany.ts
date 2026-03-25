@@ -1,6 +1,6 @@
 import { ref, onMounted } from "vue";
 import { useSupabaseClient } from "#imports";
-import { useCurrentUser } from "./useCurrentUser.ts";
+import { useCurrentUser } from "./useCurrentUser";
 
 export function useCurrentCompany() {
   const supabase = useSupabaseClient() as any;
