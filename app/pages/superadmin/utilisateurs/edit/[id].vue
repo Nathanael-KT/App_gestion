@@ -317,14 +317,6 @@ const validateForm = () => {
   return isValid;
 };
 
-type UserData = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  roles: string[];
-};
-
 const fetchUser = async () => {
   isLoading.value = true;
   try {
