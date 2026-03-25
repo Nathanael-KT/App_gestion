@@ -56,7 +56,7 @@ export default defineNuxtConfig({
       // Variables côté client (publiques) - avec fallbacks multiples
       supabaseUrl,
       supabaseKey,
-      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || "http://localhost:3000",
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || process.env.SITE_URL || "",
     },
   },
 

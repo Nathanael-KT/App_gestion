@@ -93,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { z } from "zod";
 import type { FormSubmitEvent } from "@nuxt/ui";
 
@@ -105,6 +105,7 @@ const config = useRuntimeConfig();
 
 const loading = ref(false);
 const hasRecoverySignal = ref(false);
+let authSubscription: { unsubscribe: () => void } | null = null;
 
 const emailSchema = z.object({
   email: z.string().email("Email invalide"),
@@ -136,15 +137,84 @@ const passwordForm = reactive<PasswordSchema>({
 
 const isRecoveryMode = computed(() => hasRecoverySignal.value);
 
-onMounted(() => {
+function normalizeUrl(url: string) {
+  return url.trim().replace(/\/$/, "");
+}
+
+function isLocalhostUrl(url: string) {
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(url);
+}
+
+function getResetRedirectBaseUrl() {
+  const configuredSiteUrl = normalizeUrl(config.public.siteUrl || "");
+  const browserOrigin = import.meta.client
+    ? normalizeUrl(window.location.origin)
+    : "";
+
+  if (configuredSiteUrl && !isLocalhostUrl(configuredSiteUrl)) {
+    return configuredSiteUrl;
+  }
+
+  if (browserOrigin) {
+    return browserOrigin;
+  }
+
+  if (configuredSiteUrl) {
+    return configuredSiteUrl;
+  }
+
+  throw new Error(
+    "URL publique introuvable. Configurez NUXT_PUBLIC_SITE_URL en production.",
+  );
+}
+
+onMounted(async () => {
   const hash = import.meta.client ? window.location.hash : "";
   const hashParams = new URLSearchParams(
     hash.startsWith("#") ? hash.slice(1) : hash,
   );
   const hashType = hashParams.get("type");
+  const authCode = typeof route.query.code === "string" ? route.query.code : "";
 
   if (hashType === "recovery" || route.query.type === "recovery") {
     hasRecoverySignal.value = true;
+  }
+
+  if (authCode) {
+    loading.value = true;
+    try {
+      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(
+        authCode,
+      );
+
+      if (exchangeError) {
+        toast.add({
+          icon: "i-lucide-exclamation-triangle",
+          title: "Lien de reinitialisation invalide",
+          description: exchangeError.message,
+          color: "error",
+        });
+      } else {
+        hasRecoverySignal.value = true;
+      }
+    } catch (err: unknown) {
+      console.error("[reset-password:exchange]", err);
+      toast.add({
+        icon: "i-lucide-exclamation-triangle",
+        title: "Lien de reinitialisation invalide",
+        description: "Impossible de verifier le lien de reinitialisation.",
+        color: "error",
+      });
+    } finally {
+      const nextQuery = { ...route.query };
+      delete nextQuery.code;
+
+      await router.replace({
+        path: route.path,
+        query: nextQuery,
+      });
+      loading.value = false;
+    }
   }
 
   const {
@@ -155,9 +225,11 @@ onMounted(() => {
     }
   });
 
-  onUnmounted(() => {
-    subscription.unsubscribe();
-  });
+  authSubscription = subscription;
+});
+
+onUnmounted(() => {
+  authSubscription?.unsubscribe();
 });
 
 async function sendResetLink(event: FormSubmitEvent<EmailSchema>) {
@@ -178,10 +250,8 @@ async function sendResetLink(event: FormSubmitEvent<EmailSchema>) {
       return;
     }
 
-    const siteUrl =
-      (import.meta.client ? window.location.origin : "") ||
-      config.public.siteUrl;
-    const redirectTo = `${siteUrl.replace(/\/$/, "")}/auth/reset-password`;
+    const redirectBaseUrl = getResetRedirectBaseUrl();
+    const redirectTo = `${redirectBaseUrl}/auth/reset-password`;
     const normalizedEmail = emailForm.email.trim().toLowerCase();
 
     const { error } = await supabase.auth.resetPasswordForEmail(
