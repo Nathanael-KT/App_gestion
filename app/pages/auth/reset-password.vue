@@ -183,9 +183,8 @@ onMounted(async () => {
   if (authCode) {
     loading.value = true;
     try {
-      const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(
-        authCode,
-      );
+      const { error: exchangeError } =
+        await supabase.auth.exchangeCodeForSession(authCode);
 
       if (exchangeError) {
         toast.add({
