@@ -1,0 +1,63 @@
+name: Supabase Repair And Push
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type RESET_REMOTE_PUBLIC to run"
+        required: true
+        type: string
+
+env:
+  SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+jobs:
+  repair-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate confirmation
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.inputs.confirm }}" != "RESET_REMOTE_PUBLIC" ]; then
+            echo "Confirmation mismatch. Type RESET_REMOTE_PUBLIC exactly."
+            exit 1
+          fi
+
+      - name: Validate required secret
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "SUPABASE_DB_URL is missing in GitHub repository secrets."
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Show migration files
+        run: |
+          set -euo pipefail
+          ls -1 supabase/migrations
+
+      - name: Repair old migration history
+        run: |
+          set -euo pipefail
+          supabase migration repair --status reverted \
+            20250922071427 \
+            20250923000000 \
+            20250923114802 \
+            20251013 \
+            20251013120100 \
+            20260319122000 \
+            20260320000000 \
+            --db-url "$SUPABASE_DB_URL"
+
+      - name: Push squashed migration
+        run: |
+          set -euo pipefail
+          supabase db push --db-url "$SUPABASE_DB_URL"
