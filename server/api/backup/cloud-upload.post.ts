@@ -3,7 +3,7 @@
  * Alternative simple sans dépendances complexes
  */
 
-export default defineEventHandler(async (event: { method: string }) => {
+export default defineEventHandler(async (event) => {
   if (event.method !== "POST") {
     throw createError({
       statusCode: 405,

@@ -186,7 +186,7 @@
                   type="checkbox"
                   class="sr-only peer"
                   :disabled="isLoading"
-                >
+                />
                 <label
                   :for="role.value"
                   class="flex flex-col p-4 border-2 border-gray-200 rounded-xl cursor-pointer transition-all hover:border-gray-300 peer-checked:border-blue-500 peer-checked:bg-blue-50"
@@ -416,12 +416,17 @@ const magasins = ref<Array<{ id: string; name: string }>>([]);
 const loadMagasins = async () => {
   isLoadingMagasins.value = true;
   try {
-    const { data, error } = await supabase.from("magasins").select("id, name");
+    const { data, error } = await supabase.from("magasins").select("id, nom");
     if (error) {
       console.error("Erreur chargement magasins:", error);
       magasins.value = [];
     } else {
-      magasins.value = data || [];
+      magasins.value = Array.isArray(data)
+        ? data.map((m: { id: string; nom: string }) => ({
+            id: m.id,
+            name: m.nom,
+          }))
+        : [];
     }
   } catch (err) {
     console.error("Erreur chargement magasins:", err);
@@ -504,7 +509,7 @@ const handleSubmit = async () => {
 
     if (authError) {
       throw new Error(
-        `Erreur lors de la création du compte d'authentification: ${authError.message}`
+        `Erreur lors de la création du compte d'authentification: ${authError.message}`,
       );
     }
 
@@ -525,7 +530,7 @@ const handleSubmit = async () => {
 
     if (checkError || !publicUser) {
       console.warn(
-        "L'utilisateur n'a pas été trouvé dans public.users, création manuelle..."
+        "L'utilisateur n'a pas été trouvé dans public.users, création manuelle...",
       );
 
       // Créer manuellement l'enregistrement dans public.users si le trigger n'a pas fonctionné
@@ -544,7 +549,7 @@ const handleSubmit = async () => {
 
       if (dbError) {
         throw new Error(
-          `Erreur lors de la création du profil utilisateur: ${dbError.message}`
+          `Erreur lors de la création du profil utilisateur: ${dbError.message}`,
         );
       }
     }

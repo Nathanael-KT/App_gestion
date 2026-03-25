@@ -38,7 +38,7 @@ export const useMultiTenantSecurity = () => {
     }
 
     return supabase
-      .from(tableName)
+      .from(tableName as any)
       .select("*")
       .eq("company_id", currentUser.value.company_id);
   };
@@ -47,9 +47,10 @@ export const useMultiTenantSecurity = () => {
    * Vérifie les permissions de rôle
    */
   const hasRole = (requiredRoles: string[]): boolean => {
-    if (!currentUser.value?.roles) return false;
+    const roles = currentUser.value?.roles;
+    if (!roles) return false;
 
-    return requiredRoles.some((role) => currentUser.value.roles.includes(role));
+    return requiredRoles.some((role) => roles.includes(role));
   };
 
   /**
@@ -84,7 +85,7 @@ export const useMultiTenantSecurity = () => {
         .from("magasins")
         .select("company_id")
         .eq("id", magasinId)
-        .single();
+        .single<{ company_id: string }>();
 
       if (error || !data) {
         logSecurityEvent("magasin_access_denied", { magasinId, error });

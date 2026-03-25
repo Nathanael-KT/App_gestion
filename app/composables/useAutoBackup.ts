@@ -41,7 +41,7 @@ interface Company {
 }
 
 export const useAutoBackup = () => {
-  const supabase = useSupabaseClient();
+  const supabase = useSupabaseClient() as any;
 
   // Configuration par défaut
   const DEFAULT_CONFIG: BackupConfig = {
@@ -491,7 +491,6 @@ export const useAutoBackup = () => {
         title,
         description: message,
         color: type === "success" ? "success" : "error",
-        timeout: type === "success" ? 5000 : 10000,
       });
     }
   };

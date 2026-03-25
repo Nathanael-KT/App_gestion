@@ -10,7 +10,7 @@ import { ref, onMounted, watch } from "vue";
 
 const { companyId, magasinId } = useCurrentUser();
 const user = useSupabaseUser();
-const supabase = useSupabaseClient();
+const supabase = useSupabaseClient() as any;
 const emit = defineEmits(["toggleMobileMenu"]);
 const isSuperAdmin = computed(() => userRoles.value.includes("super_admin"));
 
@@ -79,7 +79,7 @@ watch(
       isLoadingRoles.value = false;
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Charger les alertes de stock
@@ -107,13 +107,13 @@ async function checkForumMessages() {
     .limit(1);
   if (!error && data && data.length > 0) {
     if (data[0]) {
-      const lastMsg = data[0] as { id: number; created_at: string };
+      const lastMsg = data[0] as { id: string; created_at: string };
       // Si le message est récent (< 10 min)
       const msgDate = new Date(lastMsg.created_at);
       const now = new Date();
       if (now.getTime() - msgDate.getTime() < 10 * 60 * 1000) {
         notifications.value = notifications.value.filter(
-          (n) => n.type !== "forum"
+          (n) => n.type !== "forum",
         );
         notifications.value.push({
           id: `forum-${lastMsg.id}`,
@@ -160,20 +160,20 @@ onMounted(() => {
           stop();
         }
       },
-      { immediate: true }
+      { immediate: true },
     );
   }
 });
 
 // Liste des magasins filtrés par companyId
-const magasins = ref([]);
+const magasins = ref<any[]>([]);
 
 async function fetchMagasins() {
-  if (!companyId) return;
+  if (!companyId.value) return;
   const { data, error } = await supabase
     .from("magasins")
     .select("id, nom, company_id")
-    .eq("company_id", companyId);
+    .eq("company_id", companyId.value);
   if (!error) magasins.value = data || [];
 }
 

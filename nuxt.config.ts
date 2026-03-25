@@ -64,6 +64,7 @@ export default defineNuxtConfig({
   supabase: {
     url: supabaseUrl,
     key: supabaseKey,
+    types: "~~/types/database.types.ts",
     redirectOptions: {
       login: "/login",
       callback: "",

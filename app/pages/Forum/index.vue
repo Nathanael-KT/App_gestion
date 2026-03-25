@@ -67,7 +67,7 @@
 import { useCurrentUser } from "../../composables/useCurrentUser";
 import { ref, onMounted, onUnmounted, nextTick } from "vue";
 
-const supabase = useSupabaseClient();
+const supabase = useSupabaseClient() as any;
 const user = useSupabaseUser();
 type ForumMessage = {
   id: number;
@@ -226,6 +226,7 @@ const groupedMessages = computed(() => {
 });
 
 async function fetchMessages() {
+  if (!companyId.value) return;
   const { data, error } = await supabase
     .from("forum_messages")
     .select("*")
@@ -244,7 +245,7 @@ async function fetchMessages() {
 }
 
 async function sendMessage() {
-  if (!user.value || !newMessage.value.trim()) return;
+  if (!user.value || !newMessage.value.trim() || !companyId.value) return;
   sending.value = true;
   const { error } = await supabase.from("forum_messages").insert([
     {

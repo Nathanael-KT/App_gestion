@@ -66,7 +66,7 @@ interface Payment {
 }
 
 export const usePdfGenerator = () => {
-  const supabase = useSupabaseClient();
+  const supabase = useSupabaseClient() as any;
 
   // Utilisation du composable pour les paramètres de l'entreprise
   const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
@@ -74,7 +74,7 @@ export const usePdfGenerator = () => {
     useCompanySettings();
 
   const fetchInvoiceDetails = async (
-    invoiceId: string
+    invoiceId: string,
   ): Promise<{
     invoice: Invoice;
     items: InvoiceItem[];
@@ -93,7 +93,7 @@ export const usePdfGenerator = () => {
             phone,
             address
           )
-        `
+        `,
         )
         .eq("id", invoiceId)
         .single();
@@ -113,7 +113,7 @@ export const usePdfGenerator = () => {
             description,
             type_produit
           )
-        `
+        `,
         )
         .eq("invoice_id", invoiceId);
 
@@ -126,7 +126,7 @@ export const usePdfGenerator = () => {
     } catch (error) {
       console.error(
         "Erreur lors de la récupération des détails de la facture:",
-        error
+        error,
       );
       throw error;
     }
@@ -153,7 +153,7 @@ export const usePdfGenerator = () => {
       // Créer un nouveau document PDF
       if (!jsPDF) {
         throw new Error(
-          "Impossible de générer le PDF : jsPDF n'est pas disponible côté serveur ou l'import a échoué."
+          "Impossible de générer le PDF : jsPDF n'est pas disponible côté serveur ou l'import a échoué.",
         );
       }
       let doc;
@@ -162,7 +162,7 @@ export const usePdfGenerator = () => {
       } catch (err) {
         console.error("Erreur jsPDF:", err);
         throw new Error(
-          "Erreur lors de la création du PDF. Veuillez réessayer ou contacter un administrateur."
+          "Erreur lors de la création du PDF. Veuillez réessayer ou contacter un administrateur.",
         );
       }
 
@@ -186,12 +186,12 @@ export const usePdfGenerator = () => {
       doc.text(
         `Date : ${new Date(invoice.date).toLocaleDateString("fr-FR")}`,
         15,
-        69
+        69,
       );
       doc.text(
         `Statut : ${invoice.status === "paid" ? "Payée" : "En attente"}`,
         15,
-        75
+        75,
       );
 
       // Infos société à droite
@@ -201,20 +201,20 @@ export const usePdfGenerator = () => {
       doc.text(
         (companySettings.value?.company_name || "MON ENTREPRISE").toUpperCase(),
         135,
-        14
+        14,
       );
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.text(
         companySettings.value?.company_address || "Adresse non définie",
         135,
-        22
+        22,
       );
       doc.text(`${companySettings.value?.company_email || "N/A"}`, 135, 26);
       doc.text(
         `${companySettings.value?.company_phone || "Téléphone"}`,
         135,
-        18
+        18,
       );
 
       // Informations client (descendu plus bas, moins d'espace entre les lignes)
@@ -332,20 +332,20 @@ export const usePdfGenerator = () => {
       doc.text(
         `${subtotal.toFixed(2)} ${companySettings.value?.currency}`,
         totalX + 35,
-        currentY
+        currentY,
       );
 
       currentY += 8;
       doc.text(
         `TVA (${companySettings.value?.tax_rate || 20}%):`,
         totalX,
-        currentY
+        currentY,
       );
       const tva = subtotal * ((companySettings.value?.tax_rate || 20) / 100);
       doc.text(
         `${tva.toFixed(2)} ${companySettings.value?.currency}`,
         totalX + 35,
-        currentY
+        currentY,
       );
 
       currentY += 8;
@@ -355,7 +355,7 @@ export const usePdfGenerator = () => {
       doc.text(
         `${invoice.total.toFixed(2)} ${companySettings.value?.currency}`,
         totalX + 35,
-        currentY
+        currentY,
       );
 
       // Pied de page
@@ -367,7 +367,7 @@ export const usePdfGenerator = () => {
       doc.text(
         `Facture générée le ${new Date().toLocaleDateString("fr-FR")}`,
         15,
-        currentY + 5
+        currentY + 5,
       );
 
       // Conditions de paiement
@@ -376,7 +376,7 @@ export const usePdfGenerator = () => {
         doc.text(
           `SIRET: ${companySettings.value.company_siret}`,
           15,
-          currentY + 15
+          currentY + 15,
         );
       }
 
@@ -456,7 +456,7 @@ export const usePdfGenerator = () => {
       // Créer un nouveau document PDF
       if (!jsPDF) {
         throw new Error(
-          "Impossible de générer le PDF : jsPDF n'est pas disponible côté serveur ou l'import a échoué."
+          "Impossible de générer le PDF : jsPDF n'est pas disponible côté serveur ou l'import a échoué.",
         );
       }
       let doc;
@@ -465,7 +465,7 @@ export const usePdfGenerator = () => {
       } catch (err) {
         console.error("Erreur jsPDF:", err);
         throw new Error(
-          "Erreur lors de la création du PDF. Veuillez réessayer ou contacter un administrateur."
+          "Erreur lors de la création du PDF. Veuillez réessayer ou contacter un administrateur.",
         );
       }
 
@@ -487,20 +487,20 @@ export const usePdfGenerator = () => {
       doc.text(
         (companySettings.value?.company_name || "MON ENTREPRISE").toUpperCase(),
         135,
-        14
+        14,
       );
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.text(
         companySettings.value?.company_address || "Adresse non définie",
         135,
-        22
+        22,
       );
       doc.text(`${companySettings.value?.company_email || "N/A"}`, 135, 26);
       doc.text(
         `${companySettings.value?.company_phone || "Téléphone"}`,
         135,
-        18
+        18,
       );
 
       // Titre facture avec détail paiements (aligné à gauche)
@@ -516,7 +516,7 @@ export const usePdfGenerator = () => {
       doc.text(
         `Date: ${new Date(invoice.date).toLocaleDateString("fr-FR")}`,
         15,
-        59
+        59,
       );
 
       // Informations client (encore plus bas, moins d'espace entre les lignes)
@@ -551,7 +551,7 @@ export const usePdfGenerator = () => {
       const totalPaid =
         payments?.reduce(
           (sum: number, payment: Payment) => sum + (payment.amount || 0),
-          0
+          0,
         ) || 0;
       const remaining = totalInvoice - totalPaid;
 
@@ -569,7 +569,7 @@ export const usePdfGenerator = () => {
           companySettings.value?.currency
         }`,
         115,
-        93
+        93,
       );
 
       doc.setTextColor(...greenColor);
@@ -578,27 +578,27 @@ export const usePdfGenerator = () => {
           companySettings.value?.currency
         }`,
         115,
-        98
+        98,
       );
 
       doc.setTextColor(
         remaining > 0 ? orangeColor[0] : greenColor[0],
         remaining > 0 ? orangeColor[1] : greenColor[1],
-        remaining > 0 ? orangeColor[2] : greenColor[2]
+        remaining > 0 ? orangeColor[2] : greenColor[2],
       );
       doc.text(
         `Reste à payer: ${remaining.toFixed(2)} ${
           companySettings.value?.currency
         }`,
         115,
-        103
+        103,
       );
 
       doc.setTextColor(...darkColor);
       doc.text(
         `Statut: ${remaining <= 0 ? "Soldée" : "Partiellement payée"}`,
         115,
-        108
+        108,
       );
 
       // Tableau des articles (version condensée)
@@ -692,7 +692,7 @@ export const usePdfGenerator = () => {
         doc.setFont("helvetica", "normal");
 
         // Lignes des paiements
-        payments.forEach((payment: Payment, index) => {
+        payments.forEach((payment: Payment, index: number) => {
           if (index % 2 === 0) {
             doc.setFillColor(248, 255, 248);
             doc.rect(15, currentY, 160, 8, "F");
@@ -740,7 +740,7 @@ export const usePdfGenerator = () => {
           companySettings.value?.currency
         }`,
         20,
-        summaryY
+        summaryY,
       );
 
       doc.setTextColor(...greenColor);
@@ -749,18 +749,18 @@ export const usePdfGenerator = () => {
           companySettings.value?.currency
         }`,
         75,
-        summaryY
+        summaryY,
       );
 
       doc.setTextColor(
         remaining > 0 ? orangeColor[0] : greenColor[0],
         remaining > 0 ? orangeColor[1] : greenColor[1],
-        remaining > 0 ? orangeColor[2] : greenColor[2]
+        remaining > 0 ? orangeColor[2] : greenColor[2],
       );
       doc.text(
         `Reste dû: ${remaining.toFixed(2)} ${companySettings.value?.currency}`,
         130,
-        summaryY
+        summaryY,
       );
 
       // Pied de page
@@ -771,10 +771,10 @@ export const usePdfGenerator = () => {
       doc.text("Document généré avec détail des paiements", 15, footerY);
       doc.text(
         `Généré le ${new Date().toLocaleDateString(
-          "fr-FR"
+          "fr-FR",
         )} à ${new Date().toLocaleTimeString("fr-FR")}`,
         15,
-        footerY + 5
+        footerY + 5,
       );
 
       return doc;

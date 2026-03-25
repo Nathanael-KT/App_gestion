@@ -3,7 +3,7 @@ import { ref, computed } from "vue";
 // Types pour les paramètres de l'entreprise
 export interface CompanySettings {
   blocked_menus?: string[];
-  id?: number;
+  id?: string;
   company_name?: string;
   company_email?: string;
   company_phone?: string;
@@ -33,7 +33,7 @@ export interface CompanySettings {
 }
 
 export const useCompanySettings = () => {
-  const supabase = useSupabaseClient();
+  const supabase = useSupabaseClient() as any;
 
   // États réactifs
   const settings = ref<CompanySettings | null>(null);
@@ -84,7 +84,7 @@ export const useCompanySettings = () => {
 
   // Fonction pour récupérer les paramètres de l'entreprise
   const fetchCompanySettings = async (
-    companyId?: string
+    companyId?: string,
   ): Promise<CompanySettings | null> => {
     try {
       loading.value = true;
@@ -105,7 +105,7 @@ export const useCompanySettings = () => {
         if (fetchError.code === "PGRST116") {
           // Aucun enregistrement trouvé, retourner les paramètres par défaut
           console.log(
-            "Aucun paramètre trouvé pour cette société, utilisation des valeurs par défaut"
+            "Aucun paramètre trouvé pour cette société, utilisation des valeurs par défaut",
           );
           settings.value = { ...defaultSettings };
           return settings.value;
@@ -130,7 +130,7 @@ export const useCompanySettings = () => {
 
   // Fonction pour créer ou mettre à jour les paramètres
   const upsertCompanySettings = async (
-    updatedSettings: Partial<CompanySettings>
+    updatedSettings: Partial<CompanySettings>,
   ): Promise<boolean> => {
     try {
       loading.value = true;
@@ -153,7 +153,7 @@ export const useCompanySettings = () => {
           updatedSettings.low_stock_threshold
         ) {
           throw new Error(
-            "Le seuil critique doit être inférieur ou égal au seuil bas"
+            "Le seuil critique doit être inférieur ou égal au seuil bas",
           );
         }
       }
@@ -187,7 +187,7 @@ export const useCompanySettings = () => {
 
   // Fonction pour mettre à jour des paramètres spécifiques
   const updateSettings = async (
-    partialSettings: Partial<CompanySettings>
+    partialSettings: Partial<CompanySettings>,
   ): Promise<boolean> => {
     if (!settings.value) {
       await fetchCompanySettings();
@@ -260,7 +260,7 @@ export const useCompanySettings = () => {
 
   // Fonction pour valider les paramètres
   const validateSettings = (
-    settingsToValidate: Partial<CompanySettings>
+    settingsToValidate: Partial<CompanySettings>,
   ): string[] => {
     const errors: string[] = [];
 
@@ -291,7 +291,7 @@ export const useCompanySettings = () => {
         settingsToValidate.password_min_length > 20)
     ) {
       errors.push(
-        "La longueur minimale du mot de passe doit être entre 6 et 20 caractères"
+        "La longueur minimale du mot de passe doit être entre 6 et 20 caractères",
       );
     }
 
@@ -333,7 +333,7 @@ export const useCompanySettings = () => {
   const importSettings = async (jsonSettings: string): Promise<boolean> => {
     try {
       const importedSettings = JSON.parse(
-        jsonSettings
+        jsonSettings,
       ) as Partial<CompanySettings>;
       const validationErrors = validateSettings(importedSettings);
 
@@ -351,7 +351,7 @@ export const useCompanySettings = () => {
 
   // Fonction utilitaire pour obtenir un paramètre spécifique
   const getSetting = <K extends keyof CompanySettings>(
-    key: K
+    key: K,
   ): CompanySettings[K] => {
     return settings.value?.[key] ?? defaultSettings[key];
   };
@@ -359,7 +359,7 @@ export const useCompanySettings = () => {
   // Fonction pour mettre à jour un seul paramètre
   const updateSingleSetting = async <K extends keyof CompanySettings>(
     key: K,
-    value: CompanySettings[K]
+    value: CompanySettings[K],
   ): Promise<boolean> => {
     const partialSettings = { [key]: value } as Partial<CompanySettings>;
     return await updateSettings(partialSettings);

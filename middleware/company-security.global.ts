@@ -1,7 +1,7 @@
 import { useCurrentUser } from "~/composables/useCurrentUser";
 
 export default defineNuxtRouteMiddleware((to: { path: string }) => {
-  const { user } = useCurrentUser();
+  const { currentUser } = useCurrentUser();
 
   // Exclure certaines routes de cette vérification
   const excludedRoutes = ["/login", "/error", "/profile", "/auth/"];
@@ -10,8 +10,11 @@ export default defineNuxtRouteMiddleware((to: { path: string }) => {
   }
 
   // Vérifier si l'utilisateur est connecté et a un company_id
-  if (user.value && !user.value.company_id) {
-    console.warn("⚠️ Utilisateur sans company_id détecté:", user.value.email);
+  if (currentUser.value && !currentUser.value.company_id) {
+    console.warn(
+      "⚠️ Utilisateur sans company_id détecté:",
+      currentUser.value.email,
+    );
 
     // Rediriger vers une page de configuration d'entreprise ou bloquer l'accès
     return navigateTo("/profile?error=no_company");
