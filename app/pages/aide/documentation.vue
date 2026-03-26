@@ -3,6 +3,159 @@
 const selectedSection = ref("overview");
 const searchQuery = ref("");
 const showTableOfContents = ref(true);
+const showAllRoleGuides = ref(false);
+
+const { userRoles } = useCurrentUser();
+
+const onboardingSteps = ref([
+  {
+    id: "login",
+    label: "Se connecter et verifier le magasin actif",
+    section: "getting-started",
+    done: false,
+  },
+  {
+    id: "catalog",
+    label: "Creer 3 produits de test",
+    section: "inventory",
+    done: false,
+  },
+  {
+    id: "customers",
+    label: "Ajouter 2 clients",
+    section: "clients",
+    done: false,
+  },
+  {
+    id: "invoice",
+    label: "Creer 1 facture test",
+    section: "invoices",
+    done: false,
+  },
+  {
+    id: "payment",
+    label: "Saisir 1 paiement partiel",
+    section: "invoices",
+    done: false,
+  },
+  {
+    id: "report",
+    label: "Consulter un rapport de ventes",
+    section: "reports",
+    done: false,
+  },
+]);
+
+const onboardingDoneCount = computed(
+  () => onboardingSteps.value.filter((step) => step.done).length,
+);
+const onboardingProgress = computed(() =>
+  Math.round((onboardingDoneCount.value / onboardingSteps.value.length) * 100),
+);
+
+const roleGuides = [
+  {
+    id: "admin",
+    title: "Administrateur",
+    summary: "Parametrage global, utilisateurs, securite, supervision.",
+    tasks: [
+      "Configurer societes, magasins, seuils de stock",
+      "Creer et auditer les roles utilisateurs",
+      "Suivre les factures en attente et KPIs",
+    ],
+  },
+  {
+    id: "manager",
+    title: "Manager",
+    summary: "Pilotage quotidien, ventes, controle stock, reporting.",
+    tasks: [
+      "Verifier les alertes de stock et relancer les commandes",
+      "Valider les factures et suivre les paiements partiels",
+      "Analyser les rapports hebdomadaires",
+    ],
+  },
+  {
+    id: "employe",
+    title: "Employe",
+    summary: "Execution terrain: clients, commandes, operations courantes.",
+    tasks: [
+      "Creer les fiches clients propres",
+      "Saisir les commandes sans erreur de quantite",
+      "Signaler toute anomalie de stock au manager",
+    ],
+  },
+];
+
+const connectedRoleId = computed(() => {
+  const roles = userRoles.value || [];
+
+  if (roles.includes("super_admin") || roles.includes("admin")) {
+    return "admin";
+  }
+
+  if (roles.includes("manager")) {
+    return "manager";
+  }
+
+  if (roles.includes("employe") || roles.includes("magasinier")) {
+    return "employe";
+  }
+
+  return null;
+});
+
+const connectedRoleLabel = computed(() => {
+  if (connectedRoleId.value === "admin") return "Administrateur";
+  if (connectedRoleId.value === "manager") return "Manager";
+  if (connectedRoleId.value === "employe") return "Employe";
+  return "Non detecte";
+});
+
+const displayedRoleGuides = computed(() => {
+  if (showAllRoleGuides.value || !connectedRoleId.value) {
+    return roleGuides;
+  }
+
+  const primary = roleGuides.find((role) => role.id === connectedRoleId.value);
+  const secondary = roleGuides.filter(
+    (role) => role.id !== connectedRoleId.value,
+  );
+
+  return primary ? [primary, ...secondary] : roleGuides;
+});
+
+const jumpToSection = (sectionId) => {
+  selectedSection.value = sectionId;
+};
+
+onMounted(() => {
+  if (!import.meta.client) return;
+  const saved = localStorage.getItem("docs-onboarding-checklist");
+  if (!saved) return;
+
+  try {
+    const parsed = JSON.parse(saved);
+    onboardingSteps.value = onboardingSteps.value.map((step) => ({
+      ...step,
+      done: Boolean(parsed[step.id]),
+    }));
+  } catch {
+    // ignore invalid local storage values
+  }
+});
+
+watch(
+  onboardingSteps,
+  (steps) => {
+    if (!import.meta.client) return;
+    const payload = steps.reduce((acc, step) => {
+      acc[step.id] = step.done;
+      return acc;
+    }, {});
+    localStorage.setItem("docs-onboarding-checklist", JSON.stringify(payload));
+  },
+  { deep: true },
+);
 
 // Structure de la documentation
 const docSections = [
@@ -17,6 +170,18 @@ const docSections = [
     title: "Démarrage rapide",
     icon: "i-heroicons-rocket-launch",
     color: "green",
+  },
+  {
+    id: "onboarding",
+    title: "Checklist 30 min",
+    icon: "i-heroicons-check-badge",
+    color: "emerald",
+  },
+  {
+    id: "role-guides",
+    title: "Guides par rôle",
+    icon: "i-heroicons-identification",
+    color: "sky",
   },
   {
     id: "dashboard",
@@ -61,6 +226,18 @@ const docSections = [
     color: "gray",
   },
   {
+    id: "resources",
+    title: "Ressources Pro",
+    icon: "i-heroicons-link",
+    color: "emerald",
+  },
+  {
+    id: "quick-faq",
+    title: "FAQ rapide",
+    icon: "i-heroicons-question-mark-circle",
+    color: "amber",
+  },
+  {
     id: "troubleshooting",
     title: "Dépannage",
     icon: "i-heroicons-wrench-screwdriver",
@@ -74,26 +251,37 @@ const docContent = {
     title: "Vue d'ensemble de l'application",
     content: `
       <div class="prose max-w-none">
-        <h2>Bienvenue dans votre application de gestion</h2>
-        <p class="lead">Cette application vous permet de gérer efficacement votre stock, vos clients, vos factures et d'analyser vos performances commerciales.</p>
-        
-        <h3>Fonctionnalités principales</h3>
+        <h2>Bienvenue dans votre centre d'aide</h2>
+        <p class="lead">Cette documentation est pensée pour aller vite: comprendre, configurer, puis produire des résultats en moins de 30 minutes.</p>
+
+        <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 my-4 rounded-r-lg">
+          <p><strong>Parcours recommande pour debutant:</strong> 1) Démarrage rapide, 2) Stock, 3) Clients, 4) Facturation, 5) Rapports.</p>
+        </div>
+
+        <h3>Ce que vous pouvez faire avec l'application</h3>
         <ul>
-          <li><strong>Gestion du stock</strong> : Ajout, modification, suivi des produits avec alertes automatiques</li>
-          <li><strong>Gestion des clients</strong> : Carnet d'adresses complet avec historique</li>
-          <li><strong>Facturation</strong> : Création, envoi et suivi des factures</li>
-          <li><strong>Rapports analytiques</strong> : Ventes, stock, performances avec graphiques</li>
-          <li><strong>Multi-utilisateurs</strong> : Gestion des rôles et permissions</li>
+          <li><strong>Suivre les stocks en temps réel</strong> avec alertes de rupture</li>
+          <li><strong>Gérer les clients et leurs historiques</strong> en quelques clics</li>
+          <li><strong>Créer des factures et suivre les paiements</strong> (payée, partiellement payée, en attente)</li>
+          <li><strong>Analyser votre activité</strong> via des rapports lisibles et exploitables</li>
+          <li><strong>Sécuriser les accès</strong> avec rôles et permissions</li>
         </ul>
 
-        <h3>Architecture de l'application</h3>
+        <h3>Liens rapides (internes)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 my-4">
+          <a href="/" class="block p-3 border rounded-lg hover:bg-gray-50"><strong>Tableau de bord</strong><br/><span class="text-sm text-gray-500">Vue globale activité</span></a>
+          <a href="/stock" class="block p-3 border rounded-lg hover:bg-gray-50"><strong>Stock</strong><br/><span class="text-sm text-gray-500">Produits, seuils, réappro</span></a>
+          <a href="/client" class="block p-3 border rounded-lg hover:bg-gray-50"><strong>Clients</strong><br/><span class="text-sm text-gray-500">Fiches clients</span></a>
+          <a href="/facture" class="block p-3 border rounded-lg hover:bg-gray-50"><strong>Factures</strong><br/><span class="text-sm text-gray-500">Création, paiements, PDF</span></a>
+        </div>
+
+        <h3>Stack technique</h3>
         <div class="bg-gray-50 p-4 rounded-lg my-4">
-          <p>L'application est construite avec les technologies modernes :</p>
           <ul class="list-none">
-            <li>🎯 <strong>Frontend</strong> : Nuxt 3 + Vue.js 3</li>
-            <li>🗄️ <strong>Backend</strong> : Supabase (PostgreSQL)</li>
-            <li>🎨 <strong>UI</strong> : Nuxt UI + Tailwind CSS</li>
-            <li>📊 <strong>Graphiques</strong> : Chart.js</li>
+            <li><strong>Frontend:</strong> Nuxt 3 + Vue 3</li>
+            <li><strong>Backend:</strong> Supabase (PostgreSQL + Auth + RLS)</li>
+            <li><strong>UI:</strong> Nuxt UI + Tailwind CSS</li>
+            <li><strong>Visualisation:</strong> Chart.js</li>
           </ul>
         </div>
       </div>
@@ -103,9 +291,9 @@ const docContent = {
     title: "Guide de démarrage rapide",
     content: `
       <div class="prose max-w-none">
-        <h2>Premiers pas avec l'application</h2>
-        
-        <h3>1. Connexion</h3>
+        <h2>Premiers pas en 6 étapes (debutant)</h2>
+
+        <h3>Étape 1 - Connexion</h3>
         <ol>
           <li>Rendez-vous sur la page de connexion</li>
           <li>Saisissez vos identifiants fournis par votre administrateur</li>
@@ -116,7 +304,10 @@ const docContent = {
           <p><strong>💡 Astuce :</strong> Cochez "Se souvenir de moi" pour rester connecté.</p>
         </div>
 
-        <h3>2. Navigation</h3>
+        <h3>Étape 2 - Vérifier votre magasin actif</h3>
+        <p>Avant toute opération, vérifiez le magasin sélectionné. Beaucoup de données sont filtrées par magasin.</p>
+
+        <h3>Étape 3 - Navigation</h3>
         <p>Une fois connecté, vous accédez au tableau de bord principal avec :</p>
         <ul>
           <li><strong>Menu latéral</strong> : Navigation principale</li>
@@ -124,18 +315,81 @@ const docContent = {
           <li><strong>Zone centrale</strong> : Contenu principal</li>
         </ul>
 
-        <h3>3. Première configuration</h3>
-        <p>Pour bien démarrer, suivez ces étapes :</p>
+        <h3>Étape 4 - Paramétrage minimal</h3>
+        <p>Pour démarrer proprement :</p>
         <ol>
-          <li><strong>Ajoutez des types de produits</strong> (Stock > Types de produits)</li>
-          <li><strong>Créez vos premiers produits</strong> (Stock > Ajouter)</li>
-          <li><strong>Ajoutez vos clients</strong> (Clients > Ajouter)</li>
-          <li><strong>Créez votre première facture</strong> (Factures > Ajouter)</li>
+          <li><strong>Types de produits</strong> : Stock &gt; Types de produits</li>
+          <li><strong>Produits</strong> : Stock &gt; Ajouter</li>
+          <li><strong>Clients</strong> : Clients &gt; Ajouter</li>
+          <li><strong>1ère facture test</strong> : Factures &gt; Ajouter</li>
         </ol>
 
+        <h3>Étape 5 - Vérification paiement</h3>
+        <ul>
+          <li>Testez un paiement partiel dans <strong>Factures &gt; Paiements</strong></li>
+          <li>Vérifiez le statut <strong>Partiellement payée</strong></li>
+          <li>Générez le PDF détail paiements</li>
+        </ul>
+
+        <h3>Étape 6 - Contrôle qualité quotidien</h3>
+        <ul>
+          <li>Consulter les alertes de stock</li>
+          <li>Vérifier les factures non soldées</li>
+          <li>Exporter un rapport fin de journée</li>
+        </ul>
+
         <div class="bg-green-50 border-l-4 border-green-400 p-4 my-4">
-          <p><strong>✅ Conseil :</strong> Commencez par quelques produits de test pour vous familiariser.</p>
+          <p><strong>✅ Conseil pro :</strong> Créez une base de test (3 produits, 2 clients, 2 factures) avant la mise en production.</p>
         </div>
+      </div>
+    `,
+  },
+  onboarding: {
+    title: "Checklist opérationnelle (30 minutes)",
+    content: `
+      <div class="prose max-w-none">
+        <h2>Parcours express pour être autonome</h2>
+        <ol>
+          <li><strong>Connexion et contexte</strong> : vérifier magasin actif et droits.</li>
+          <li><strong>Catalogue minimal</strong> : 3 produits + 1 type produit.</li>
+          <li><strong>Base client</strong> : 2 fiches clients valides.</li>
+          <li><strong>Facturation</strong> : créer 1 facture test.</li>
+          <li><strong>Paiement partiel</strong> : saisir un acompte et vérifier le statut.</li>
+          <li><strong>Contrôle final</strong> : générer 1 PDF + consulter 1 rapport.</li>
+        </ol>
+
+        <div class="bg-amber-50 border-l-4 border-amber-400 p-4 my-4">
+          <p><strong>Objectif:</strong> réduire les erreurs de saisie dès la première semaine.</p>
+        </div>
+      </div>
+    `,
+  },
+  "role-guides": {
+    title: "Guides par rôle",
+    content: `
+      <div class="prose max-w-none">
+        <h2>Qui fait quoi dans l'application</h2>
+
+        <h3>Administrateur</h3>
+        <ul>
+          <li>Paramétrer l'organisation (société, magasins, utilisateurs).</li>
+          <li>Valider la sécurité (droits, profils, accès sensibles).</li>
+          <li>Piloter la qualité des données et la cohérence globale.</li>
+        </ul>
+
+        <h3>Manager</h3>
+        <ul>
+          <li>Suivre ventes, paiements, retards et alertes de stock.</li>
+          <li>Organiser les réapprovisionnements et priorités clients.</li>
+          <li>Analyser les rapports et corriger les dérives opérationnelles.</li>
+        </ul>
+
+        <h3>Employé</h3>
+        <ul>
+          <li>Créer les opérations du quotidien (clients, commandes, mouvements).</li>
+          <li>Respecter le processus de saisie standard.</li>
+          <li>Remonter les anomalies à chaud (stock, prix, paiement).</li>
+        </ul>
       </div>
     `,
   },
@@ -628,6 +882,61 @@ const docContent = {
       </div>
     `,
   },
+  resources: {
+    title: "Ressources Pro (liens utiles)",
+    content: `
+      <div class="prose max-w-none">
+        <h2>Ressources fiables pour progresser vite</h2>
+
+        <h3>Ressources officielles (recommandées)</h3>
+        <ul>
+          <li><a href="https://nuxt.com/docs" target="_blank" rel="noopener noreferrer">Nuxt Documentation Officielle</a></li>
+          <li><a href="https://vuejs.org/guide/introduction.html" target="_blank" rel="noopener noreferrer">Vue 3 Guide Officiel</a></li>
+          <li><a href="https://supabase.com/docs" target="_blank" rel="noopener noreferrer">Supabase Docs (Auth, DB, RLS)</a></li>
+          <li><a href="https://tailwindcss.com/docs" target="_blank" rel="noopener noreferrer">Tailwind CSS Documentation</a></li>
+          <li><a href="https://ui.nuxt.com/" target="_blank" rel="noopener noreferrer">Nuxt UI Components</a></li>
+        </ul>
+
+        <h3>Sécurité et bonnes pratiques</h3>
+        <ul>
+          <li><a href="https://owasp.org/www-project-top-ten/" target="_blank" rel="noopener noreferrer">OWASP Top 10</a></li>
+          <li><a href="https://supabase.com/docs/guides/database/postgres/row-level-security" target="_blank" rel="noopener noreferrer">RLS Postgres - Guide Supabase</a></li>
+        </ul>
+
+        <h3>Liens internes utiles (application)</h3>
+        <ul>
+          <li><a href="/aide/faq">FAQ</a></li>
+          <li><a href="/aide/guide-rapide">Guide rapide</a></li>
+          <li><a href="/aide/tutoriels">Tutoriels</a></li>
+          <li><a href="/aide/contact">Contact support</a></li>
+        </ul>
+
+        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 my-4">
+          <p><strong>Plan d'apprentissage debutant (7 jours) :</strong> Jour 1 navigation, jour 2 stock, jour 3 clients, jour 4 factures, jour 5 paiements, jour 6 rapports, jour 7 recap + automatisation.</p>
+        </div>
+      </div>
+    `,
+  },
+  "quick-faq": {
+    title: "FAQ ultra-rapide",
+    content: `
+      <div class="prose max-w-none">
+        <h2>Réponses rapides aux questions fréquentes</h2>
+
+        <h3>Pourquoi je ne vois pas mes données ?</h3>
+        <p>Vérifiez d'abord le magasin actif et vos permissions utilisateur.</p>
+
+        <h3>Quand le stock se met-il à jour ?</h3>
+        <p>Au moment de la commande selon le flux métier de l'application.</p>
+
+        <h3>Facture partiellement payée : que faire ?</h3>
+        <p>Ajouter les paiements dans la page dédiée puis regénérer le PDF détail.</p>
+
+        <h3>Quel est le premier rapport à regarder ?</h3>
+        <p>Le rapport de ventes de la semaine avec top produits + reste à encaisser.</p>
+      </div>
+    `,
+  },
   troubleshooting: {
     title: "Guide de dépannage",
     content: `
@@ -775,7 +1084,7 @@ const searchResults = computed(() => {
     <div class="text-center mb-8">
       <h1 class="text-4xl font-bold text-gray-800 mb-4">Documentation</h1>
       <p class="text-xl text-gray-600 max-w-2xl mx-auto">
-        Guide complet d'utilisation de votre application de gestion
+        Guide professionnel, clair et progressif pour debutants et equipes
       </p>
     </div>
 
@@ -820,6 +1129,146 @@ const searchResults = computed(() => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Onboarding interactif -->
+    <div
+      class="max-w-5xl mx-auto mb-8 bg-white rounded-lg shadow-md border border-gray-200 p-6"
+    >
+      <div
+        class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4"
+      >
+        <div>
+          <h3 class="text-xl font-semibold text-gray-800">
+            Onboarding débutant (interactif)
+          </h3>
+          <p class="text-gray-600 text-sm">
+            Cochez les étapes terminées. La progression est sauvegardée sur
+            votre navigateur.
+          </p>
+        </div>
+        <div class="text-right">
+          <p class="text-sm text-gray-600">Progression</p>
+          <p class="text-2xl font-bold text-emerald-600">
+            {{ onboardingProgress }}%
+          </p>
+          <p class="text-xs text-gray-500">
+            {{ onboardingDoneCount }} / {{ onboardingSteps.length }} étapes
+          </p>
+        </div>
+      </div>
+
+      <div class="w-full bg-gray-200 rounded-full h-2.5 mb-5">
+        <div
+          class="bg-emerald-500 h-2.5 rounded-full transition-all duration-300"
+          :style="{ width: onboardingProgress + '%' }"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <button
+          v-for="step in onboardingSteps"
+          :key="step.id"
+          class="text-left border rounded-lg p-3 hover:bg-gray-50 transition-colors"
+          @click="step.done = !step.done"
+        >
+          <div class="flex items-center gap-3">
+            <input
+              v-model="step.done"
+              type="checkbox"
+              class="h-4 w-4 accent-emerald-600"
+            />
+            <div>
+              <p
+                :class="[
+                  'font-medium',
+                  step.done ? 'text-emerald-700 line-through' : 'text-gray-800',
+                ]"
+              >
+                {{ step.label }}
+              </p>
+              <button
+                class="text-xs text-teal-700 hover:text-teal-800 underline"
+                @click.stop="jumpToSection(step.section)"
+              >
+                Ouvrir la section liée
+              </button>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Guides par rôle -->
+    <div class="max-w-5xl mx-auto mb-8">
+      <div
+        class="bg-white rounded-lg shadow-md border border-gray-200 p-4 mb-4"
+      >
+        <div
+          class="flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+        >
+          <div>
+            <h3 class="text-lg font-semibold text-gray-800">
+              Mode par profil connecté
+            </h3>
+            <p class="text-sm text-gray-600">
+              Profil detecte:
+              <span class="font-semibold text-sky-700">{{
+                connectedRoleLabel
+              }}</span>
+            </p>
+          </div>
+          <UButton
+            size="sm"
+            color="gray"
+            variant="soft"
+            @click="showAllRoleGuides = !showAllRoleGuides"
+          >
+            {{
+              showAllRoleGuides
+                ? "Afficher guide recommande en premier"
+                : "Afficher tous les guides"
+            }}
+          </UButton>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div
+          v-for="role in displayedRoleGuides"
+          :key="role.id"
+          :class="[
+            'bg-white rounded-lg shadow-md border p-4',
+            connectedRoleId === role.id && !showAllRoleGuides
+              ? 'border-sky-400 ring-2 ring-sky-100'
+              : 'border-gray-200',
+          ]"
+        >
+          <div class="flex items-center justify-between mb-1">
+            <h4 class="text-lg font-semibold text-gray-800">
+              {{ role.title }}
+            </h4>
+            <UBadge
+              v-if="connectedRoleId === role.id"
+              color="sky"
+              variant="soft"
+              label="Recommande"
+            />
+          </div>
+          <p class="text-sm text-gray-600 mb-3">{{ role.summary }}</p>
+          <ul class="text-sm text-gray-700 space-y-1 mb-3">
+            <li v-for="task in role.tasks" :key="task">- {{ task }}</li>
+          </ul>
+          <UButton
+            size="sm"
+            color="primary"
+            variant="soft"
+            @click="jumpToSection('role-guides')"
+          >
+            Voir le guide
+          </UButton>
         </div>
       </div>
     </div>
@@ -978,13 +1427,24 @@ const searchResults = computed(() => {
   color: #1f2937;
 }
 
+.prose a {
+  color: #0f766e;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose a:hover {
+  color: #115e59;
+}
+
 .prose code {
   background-color: #f3f4f6;
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.875rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
 }
 
 .prose table {
@@ -1010,8 +1470,9 @@ const searchResults = computed(() => {
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   font-size: 0.875rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
   border: 1px solid #d1d5db;
 }
 

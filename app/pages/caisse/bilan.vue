@@ -183,7 +183,7 @@ const userOptions = computed(() => [
 
 // Computed properties pour la pagination
 const totalPages = computed(() =>
-  Math.ceil(filteredAndSortedHistory.value.length / itemsPerPage.value)
+  Math.ceil(filteredAndSortedHistory.value.length / itemsPerPage.value),
 );
 
 // Computed properties pour le filtrage et tri avancé
@@ -200,7 +200,7 @@ const filteredAndSortedHistory = computed(() => {
         operation.note?.toLowerCase().includes(query) ||
         operation.reason?.toLowerCase().includes(query) ||
         operation.details?.source?.toLowerCase().includes(query) ||
-        operation.details?.recipient?.toLowerCase().includes(query)
+        operation.details?.recipient?.toLowerCase().includes(query),
     );
   }
 
@@ -324,7 +324,7 @@ const filteredStats = computed(() => {
       .reduce((sum, op) => sum + op.amount, 0),
     discrepancies: filtered.filter(
       (op) =>
-        op.type === "count" && op.difference && Math.abs(op.difference) > 0
+        op.type === "count" && op.difference && Math.abs(op.difference) > 0,
     ).length,
   };
 });
@@ -465,7 +465,7 @@ const loadCashHistory = async () => {
       // Filtrer les cash_counts par magasin et récupérer l'utilisateur
       const { data: countsData, error: countsError } = await supabase
         .from("cash_counts")
-        .select("*, users:counted_by(id, name, email)")
+        .select("*, users:users!fk_cash_counts_counted_by(id, name, email)")
         .eq("magasin_id", magasinId);
 
       if (countsError) throw countsError;
@@ -515,7 +515,9 @@ const loadCashHistory = async () => {
       const { data: transactionsData, error: transactionsError } =
         await supabase
           .from("cash_transactions")
-          .select("*, users:created_by(id, name, email)")
+          .select(
+            "*, users:users!fk_cash_transactions_created_by(id, name, email)",
+          )
           .eq("magasin_id", magasinId);
 
       if (transactionsError) throw transactionsError;
@@ -661,7 +663,7 @@ const loadCashHistory = async () => {
     const daysDiff =
       Math.ceil(
         (new Date(dateRange.endDate) - new Date(dateRange.startDate)) /
-          (1000 * 60 * 60 * 24)
+          (1000 * 60 * 60 * 24),
       ) + 1;
     stats.averageOperationsPerDay = operations.length / daysDiff;
 
@@ -684,7 +686,7 @@ const loadCashHistory = async () => {
     });
 
     const peakDay = Object.entries(operationsByDate).sort(
-      (a, b) => b[1] - a[1]
+      (a, b) => b[1] - a[1],
     )[0];
     if (peakDay) {
       stats.peakOperationDay = {
@@ -695,7 +697,7 @@ const loadCashHistory = async () => {
 
     // Utilisateur le plus actif
     const mostActive = Object.entries(stats.operationsByUser).sort(
-      (a, b) => b[1].total - a[1].total
+      (a, b) => b[1].total - a[1].total,
     )[0];
     if (mostActive) {
       stats.mostActiveUser = {
@@ -904,7 +906,7 @@ watch(
   ],
   () => {
     currentPage.value = 1; // Reset pagination when filters change
-  }
+  },
 );
 
 watch(
@@ -912,7 +914,7 @@ watch(
   () => {
     currentPage.value = 1; // Reset pagination when amount filter changes
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch([itemsPerPage], () => {
@@ -932,7 +934,7 @@ watch(
       loadCashHistory();
     }
   },
-  { deep: true }
+  { deep: true },
 );
 
 // Initialisation
@@ -1460,7 +1462,7 @@ onMounted(async () => {
                 <p class="text-3xl font-bold mb-1">
                   {{
                     formatCurrency(
-                      statistics.totalCashIn - statistics.totalCashOut
+                      statistics.totalCashIn - statistics.totalCashOut,
                     )
                   }}
                 </p>
@@ -1543,7 +1545,7 @@ onMounted(async () => {
                 >
                   {{
                     new Date(
-                      statistics.peakOperationDay.date
+                      statistics.peakOperationDay.date,
                     ).toLocaleDateString("fr-FR")
                   }}
                 </p>
@@ -1678,7 +1680,7 @@ onMounted(async () => {
                 <p class="text-sm text-gray-600 font-medium">
                   {{
                     formatCurrency(
-                      statistics.timeRangeStats?.morning?.amount || 0
+                      statistics.timeRangeStats?.morning?.amount || 0,
                     )
                   }}
                 </p>
@@ -1703,7 +1705,7 @@ onMounted(async () => {
                 <p class="text-sm text-gray-600 font-medium">
                   {{
                     formatCurrency(
-                      statistics.timeRangeStats?.afternoon?.amount || 0
+                      statistics.timeRangeStats?.afternoon?.amount || 0,
                     )
                   }}
                 </p>
@@ -1728,7 +1730,7 @@ onMounted(async () => {
                 <p class="text-sm text-gray-600 font-medium">
                   {{
                     formatCurrency(
-                      statistics.timeRangeStats?.evening?.amount || 0
+                      statistics.timeRangeStats?.evening?.amount || 0,
                     )
                   }}
                 </p>
@@ -1785,10 +1787,10 @@ onMounted(async () => {
                               (count /
                                 Math.max(
                                   ...Object.values(
-                                    statistics.operationsByWeekday || {}
-                                  )
+                                    statistics.operationsByWeekday || {},
+                                  ),
                                 )) *
-                                100
+                                100,
                             )
                           : 0
                       }%`,
@@ -1838,10 +1840,10 @@ onMounted(async () => {
                         index === 0
                           ? 'bg-gradient-to-r from-yellow-400 to-yellow-600'
                           : index === 1
-                          ? 'bg-gradient-to-r from-gray-400 to-gray-600'
-                          : index === 2
-                          ? 'bg-gradient-to-r from-amber-600 to-orange-600'
-                          : 'bg-gradient-to-r from-emerald-400 to-teal-600'
+                            ? 'bg-gradient-to-r from-gray-400 to-gray-600'
+                            : index === 2
+                              ? 'bg-gradient-to-r from-amber-600 to-orange-600'
+                              : 'bg-gradient-to-r from-emerald-400 to-teal-600'
                       "
                     >
                       {{ index + 1 }}
@@ -2109,7 +2111,7 @@ onMounted(async () => {
                         <UIcon
                           :name="getOperationIcon(operation.type)"
                           :class="`w-4 h-4 text-${getOperationColor(
-                            operation.type
+                            operation.type,
                           )}-600`"
                         />
                       </div>
@@ -2164,8 +2166,8 @@ onMounted(async () => {
                         getOperationColor(operation.type) === 'green'
                           ? 'text-green-600'
                           : getOperationColor(operation.type) === 'red'
-                          ? 'text-red-600'
-                          : 'text-purple-600'
+                            ? 'text-red-600'
+                            : 'text-purple-600'
                       "
                     >
                       {{ formatCurrency(operation.amount) }}
@@ -2191,7 +2193,7 @@ onMounted(async () => {
                         Date comptage:
                         {{
                           new Date(
-                            operation.details.countDate
+                            operation.details.countDate,
                           ).toLocaleDateString("fr-FR")
                         }}
                       </div>
@@ -2227,7 +2229,7 @@ onMounted(async () => {
                         />
                         {{
                           new Date(
-                            operation.details.countDate
+                            operation.details.countDate,
                           ).toLocaleDateString("fr-FR")
                         }}
                       </div>
