@@ -175,9 +175,13 @@ onMounted(async () => {
           />
           <!-- Badge statut payé -->
           <UBadge
-            v-if="invoice?.status === 'paid'"
-            label="Payée"
-            color="green"
+            v-if="
+              invoice?.status === 'paid' || invoice?.status === 'partially_paid'
+            "
+            :label="
+              invoice?.status === 'paid' ? 'Payée' : 'Partiellement payée'
+            "
+            :color="invoice?.status === 'paid' ? 'green' : 'amber'"
             variant="soft"
           />
           <!-- Boutons d'actions -->
@@ -240,8 +244,20 @@ onMounted(async () => {
           </div>
           <div class="text-right">
             <UBadge
-              :label="invoice.status === 'paid' ? 'Payée' : 'En attente'"
-              :color="invoice.status === 'paid' ? 'green' : 'orange'"
+              :label="
+                invoice.status === 'paid'
+                  ? 'Payée'
+                  : invoice.status === 'partially_paid'
+                    ? 'Partiellement payée'
+                    : 'En attente'
+              "
+              :color="
+                invoice.status === 'paid'
+                  ? 'green'
+                  : invoice.status === 'partially_paid'
+                    ? 'amber'
+                    : 'orange'
+              "
               size="lg"
             />
             <p class="text-sm text-gray-600 mt-2">

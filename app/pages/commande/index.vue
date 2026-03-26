@@ -812,7 +812,8 @@ watch(
               <UButton
                 v-if="
                   invoice.status !== 'paid' &&
-                  invoice.delivery !== true &&
+                  (invoice.delivery !== true ||
+                    invoice.status === 'partially_paid') &&
                   !userRoles?.includes('magasinier')
                 "
                 icon="i-lucide-edit"

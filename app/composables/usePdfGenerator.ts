@@ -220,7 +220,12 @@ export const usePdfGenerator = () => {
         69,
       );
       doc.text(
-        `Statut : ${invoice.status === "paid" ? "Payée" : "En attente"}`,
+        `Statut : ${invoice.status === "paid"
+          ? "Payee"
+          : invoice.status === "partially_paid"
+            ? "Partiellement payee"
+            : "En attente"
+        }`,
         15,
         75,
       );

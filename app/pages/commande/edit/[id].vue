@@ -484,16 +484,20 @@ onMounted(async () => {
               :color="
                 invoiceData.status === 'paid'
                   ? 'green'
-                  : invoiceData.status === 'pending'
-                    ? 'yellow'
-                    : 'gray'
+                  : invoiceData.status === 'partially_paid'
+                    ? 'amber'
+                    : invoiceData.status === 'pending'
+                      ? 'yellow'
+                      : 'gray'
               "
               :label="
                 invoiceData.status === 'paid'
                   ? 'Payée'
-                  : invoiceData.status === 'pending'
-                    ? 'En attente'
-                    : invoiceData.status
+                  : invoiceData.status === 'partially_paid'
+                    ? 'Partiellement payée'
+                    : invoiceData.status === 'pending'
+                      ? 'En attente'
+                      : invoiceData.status
               "
               variant="soft"
             />
@@ -646,6 +650,7 @@ onMounted(async () => {
                 class="block w-full border border-gray-300 rounded-lg px-3 py-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
                 <option value="pending">En attente</option>
+                <option value="partially_paid">Partiellement payée</option>
                 <option value="paid">Payée</option>
                 <option value="delivered">Livrée</option>
                 <option value="overdue">En retard</option>
