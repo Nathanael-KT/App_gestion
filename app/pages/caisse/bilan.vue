@@ -117,6 +117,8 @@ const statistics = ref({
   },
 });
 
+const usersById = ref({});
+
 // Options de période
 const periodOptions = [
   { label: "Aujourd'hui", value: "today" },
@@ -392,6 +394,33 @@ const loadUsers = async () => {
   }
 };
 
+const loadUsersByIds = async (ids) => {
+  const uniqueIds = Array.from(
+    new Set(ids.filter((id) => typeof id === "string" && id.trim() !== "")),
+  );
+
+  if (!uniqueIds.length) {
+    usersById.value = {};
+    return;
+  }
+
+  const { data, error: usersError } = await supabase
+    .from("users")
+    .select("id, name, email")
+    .in("id", uniqueIds);
+
+  if (usersError) {
+    console.warn("Impossible de charger les utilisateurs pour le mapping:", usersError);
+    usersById.value = {};
+    return;
+  }
+
+  usersById.value = (data || []).reduce((acc, user) => {
+    acc[user.id] = user;
+    return acc;
+  }, {});
+};
+
 // Charger l'historique des opérations de caisse
 const loadCashHistory = async () => {
   try {
@@ -460,51 +489,21 @@ const loadCashHistory = async () => {
     const selectedOpType =
       selectedOperationType.value?.value || selectedOperationType.value;
     const selectedUserId = selectedUser.value?.value || selectedUser.value;
+    let countsData = [];
+    let transactionsData = [];
 
     if (selectedOpType === "all" || selectedOpType === "count") {
       // Filtrer les cash_counts par magasin et récupérer l'utilisateur
-      const { data: countsData, error: countsError } = await supabase
+      const { data: countsResult, error: countsError } = await supabase
         .from("cash_counts")
-        .select("*, users:users(id, name, email)")
+        .select("*")
         .eq("magasin_id", magasinId);
 
       if (countsError) throw countsError;
 
-      if (countsData) {
-        countsData.forEach((count) => {
-          if (
-            (selectedUserId === "all" || selectedUserId === count.counted_by) &&
-            count.magasin_id === magasinId
-          ) {
-            operations.push({
-              id: count.id,
-              type: "count",
-              date: count.created_at,
-              amount: count.actual_amount,
-              expectedAmount: count.expected_amount,
-              difference: count.difference,
-              note: count.note,
-              magasin_id: count.magasin_id,
-              user: count.users || {
-                id: count.counted_by,
-                name: "",
-                email: "",
-              },
-              userId: count.counted_by,
-              details: {
-                bills: count.bills_detail,
-                coins: count.coins_detail,
-                countType: count.count_type,
-                countDate: count.date,
-              },
-            });
-            stats.totalCounts++;
-          }
-        });
-      }
+      countsData = countsResult || [];
     }
 
-    // Charger les transactions de caisse (entrées/sorties)
     if (
       selectedOpType === "all" ||
       selectedOpType === "transaction" ||
@@ -512,59 +511,94 @@ const loadCashHistory = async () => {
       selectedOpType === "cash_out"
     ) {
       // Filtrer les cash_transactions par magasin et récupérer l'utilisateur
-      const { data: transactionsData, error: transactionsError } =
+      const { data: transactionsResult, error: transactionsError } =
         await supabase
           .from("cash_transactions")
-          .select("*, users:users(id, name, email)")
+          .select("*")
           .eq("magasin_id", magasinId);
 
       if (transactionsError) throw transactionsError;
 
-      if (transactionsData) {
-        transactionsData.forEach((transaction) => {
-          const isMatchingType =
-            selectedOpType === "all" ||
-            selectedOpType === "transaction" ||
-            (selectedOpType === "cash_in" && transaction.type === "in") ||
-            (selectedOpType === "cash_out" && transaction.type === "out");
-
-          if (
-            isMatchingType &&
-            (selectedUserId === "all" ||
-              selectedUserId === transaction.created_by) &&
-            transaction.magasin_id === magasinId
-          ) {
-            operations.push({
-              id: transaction.id,
-              type: transaction.type === "in" ? "cash_in" : "cash_out",
-              date: transaction.created_at,
-              amount: Math.abs(transaction.amount),
-              note: transaction.note,
-              reason: transaction.reason,
-              magasin_id: transaction.magasin_id,
-              user: transaction.users || {
-                id: transaction.created_by,
-                name: "",
-                email: "",
-              },
-              userId: transaction.created_by,
-              details: {
-                source: transaction.source,
-                recipient: transaction.recipient,
-                transactionType: transaction.type,
-              },
-            });
-
-            stats.totalTransactions++;
-            if (transaction.type === "in") {
-              stats.totalCashIn += Math.abs(transaction.amount);
-            } else {
-              stats.totalCashOut += Math.abs(transaction.amount);
-            }
-          }
-        });
-      }
+      transactionsData = transactionsResult || [];
     }
+
+    await loadUsersByIds([
+      ...countsData.map((count) => count.counted_by),
+      ...transactionsData.map((transaction) => transaction.created_by),
+    ]);
+
+    countsData.forEach((count) => {
+      if (
+        (selectedUserId === "all" || selectedUserId === count.counted_by) &&
+        count.magasin_id === magasinId
+      ) {
+        operations.push({
+          id: count.id,
+          type: "count",
+          date: count.created_at,
+          amount: count.actual_amount,
+          expectedAmount: count.expected_amount,
+          difference: count.difference,
+          note: count.note,
+          magasin_id: count.magasin_id,
+          user: usersById.value[count.counted_by] || {
+            id: count.counted_by,
+            name: "",
+            email: "",
+          },
+          userId: count.counted_by,
+          details: {
+            bills: count.bills_detail,
+            coins: count.coins_detail,
+            countType: count.count_type,
+            countDate: count.date,
+          },
+        });
+        stats.totalCounts++;
+      }
+    });
+
+    transactionsData.forEach((transaction) => {
+      const isMatchingType =
+        selectedOpType === "all" ||
+        selectedOpType === "transaction" ||
+        (selectedOpType === "cash_in" && transaction.type === "in") ||
+        (selectedOpType === "cash_out" && transaction.type === "out");
+
+      if (
+        isMatchingType &&
+        (selectedUserId === "all" || selectedUserId === transaction.created_by) &&
+        transaction.magasin_id === magasinId
+      ) {
+        operations.push({
+          id: transaction.id,
+          type: transaction.type === "in" ? "cash_in" : "cash_out",
+          date: transaction.created_at,
+          amount: Math.abs(transaction.amount),
+          note: transaction.note,
+          reason: transaction.reason,
+          magasin_id: transaction.magasin_id,
+          user: usersById.value[transaction.created_by] || {
+            id: transaction.created_by,
+            name: "",
+            email: "",
+          },
+          userId: transaction.created_by,
+          details: {
+            source: transaction.source,
+            recipient: transaction.recipient,
+            transactionType: transaction.type,
+          },
+        });
+
+        stats.totalTransactions++;
+        if (transaction.type === "in") {
+          stats.totalCashIn += Math.abs(transaction.amount);
+        } else {
+          stats.totalCashOut += Math.abs(transaction.amount);
+        }
+      }
+    });
 
     // Trier toutes les opérations par date (plus récent en premier)
     operations.sort((a, b) => new Date(b.date) - new Date(a.date));
