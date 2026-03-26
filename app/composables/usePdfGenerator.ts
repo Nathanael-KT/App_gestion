@@ -1,5 +1,5 @@
-import { useCurrentUser } from "./useCurrentUser.ts";
-import { useCompanySettings } from "./useCompanySettings.ts";
+import { useCurrentUser } from "./useCurrentUser";
+import { useCompanySettings } from "./useCompanySettings";
 
 let jsPDFCtor: (new () => import("jspdf").jsPDF) | null = null;
 if (typeof window !== "undefined") {
@@ -23,9 +23,9 @@ interface InvoiceItem {
   products_carreaux?: {
     id: string;
     name: string;
-    reference: string;
-    description?: string;
-    type_produit?: string;
+    reference: string | null;
+    description: string | null;
+    type_produit: string | null;
   } | null;
 }
 
@@ -51,7 +51,15 @@ interface Payment {
   amount: number;
   payment_date: string;
   payment_method?: string;
-  reference?: string;
+  reference?: string | null;
+}
+
+interface ProductCarreau {
+  id: string;
+  name: string;
+  reference: string | null;
+  description: string | null;
+  type_produit: string | null;
 }
 
 export const usePdfGenerator = () => {
@@ -114,10 +122,7 @@ export const usePdfGenerator = () => {
         .filter((item: InvoiceItem) => item.product_id && !item.is_external)
         .map((item: InvoiceItem) => item.product_id as string);
 
-      const productsMap: Record<
-        string,
-        NonNullable<InvoiceItem["products_carreaux"]>
-      > = {};
+      const productsMap: Record<string, ProductCarreau> = {};
       if (productIds.length > 0) {
         const { data: productsData } = await supabase
           .from("products_carreaux")
@@ -133,7 +138,7 @@ export const usePdfGenerator = () => {
           .in("id", productIds);
 
         (productsData || []).forEach(
-          (product: NonNullable<InvoiceItem["products_carreaux"]>) => {
+          (product: ProductCarreau) => {
             productsMap[product.id] = product;
           },
         );
@@ -429,9 +434,8 @@ export const usePdfGenerator = () => {
         date?: string;
       } | null;
 
-      const fileName = `Facture_${invoiceData?.reference || invoiceId}_${
-        new Date(invoiceData?.date || new Date()).toISOString().split("T")[0]
-      }.pdf`;
+      const fileName = `Facture_${invoiceData?.reference || invoiceId}_${new Date(invoiceData?.date || new Date()).toISOString().split("T")[0]
+        }.pdf`;
       doc.save(fileName);
     } catch (error) {
       console.error("Erreur lors du téléchargement du PDF:", error);
@@ -480,13 +484,14 @@ export const usePdfGenerator = () => {
       const { invoice, items } = await fetchInvoiceDetails(invoiceId);
 
       // Récupérer les paiements de la facture
-      const { data: payments, error: paymentsError } = await supabase
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from("payments")
         .select("*")
         .eq("invoice_id", invoiceId)
         .order("payment_date", { ascending: true });
 
       if (paymentsError) throw paymentsError;
+      const payments = (paymentsData || []) as Array<Partial<Payment>>;
 
       // Créer un nouveau document PDF
       if (!jsPDFCtor) {
@@ -583,11 +588,10 @@ export const usePdfGenerator = () => {
 
       // Résumé des montants
       const totalInvoice = invoice.total;
-      const totalPaid =
-        payments?.reduce(
-          (sum: number, payment: Payment) => sum + (payment.amount || 0),
-          0,
-        ) || 0;
+      const totalPaid = (payments || []).reduce(
+        (sum: number, payment: Partial<Payment>) => sum + (payment?.amount || 0),
+        0,
+      );
       const remaining = totalInvoice - totalPaid;
 
       doc.setFillColor(240, 248, 255);
@@ -600,8 +604,7 @@ export const usePdfGenerator = () => {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.text(
-        `Total facture: ${totalInvoice.toFixed(2)} ${
-          companySettings.value?.currency
+        `Total facture: ${totalInvoice.toFixed(2)} ${companySettings.value?.currency
         }`,
         115,
         93,
@@ -609,8 +612,7 @@ export const usePdfGenerator = () => {
 
       doc.setTextColor(...greenColor);
       doc.text(
-        `Montant payé: ${totalPaid.toFixed(2)} ${
-          companySettings.value?.currency
+        `Montant payé: ${(totalPaid || 0).toFixed(2)} ${companySettings.value?.currency
         }`,
         115,
         98,
@@ -622,8 +624,7 @@ export const usePdfGenerator = () => {
         remaining > 0 ? orangeColor[2] : greenColor[2],
       );
       doc.text(
-        `Reste à payer: ${remaining.toFixed(2)} ${
-          companySettings.value?.currency
+        `Reste à payer: ${remaining.toFixed(2)} ${companySettings.value?.currency
         }`,
         115,
         103,
@@ -631,7 +632,7 @@ export const usePdfGenerator = () => {
 
       doc.setTextColor(...darkColor);
       doc.text(
-        `Statut: ${remaining <= 0 ? "Soldée" : "Partiellement payée"}`,
+        `Statut: ${(remaining || 0) <= 0 ? "Soldée" : "Partiellement payée"}`,
         115,
         108,
       );
@@ -727,7 +728,7 @@ export const usePdfGenerator = () => {
         doc.setFont("helvetica", "normal");
 
         // Lignes des paiements
-        payments.forEach((payment: Payment, index: number) => {
+        payments.forEach((payment: Partial<Payment>, index: number) => {
           if (index % 2 === 0) {
             doc.setFillColor(248, 255, 248);
             doc.rect(15, currentY, 160, 8, "F");
@@ -735,9 +736,12 @@ export const usePdfGenerator = () => {
 
           currentX = 20;
           const paymentData = [
-            new Date(payment.payment_date).toLocaleDateString("fr-FR"),
+            payment.payment_date
+              ? new Date(payment.payment_date).toLocaleDateString("fr-FR")
+              : "N/A",
             payment.payment_method || "N/A",
-            `${payment.amount.toFixed(2)} ${companySettings.value?.currency}`,
+            `${(payment.amount || 0).toFixed(2)} ${companySettings.value?.currency
+            }`,
             payment.reference || "N/A",
           ];
 
@@ -771,8 +775,7 @@ export const usePdfGenerator = () => {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.text(
-        `Total facture: ${totalInvoice.toFixed(2)} ${
-          companySettings.value?.currency
+        `Total facture: ${totalInvoice.toFixed(2)} ${companySettings.value?.currency
         }`,
         20,
         summaryY,
@@ -780,8 +783,7 @@ export const usePdfGenerator = () => {
 
       doc.setTextColor(...greenColor);
       doc.text(
-        `Total payé: ${totalPaid.toFixed(2)} ${
-          companySettings.value?.currency
+        `Total payé: ${(totalPaid || 0).toFixed(2)} ${companySettings.value?.currency
         }`,
         75,
         summaryY,
@@ -835,11 +837,9 @@ export const usePdfGenerator = () => {
         date?: string;
       } | null;
 
-      const fileName = `Facture_Paiements_${
-        invoiceData?.reference || invoiceId
-      }_${
-        new Date(invoiceData?.date || new Date()).toISOString().split("T")[0]
-      }.pdf`;
+      const fileName = `Facture_Paiements_${invoiceData?.reference || invoiceId
+        }_${new Date(invoiceData?.date || new Date()).toISOString().split("T")[0]
+        }.pdf`;
       doc.save(fileName);
     } catch (error) {
       console.error("Erreur lors du téléchargement du PDF partiel:", error);
