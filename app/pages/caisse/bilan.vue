@@ -410,7 +410,10 @@ const loadUsersByIds = async (ids) => {
     .in("id", uniqueIds);
 
   if (usersError) {
-    console.warn("Impossible de charger les utilisateurs pour le mapping:", usersError);
+    console.warn(
+      "Impossible de charger les utilisateurs pour le mapping:",
+      usersError,
+    );
     usersById.value = {};
     return;
   }
@@ -567,7 +570,8 @@ const loadCashHistory = async () => {
 
       if (
         isMatchingType &&
-        (selectedUserId === "all" || selectedUserId === transaction.created_by) &&
+        (selectedUserId === "all" ||
+          selectedUserId === transaction.created_by) &&
         transaction.magasin_id === magasinId
       ) {
         operations.push({

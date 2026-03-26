@@ -675,9 +675,15 @@ function isValidMagasinId(id: unknown): boolean {
   return typeof id === "string" && id.trim() !== "";
 }
 
-async function loadUsersByIds(userIds: string[]): Promise<Map<string, UserBasic>> {
+async function loadUsersByIds(
+  userIds: string[],
+): Promise<Map<string, UserBasic>> {
   const uniqueIds = Array.from(
-    new Set(userIds.filter((id): id is string => typeof id === "string" && id.trim() !== "")),
+    new Set(
+      userIds.filter(
+        (id): id is string => typeof id === "string" && id.trim() !== "",
+      ),
+    ),
   );
 
   if (uniqueIds.length === 0) {
@@ -759,7 +765,9 @@ async function loadCashSummary() {
 
     const userIds = [
       ...(cashCounts || []).map((count: CashCount) => count.counted_by),
-      ...(allEmptyings || []).map((emptying: CashEmptying) => emptying.emptied_by),
+      ...(allEmptyings || []).map(
+        (emptying: CashEmptying) => emptying.emptied_by,
+      ),
     ];
     const userMap = await loadUsersByIds(userIds);
 
