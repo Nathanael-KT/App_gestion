@@ -70,7 +70,7 @@ export const useDeliveryNoteGenerator = () => {
             phone,
             address
           )
-        `
+        `,
         )
         .eq("id", invoiceId)
         .single();
@@ -90,7 +90,7 @@ export const useDeliveryNoteGenerator = () => {
           is_external,
           external_reference,
           external_description
-        `
+        `,
         )
         .eq("invoice_id", invoiceId);
 
@@ -116,7 +116,7 @@ export const useDeliveryNoteGenerator = () => {
             nbr_pieces,
             longueur,
             largeur
-            `
+            `,
           )
           .in("id", productIds);
 
@@ -128,7 +128,9 @@ export const useDeliveryNoteGenerator = () => {
       // Enrichir les articles
       const enrichedItems = typedItems.map((item: InvoiceItem) => ({
         ...item,
-        products_carreaux: item.product_id ? productsMap[item.product_id] || null : null,
+        products_carreaux: item.product_id
+          ? productsMap[item.product_id] || null
+          : null,
       }));
 
       return {
@@ -138,7 +140,7 @@ export const useDeliveryNoteGenerator = () => {
     } catch (error) {
       console.error(
         "Erreur lors de la récupération des détails de la commande:",
-        error
+        error,
       );
       throw error;
     }
@@ -157,7 +159,7 @@ export const useDeliveryNoteGenerator = () => {
 
     // Calcul des pièces restantes - utilise exactement la même logique que CartonCalculator
     const conditionnement_calculer_precise = parseFloat(
-      (longueur * largeur * nbr_pieces).toFixed(3)
+      (longueur * largeur * nbr_pieces).toFixed(3),
     );
 
     if (nbr_pieces <= 0) {
@@ -212,19 +214,19 @@ export const useDeliveryNoteGenerator = () => {
         doc.text(
           companySettings.value?.company_name || "MON ENTREPRISE",
           15,
-          currentY + 22
+          currentY + 22,
         );
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6);
         doc.text(
           companySettings.value?.company_address || "Adresse non définie",
           15,
-          currentY + 27
+          currentY + 27,
         );
         doc.text(
           `Tél: ${companySettings.value?.company_phone || "N/A"}`,
           15,
-          currentY + 32
+          currentY + 32,
         );
 
         // Numéro de bon et date (petite taille, à droite)
@@ -234,7 +236,7 @@ export const useDeliveryNoteGenerator = () => {
         doc.text(
           `Date: ${new Date(invoice.date).toLocaleDateString("fr-FR")}`,
           140,
-          currentY + 30
+          currentY + 30,
         );
 
         // Informations client
@@ -339,7 +341,7 @@ export const useDeliveryNoteGenerator = () => {
           doc.text(
             `... et ${items.length - 4} autre(s) article(s)`,
             17,
-            currentY + 3
+            currentY + 3,
           );
           currentY += 5;
         }
@@ -377,13 +379,17 @@ export const useDeliveryNoteGenerator = () => {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6);
         doc.setTextColor(...grayColor);
-        doc.text(`Total: ${invoice.total.toFixed(2)}${companySettings.value?.currency} TTC`, 15, currentY);
+        doc.text(
+          `Total: ${invoice.total.toFixed(2)}${companySettings.value?.currency} TTC`,
+          15,
+          currentY,
+        );
         doc.text(
           `Généré le ${new Date().toLocaleDateString(
-            "fr-FR"
+            "fr-FR",
           )} à ${new Date().toLocaleTimeString("fr-FR")}`,
           100,
-          currentY
+          currentY,
         );
 
         return currentY + 5;
@@ -439,7 +445,7 @@ export const useDeliveryNoteGenerator = () => {
     } catch (error) {
       console.error(
         "Erreur lors du téléchargement du bon de livraison:",
-        error
+        error,
       );
       throw error;
     }

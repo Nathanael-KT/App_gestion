@@ -114,7 +114,10 @@ export const usePdfGenerator = () => {
         .filter((item: InvoiceItem) => item.product_id && !item.is_external)
         .map((item: InvoiceItem) => item.product_id as string);
 
-      const productsMap: Record<string, NonNullable<InvoiceItem["products_carreaux"]>> = {};
+      const productsMap: Record<
+        string,
+        NonNullable<InvoiceItem["products_carreaux"]>
+      > = {};
       if (productIds.length > 0) {
         const { data: productsData } = await supabase
           .from("products_carreaux")
@@ -139,7 +142,9 @@ export const usePdfGenerator = () => {
       // Enrichir les articles
       const enrichedItems = typedItems.map((item: InvoiceItem) => ({
         ...item,
-        products_carreaux: item.product_id ? productsMap[item.product_id] || null : null,
+        products_carreaux: item.product_id
+          ? productsMap[item.product_id] || null
+          : null,
       }));
 
       return {

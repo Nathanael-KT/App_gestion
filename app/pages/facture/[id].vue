@@ -34,7 +34,7 @@ const fetchInvoiceDetails = async () => {
           phone,
           address
         )
-      `
+      `,
       )
       .eq("id", invoiceId)
       .single();
@@ -54,7 +54,7 @@ const fetchInvoiceDetails = async () => {
         is_external,
         external_reference,
         external_description
-      `
+      `,
       )
       .eq("invoice_id", invoiceId);
 
@@ -76,7 +76,7 @@ const fetchInvoiceDetails = async () => {
           reference,
           description,
           type_produit
-        `
+        `,
         )
         .in("id", productIds);
 
@@ -89,7 +89,9 @@ const fetchInvoiceDetails = async () => {
     // Enrichir les articles
     const enrichedItems = (itemsData || []).map((item) => ({
       ...item,
-      products_carreaux: item.product_id ? productsMap[item.product_id] || null : null,
+      products_carreaux: item.product_id
+        ? productsMap[item.product_id] || null
+        : null,
     }));
 
     invoice.value = invoiceData;
@@ -121,9 +123,8 @@ const handleDownloadPDF = async () => {
   try {
     downloadingPdf.value = true;
     // Import explicite du composable
-    const { usePdfGenerator } = await import(
-      "../../composables/usePdfGenerator"
-    );
+    const { usePdfGenerator } =
+      await import("../../composables/usePdfGenerator");
     const { downloadPDF } = usePdfGenerator();
     await downloadPDF(route.params.id);
   } catch (err) {
@@ -136,7 +137,7 @@ const handleDownloadPDF = async () => {
 const calculateSubtotal = () => {
   return invoiceItems.value.reduce(
     (sum, item) => sum + item.quantity * item.price,
-    0
+    0,
   );
 };
 
