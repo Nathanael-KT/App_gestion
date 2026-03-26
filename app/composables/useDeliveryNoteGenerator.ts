@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
-import { useCurrentUser } from "./useCurrentUser.ts";
-import { useCompanySettings } from "./useCompanySettings.ts";
+import { useCurrentUser } from "./useCurrentUser";
+import { useCompanySettings } from "./useCompanySettings";
 
 // La récupération des paramètres société se fait dans generateDeliveryNote
 
@@ -16,12 +16,12 @@ interface Client {
 interface Product {
   id: string;
   name: string;
-  reference?: string;
-  description?: string;
-  type_produit?: string;
-  nbr_pieces?: number;
-  longueur?: number;
-  largeur?: number;
+  reference?: string | null;
+  description?: string | null;
+  type_produit?: string | null;
+  nbr_pieces?: number | null;
+  longueur?: number | null;
+  largeur?: number | null;
 }
 
 interface InvoiceItem {
@@ -169,7 +169,7 @@ export const useDeliveryNoteGenerator = () => {
     const remainingStock =
       stock -
       Math.floor(stock / conditionnement_calculer_precise) *
-        conditionnement_calculer_precise;
+      conditionnement_calculer_precise;
     const decimalPart = remainingStock / conditionnement_calculer_precise;
     const remainingPieces = Math.floor(decimalPart * nbr_pieces);
 
@@ -436,11 +436,10 @@ export const useDeliveryNoteGenerator = () => {
         "reference" | "date"
       > | null;
 
-      const fileName = `Bon_Livraison_${invoiceData?.reference || invoiceId}_${
-        invoiceData?.date
+      const fileName = `Bon_Livraison_${invoiceData?.reference || invoiceId}_${invoiceData?.date
           ? new Date(invoiceData.date).toISOString().split("T")[0]
           : new Date().toISOString().split("T")[0]
-      }.pdf`;
+        }.pdf`;
       doc.save(fileName);
     } catch (error) {
       console.error(
