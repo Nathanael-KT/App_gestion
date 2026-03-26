@@ -290,6 +290,7 @@ const handleSubmit = async () => {
         external_reference: item.reference, // Référence personnalisée
         external_description: item.description, // Description personnalisée
         is_external: true, // Marquer comme article externe
+        magasin_id: magasinStore.magasinId,
       }))
     );
 

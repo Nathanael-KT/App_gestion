@@ -282,6 +282,7 @@ const handleSubmit = async () => {
         product_id: item.product_id,
         quantity: item.quantity,
         price: item.price,
+        magasin_id: magasinStore.magasinId,
       })),
     );
 

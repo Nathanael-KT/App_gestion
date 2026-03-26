@@ -164,8 +164,6 @@ export const usePdfGenerator = () => {
     try {
       if (isLoadingUser.value) await loadCurrentUser();
       if (companyId.value) await fetchCompanySettings(companyId.value);
-      // Charger les paramètres de l'entreprise
-      await fetchCompanySettings();
 
       // Attendre que companySettings.value soit bien défini (boucle max 10x)
       let companyName = companySettings.value?.company_name;
@@ -478,8 +476,6 @@ export const usePdfGenerator = () => {
     try {
       if (isLoadingUser.value) await loadCurrentUser();
       if (companyId.value) await fetchCompanySettings(companyId.value);
-      // Charger les paramètres de l'entreprise
-      await fetchCompanySettings();
 
       const { invoice, items } = await fetchInvoiceDetails(invoiceId);
 

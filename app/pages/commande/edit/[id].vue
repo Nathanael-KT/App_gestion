@@ -43,6 +43,7 @@ const invoiceData = ref({
   client_id: null,
   total: 0,
   delivery: false,
+  magasin_id: null,
 });
 
 const clients = ref([]);
@@ -144,6 +145,7 @@ const fetchInvoice = async () => {
       client_id: invoice.client_id,
       total: invoice.total,
       delivery: invoice.delivery || false,
+      magasin_id: invoice.magasin_id || null,
     };
 
     // Remplir le client sélectionné
@@ -336,6 +338,7 @@ const handleSubmit = async () => {
         product_id: item.product_id,
         quantity: item.quantity,
         price: item.price,
+        magasin_id: invoiceData.value.magasin_id,
       })),
     );
 
