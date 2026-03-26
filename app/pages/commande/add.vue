@@ -13,7 +13,6 @@ const supabase = useSupabaseClient();
 const router = useRouter();
 const magasinStore = useMagasinStore();
 
-
 // Données de l'entreprise calculées
 
 // Données de la facture
@@ -50,7 +49,7 @@ watch(
     } else {
       newItem.value.price = 0;
     }
-  }
+  },
 );
 onMounted(async () => {
   if (isLoadingUser.value) await loadCurrentUser();
@@ -84,7 +83,7 @@ const generateInvoiceNumber = () => {
   const date = new Date();
   return `FAC-${date.getFullYear()}${String(date.getMonth() + 1).padStart(
     2,
-    "0"
+    "0",
   )}-${Math.floor(1000 + Math.random() * 9000)}`;
 };
 
@@ -214,7 +213,7 @@ const removeItem = (index) => {
 const calculateTotals = () => {
   subtotal.value = invoiceItems.value.reduce(
     (sum, item) => sum + item.total,
-    0
+    0,
   );
   taxAmount.value = subtotal.value * taxRate.value;
   total.value = subtotal.value + taxAmount.value;
@@ -283,7 +282,7 @@ const handleSubmit = async () => {
         product_id: item.product_id,
         quantity: item.quantity,
         price: item.price,
-      }))
+      })),
     );
 
     if (itemsError) throw itemsError;
@@ -291,14 +290,14 @@ const handleSubmit = async () => {
     // Mise à jour du stock des produits
     for (const item of invoiceItems.value) {
       const currentProduct = products.value.find(
-        (p) => p.id === item.product_id
+        (p) => p.id === item.product_id,
       );
       if (currentProduct) {
         const newStock = currentProduct.stock - item.quantity;
 
         if (newStock < 0) {
           throw new Error(
-            `Stock insuffisant pour le produit ${currentProduct.name}`
+            `Stock insuffisant pour le produit ${currentProduct.name}`,
           );
         }
 
@@ -315,7 +314,7 @@ const handleSubmit = async () => {
 
     // Attendre un peu pour que l'utilisateur voie le message de succès
     setTimeout(() => {
-      router.push(`/invoices/${invoiceId}`);
+      router.push(`/commande/${invoiceId}`);
     }, 2000); // 2 secondes de délai
   } catch (err) {
     console.error("Erreur lors de la création de la commande:", err);
@@ -344,7 +343,7 @@ watch(
   (id) => {
     if (id) fetchMagasinInfo();
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 onMounted(async () => {
@@ -456,13 +455,15 @@ onMounted(async () => {
                 </div>
               </template>
 
-                <div class="space-y-4">
+              <div class="space-y-4">
                 <div>
                   <h4 class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ companySettings?.company_name || "Nom de l'entreprise" }}
+                    {{ companySettings?.company_name || "Nom de l'entreprise" }}
                   </h4>
                   <p class="text-sm text-gray-500 dark:text-gray-300 mt-1">
-                  {{ companySettings?.company_address || "Adresse du magasin" }}
+                    {{
+                      companySettings?.company_address || "Adresse du magasin"
+                    }}
                   </p>
                 </div>
 
@@ -470,31 +471,50 @@ onMounted(async () => {
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div class="flex items-center gap-2">
-                  <UIcon name="i-heroicons-phone" class="w-4 h-4 text-primary-500" />
-                  <span class="font-medium text-gray-700 dark:text-gray-200">
-                    {{ companySettings?.company_phone || "Téléphone non renseigné" }}
-                  </span>
+                    <UIcon
+                      name="i-heroicons-phone"
+                      class="w-4 h-4 text-primary-500"
+                    />
+                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                      {{
+                        companySettings?.company_phone ||
+                        "Téléphone non renseigné"
+                      }}
+                    </span>
                   </div>
                   <div class="flex items-center gap-2">
-                  <UIcon name="i-heroicons-envelope" class="w-4 h-4 text-primary-500" />
-                  <span class="font-medium text-gray-700 dark:text-gray-200">
-                    {{ companySettings?.company_email || "Email non renseigné" }}
-                  </span>
+                    <UIcon
+                      name="i-heroicons-envelope"
+                      class="w-4 h-4 text-primary-500"
+                    />
+                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                      {{
+                        companySettings?.company_email || "Email non renseigné"
+                      }}
+                    </span>
                   </div>
                   <div class="flex items-center gap-2">
-                  <UIcon name="i-heroicons-identification" class="w-4 h-4 text-primary-500" />
-                  <span class="font-medium text-gray-700 dark:text-gray-200">
-                    SIRET : {{ companySettings?.company_siret || "Non renseigné" }}
-                  </span>
+                    <UIcon
+                      name="i-heroicons-identification"
+                      class="w-4 h-4 text-primary-500"
+                    />
+                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                      SIRET :
+                      {{ companySettings?.company_siret || "Non renseigné" }}
+                    </span>
                   </div>
                   <div class="flex items-center gap-2">
-                  <UIcon name="i-heroicons-document-text" class="w-4 h-4 text-primary-500" />
-                  <span class="font-medium text-gray-700 dark:text-gray-200">
-                    TVA : {{ companySettings?.company_tva || "Non renseigné" }}
-                  </span>
+                    <UIcon
+                      name="i-heroicons-document-text"
+                      class="w-4 h-4 text-primary-500"
+                    />
+                    <span class="font-medium text-gray-700 dark:text-gray-200">
+                      TVA :
+                      {{ companySettings?.company_tva || "Non renseigné" }}
+                    </span>
                   </div>
                 </div>
-                </div>
+              </div>
             </UCard>
 
             <!-- Information client -->
@@ -653,7 +673,8 @@ onMounted(async () => {
                             <span
                               class="text-sm font-medium text-primary-600 dark:text-primary-400"
                             >
-                              {{ item.price.toFixed(2) }} {{ companySettings?.currency  }}
+                              {{ item.price.toFixed(2) }}
+                              {{ companySettings?.currency }}
                             </span>
                           </div>
                           <div class="flex items-center gap-2 mt-1">
@@ -699,7 +720,8 @@ onMounted(async () => {
                       <div>
                         <span class="text-gray-500">Prix:</span>
                         <span class="font-medium ml-1"
-                          >{{ newItem.product.price.toFixed(2) }} {{ companySettings?.currency  }}</span
+                          >{{ newItem.product.price.toFixed(2) }}
+                          {{ companySettings?.currency }}</span
                         >
                       </div>
                       <div>
@@ -859,7 +881,8 @@ onMounted(async () => {
                           Prix unitaire
                         </p>
                         <p class="font-medium">
-                          {{ item.price.toFixed(2) }} {{ companySettings?.currency  }}
+                          {{ item.price.toFixed(2) }}
+                          {{ companySettings?.currency }}
                         </p>
                       </div>
                     </div>
@@ -877,7 +900,8 @@ onMounted(async () => {
                         <p
                           class="font-semibold text-lg text-primary-600 dark:text-primary-400"
                         >
-                          {{ (item.quantity * item.price).toFixed(2) }} {{ companySettings?.currency  }}
+                          {{ (item.quantity * item.price).toFixed(2) }}
+                          {{ companySettings?.currency }}
                         </p>
                       </div>
                     </div>
@@ -958,7 +982,8 @@ onMounted(async () => {
                     >Sous-total HT</span
                   >
                   <span class="font-medium"
-                    >{{ subtotal.toFixed(2) }} {{ companySettings?.currency }}</span
+                    >{{ subtotal.toFixed(2) }}
+                    {{ companySettings?.currency }}</span
                   >
                 </div>
 
@@ -967,7 +992,8 @@ onMounted(async () => {
                     >TVA (20%)</span
                   >
                   <span class="font-medium"
-                    >{{ taxAmount.toFixed(2) }} {{ companySettings?.currency }}</span
+                    >{{ taxAmount.toFixed(2) }}
+                    {{ companySettings?.currency }}</span
                   >
                 </div>
 
@@ -1008,7 +1034,6 @@ onMounted(async () => {
                       invoiceItems.length === 0 ||
                       userRoles?.includes('magasinier')
                     "
-                    to="/commande/[id]"
                     @click="handleSubmit"
                   />
                 </div>

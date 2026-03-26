@@ -1,27 +1,16 @@
-import { useCurrentUser } from "./useCurrentUser";
-import { useCompanySettings } from "./useCompanySettings";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let jsPDF: any = null;
+import { useCurrentUser } from "./useCurrentUser.ts";
+import { useCompanySettings } from "./useCompanySettings.ts";
+
+let jsPDFCtor: (new () => import("jspdf").jsPDF) | null = null;
 if (typeof window !== "undefined") {
   try {
-    jsPDF = (await import("jspdf")).jsPDF;
+    jsPDFCtor = (await import("jspdf")).jsPDF;
   } catch (err) {
     console.error("Erreur lors de l'import jsPDF:", err);
-    jsPDF = null;
+    jsPDFCtor = null;
   }
 }
 
-const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
-const { fetchCompanySettings } = useCompanySettings();
-
-onMounted(async () => {
-  if (isLoadingUser.value) {
-    await loadCurrentUser();
-  }
-  if (companyId.value) await fetchCompanySettings(companyId.value);
-
-  fetchInvoiceDetails();
-});
 interface InvoiceItem {
   id: string;
   invoice_id: string;
@@ -37,7 +26,7 @@ interface InvoiceItem {
     reference: string;
     description?: string;
     type_produit?: string;
-  };
+  } | null;
 }
 
 interface Invoice {
@@ -66,7 +55,7 @@ interface Payment {
 }
 
 export const usePdfGenerator = () => {
-  const supabase = useSupabaseClient() as any;
+  const supabase = useSupabaseClient();
 
   // Utilisation du composable pour les paramètres de l'entreprise
   const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
@@ -80,7 +69,7 @@ export const usePdfGenerator = () => {
     items: InvoiceItem[];
   }> => {
     try {
-      // Récupérer les détails de la facture avec le client
+      // Étape 1: Récupérer les détails de la facture avec le client
       const { data: invoice, error: invoiceError } = await supabase
         .from("invoices")
         .select(
@@ -100,28 +89,62 @@ export const usePdfGenerator = () => {
 
       if (invoiceError) throw invoiceError;
 
-      // Récupérer les articles de la facture avec les produits
+      // Étape 2: Récupérer SÉPARÉMENT les articles sans jointe problématique
       const { data: invoiceItems, error: itemsError } = await supabase
         .from("invoice_items")
         .select(
           `
-          *,
-          products_carreaux (
-            id,
-            name,
-            reference,
-            description,
-            type_produit
-          )
+          id,
+          invoice_id,
+          product_id,
+          quantity,
+          price,
+          is_external,
+          external_reference,
+          external_description
         `,
         )
         .eq("invoice_id", invoiceId);
 
       if (itemsError) throw itemsError;
 
+      // Étape 3: Charger les produits si nécessaire
+      const typedItems = (invoiceItems || []) as InvoiceItem[];
+      const productIds = typedItems
+        .filter((item: InvoiceItem) => item.product_id && !item.is_external)
+        .map((item: InvoiceItem) => item.product_id as string);
+
+      const productsMap: Record<string, NonNullable<InvoiceItem["products_carreaux"]>> = {};
+      if (productIds.length > 0) {
+        const { data: productsData } = await supabase
+          .from("products_carreaux")
+          .select(
+            `
+            id,
+            name,
+            reference,
+            description,
+            type_produit
+            `,
+          )
+          .in("id", productIds);
+
+        (productsData || []).forEach(
+          (product: NonNullable<InvoiceItem["products_carreaux"]>) => {
+            productsMap[product.id] = product;
+          },
+        );
+      }
+
+      // Enrichir les articles
+      const enrichedItems = typedItems.map((item: InvoiceItem) => ({
+        ...item,
+        products_carreaux: item.product_id ? productsMap[item.product_id] || null : null,
+      }));
+
       return {
-        invoice,
-        items: invoiceItems || [],
+        invoice: invoice as Invoice,
+        items: enrichedItems || [],
       };
     } catch (error) {
       console.error(
@@ -151,14 +174,14 @@ export const usePdfGenerator = () => {
       const { invoice, items } = await fetchInvoiceDetails(invoiceId);
 
       // Créer un nouveau document PDF
-      if (!jsPDF) {
+      if (!jsPDFCtor) {
         throw new Error(
           "Impossible de générer le PDF : jsPDF n'est pas disponible côté serveur ou l'import a échoué.",
         );
       }
       let doc;
       try {
-        doc = new jsPDF();
+        doc = new jsPDFCtor();
       } catch (err) {
         console.error("Erreur jsPDF:", err);
         throw new Error(
@@ -276,7 +299,7 @@ export const usePdfGenerator = () => {
 
       // Lignes du tableau
       let subtotal = 0;
-      items.forEach((item: InvoiceItem, index) => {
+      items.forEach((item: InvoiceItem, index: number) => {
         const product = item.products_carreaux;
         const total = item.quantity * item.price;
         subtotal += total;
@@ -422,11 +445,22 @@ export const usePdfGenerator = () => {
       const url = URL.createObjectURL(pdfBlob);
 
       // Ouvrir dans une nouvelle fenêtre et déclencher l'impression
-      const printWindow = (window as Window).open(url, "_blank");
+      const openWindow = (
+        globalThis as unknown as {
+          open?: (url?: string, target?: string) => Window | null;
+        }
+      ).open;
+      const printWindow =
+        typeof openWindow === "function" ? openWindow(url, "_blank") : null;
       if (printWindow) {
-        printWindow.onload = function () {
-          printWindow.focus();
-          printWindow.print();
+        const safeWindow = printWindow as unknown as {
+          onload: null | (() => void);
+          focus?: () => void;
+          print?: () => void;
+        };
+        safeWindow.onload = function () {
+          safeWindow.focus?.();
+          safeWindow.print?.();
         };
       }
     } catch (error) {
@@ -454,14 +488,14 @@ export const usePdfGenerator = () => {
       if (paymentsError) throw paymentsError;
 
       // Créer un nouveau document PDF
-      if (!jsPDF) {
+      if (!jsPDFCtor) {
         throw new Error(
           "Impossible de générer le PDF : jsPDF n'est pas disponible côté serveur ou l'import a échoué.",
         );
       }
       let doc;
       try {
-        doc = new jsPDF();
+        doc = new jsPDFCtor();
       } catch (err) {
         console.error("Erreur jsPDF:", err);
         throw new Error(
@@ -631,7 +665,7 @@ export const usePdfGenerator = () => {
       doc.setFont("helvetica", "normal");
 
       // Lignes du tableau (condensées)
-      items.forEach((item: InvoiceItem, index) => {
+      items.forEach((item: InvoiceItem, index: number) => {
         if (index % 2 === 0) {
           doc.setFillColor(250, 250, 250);
           doc.rect(15, currentY, 160, 8, "F");
@@ -821,11 +855,22 @@ export const usePdfGenerator = () => {
       const url = URL.createObjectURL(pdfBlob);
 
       // Ouvrir dans une nouvelle fenêtre et déclencher l'impression
-      const printWindow = window.open(url, "_blank");
+      const openWindow = (
+        globalThis as unknown as {
+          open?: (url?: string, target?: string) => Window | null;
+        }
+      ).open;
+      const printWindow =
+        typeof openWindow === "function" ? openWindow(url, "_blank") : null;
       if (printWindow) {
-        printWindow.onload = function () {
-          printWindow.focus();
-          printWindow.print();
+        const safeWindow = printWindow as unknown as {
+          onload: null | (() => void);
+          focus?: () => void;
+          print?: () => void;
+        };
+        safeWindow.onload = function () {
+          safeWindow.focus?.();
+          safeWindow.print?.();
         };
       }
     } catch (error) {
@@ -844,6 +889,3 @@ export const usePdfGenerator = () => {
     fetchInvoiceDetails,
   };
 };
-function fetchInvoiceDetails() {
-  throw new Error("Function not implemented.");
-}

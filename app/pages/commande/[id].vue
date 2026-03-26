@@ -5,7 +5,7 @@ import CartonCalculator from "@/components/CartonCalculator.vue";
 import { useCurrentUser } from "../../composables/useCurrentUser";
 import { useCompanySettings } from "../../composables/useCompanySettings";
 
-const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
+const { isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
 
@@ -27,7 +27,7 @@ const fetchInvoiceDetails = async () => {
     loading.value = true;
     const invoiceId = route.params.id;
 
-    // Récupérer les détails de la commande avec le client
+    // Étape 1: Récupérer les détails de la commande avec le client
     const { data: invoiceData, error: invoiceError } = await supabase
       .from("invoices")
       .select(
@@ -40,20 +40,44 @@ const fetchInvoiceDetails = async () => {
           phone,
           address
         )
-      `
+      `,
       )
       .eq("id", invoiceId)
       .single();
 
     if (invoiceError) throw invoiceError;
 
-    // Récupérer les articles de la commande avec les produits (internes et externes)
+    // Étape 2: Récupérer les articles SÉPARÉMENt sans jointe problématique
     const { data: itemsData, error: itemsError } = await supabase
       .from("invoice_items")
       .select(
         `
-        *,
-        products_carreaux (
+        id,
+        invoice_id,
+        product_id,
+        quantity,
+        price,
+        is_external,
+        external_reference,
+        external_description,
+        magasin_id
+      `,
+      )
+      .eq("invoice_id", invoiceId);
+
+    if (itemsError) throw itemsError;
+
+    // Étape 3: Si des articles ont des product_id, charger les produits
+    const productIds = (itemsData || [])
+      .filter((item) => item.product_id && !item.is_external)
+      .map((item) => item.product_id);
+
+    let productsMap = {};
+    if (productIds.length > 0) {
+      const { data: productsData, error: productsError } = await supabase
+        .from("products_carreaux")
+        .select(
+          `
           id,
           name,
           reference,
@@ -62,15 +86,30 @@ const fetchInvoiceDetails = async () => {
           nbr_pieces,
           longueur,
           largeur
+        `,
         )
-      `
-      )
-      .eq("invoice_id", invoiceId);
+        .in("id", productIds);
 
-    if (itemsError) throw itemsError;
+      if (productsError)
+        console.warn("Erreur chargement produits:", productsError);
+
+      // Créer une map pour accès rapide
+      productsMap = (productsData || []).reduce((map, product) => {
+        map[product.id] = product;
+        return map;
+      }, {});
+    }
+
+    // Enrichir les articles avec les produits
+    const enrichedItems = (itemsData || []).map((item) => ({
+      ...item,
+      products_carreaux: item.product_id
+        ? productsMap[item.product_id] || null
+        : null,
+    }));
 
     invoice.value = invoiceData;
-    invoiceItems.value = itemsData || [];
+    invoiceItems.value = enrichedItems;
   } catch (err) {
     error.value =
       err.message || "Erreur lors de la récupération de la commande.";
@@ -122,7 +161,7 @@ const handleDownloadDeliveryNote = async () => {
 const calculateSubtotal = () => {
   return invoiceItems.value.reduce(
     (sum, item) => sum + item.quantity * item.price,
-    0
+    0,
   );
 };
 
@@ -137,13 +176,8 @@ const displayTaxRate = computed(() => {
 });
 
 onMounted(async () => {
-  await Promise.all([fetchCompanySettings(), fetchInvoiceDetails()]);
-});
-
-onMounted(async () => {
   if (isLoadingUser.value) await loadCurrentUser();
-  if (companyId.value) await fetchCompanySettings(companyId.value);
-  await fetchClients();
+  await Promise.all([fetchCompanySettings(), fetchInvoiceDetails()]);
 });
 </script>
 

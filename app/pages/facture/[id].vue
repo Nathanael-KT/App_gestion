@@ -21,7 +21,7 @@ const fetchInvoiceDetails = async () => {
     loading.value = true;
     const invoiceId = route.params.id;
 
-    // Récupérer les détails de la facture avec le client
+    // Étape 1: Récupérer les détails de la facture avec le client
     const { data: invoiceData, error: invoiceError } = await supabase
       .from("invoices")
       .select(
@@ -41,27 +41,59 @@ const fetchInvoiceDetails = async () => {
 
     if (invoiceError) throw invoiceError;
 
-    // Récupérer les articles de la facture avec les produits (internes et externes)
+    // Étape 2: Récupérer SÉPARÉMENT les articles sans jointe problématique
     const { data: itemsData, error: itemsError } = await supabase
       .from("invoice_items")
       .select(
         `
-        *,
-        products_carreaux (
-          id,
-          name,
-          reference,
-          description,
-          type_produit
-        )
+        id,
+        invoice_id,
+        product_id,
+        quantity,
+        price,
+        is_external,
+        external_reference,
+        external_description
       `
       )
       .eq("invoice_id", invoiceId);
 
     if (itemsError) throw itemsError;
 
+    // Étape 3: Charger les produits si nécessaire
+    const productIds = (itemsData || [])
+      .filter((item) => item.product_id && !item.is_external)
+      .map((item) => item.product_id);
+
+    let productsMap = {};
+    if (productIds.length > 0) {
+      const { data: productsData } = await supabase
+        .from("products_carreaux")
+        .select(
+          `
+          id,
+          name,
+          reference,
+          description,
+          type_produit
+        `
+        )
+        .in("id", productIds);
+
+      productsMap = (productsData || []).reduce((map, product) => {
+        map[product.id] = product;
+        return map;
+      }, {});
+    }
+
+    // Enrichir les articles
+    const enrichedItems = (itemsData || []).map((item) => ({
+      ...item,
+      products_carreaux: item.product_id ? productsMap[item.product_id] || null : null,
+    }));
+
     invoice.value = invoiceData;
-    invoiceItems.value = itemsData || [];
+    invoiceItems.value = enrichedItems;
   } catch (err) {
     error.value =
       err.message || "Erreur lors de la récupération de la facture.";
@@ -380,12 +412,13 @@ onMounted(async () => {
                 <td
                   class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
                 >
-                  {{ item.price.toFixed(2) }}   {{ companySettings?.currency  }}
+                  {{ item.price.toFixed(2) }} {{ companySettings?.currency }}
                 </td>
                 <td
                   class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right"
                 >
-                  {{ (item.quantity * item.price).toFixed(2) }} {{ companySettings?.currency  }}
+                  {{ (item.quantity * item.price).toFixed(2) }}
+                  {{ companySettings?.currency }}
                 </td>
               </tr>
             </tbody>
@@ -399,7 +432,8 @@ onMounted(async () => {
           <div class="flex justify-between text-sm">
             <span class="text-gray-600">Sous-total HT:</span>
             <span class="font-medium"
-              >{{ calculateSubtotal().toFixed(2) }} {{ companySettings?.currency }}</span
+              >{{ calculateSubtotal().toFixed(2) }}
+              {{ companySettings?.currency }}</span
             >
           </div>
           <div class="flex justify-between text-sm">
@@ -407,14 +441,18 @@ onMounted(async () => {
               >TVA ({{ companySettings?.tax_rate || 20 }}%):</span
             >
             <span class="font-medium"
-              >{{ calculateTax().toFixed(2) }} {{ companySettings?.currency }}</span
+              >{{ calculateTax().toFixed(2) }}
+              {{ companySettings?.currency }}</span
             >
           </div>
           <div
             class="flex justify-between text-lg font-bold border-t border-gray-200 pt-3"
           >
             <span>Total TTC:</span>
-            <span>{{ invoice.total.toFixed(2) }} {{ companySettings?.currency }}</span>
+            <span
+              >{{ invoice.total.toFixed(2) }}
+              {{ companySettings?.currency }}</span
+            >
           </div>
         </div>
       </div>
@@ -427,7 +465,7 @@ onMounted(async () => {
             <strong>Date d'échéance:</strong>
             {{
               new Date(
-                new Date(invoice.date).getTime() + 30 * 24 * 60 * 60 * 1000
+                new Date(invoice.date).getTime() + 30 * 24 * 60 * 60 * 1000,
               ).toLocaleDateString("fr-FR")
             }}
           </p>

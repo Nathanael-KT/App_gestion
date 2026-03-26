@@ -1,6 +1,6 @@
 import { jsPDF } from "jspdf";
-import { useCurrentUser } from "./useCurrentUser";
-import { useCompanySettings } from "./useCompanySettings";
+import { useCurrentUser } from "./useCurrentUser.ts";
+import { useCompanySettings } from "./useCompanySettings.ts";
 
 // La récupération des paramètres société se fait dans generateDeliveryNote
 
@@ -57,7 +57,7 @@ export const useDeliveryNoteGenerator = () => {
 
   const fetchOrderDetails = async (invoiceId: string) => {
     try {
-      // Récupérer les détails de la commande avec le client
+      // Étape 1: Récupérer les détails de la commande avec le client
       const { data: invoice, error: invoiceError } = await supabase
         .from("invoices")
         .select(
@@ -77,13 +77,37 @@ export const useDeliveryNoteGenerator = () => {
 
       if (invoiceError) throw invoiceError;
 
-      // Récupérer les articles de la commande avec les produits
+      // Étape 2: Récupérer SÉPARÉMENT les articles sans jointe problématique
       const { data: invoiceItems, error: itemsError } = await supabase
         .from("invoice_items")
         .select(
           `
-          *,
-          products_carreaux (
+          id,
+          invoice_id,
+          product_id,
+          quantity,
+          price,
+          is_external,
+          external_reference,
+          external_description
+        `
+        )
+        .eq("invoice_id", invoiceId);
+
+      if (itemsError) throw itemsError;
+
+      // Étape 3: Charger les produits si nécessaire
+      const typedItems = (invoiceItems || []) as InvoiceItem[];
+      const productIds = typedItems
+        .filter((item: InvoiceItem) => item.product_id && !item.is_external)
+        .map((item: InvoiceItem) => item.product_id as string);
+
+      const productsMap: Record<string, Product> = {};
+      if (productIds.length > 0) {
+        const { data: productsData } = await supabase
+          .from("products_carreaux")
+          .select(
+            `
             id,
             name,
             reference,
@@ -92,16 +116,24 @@ export const useDeliveryNoteGenerator = () => {
             nbr_pieces,
             longueur,
             largeur
+            `
           )
-        `
-        )
-        .eq("invoice_id", invoiceId);
+          .in("id", productIds);
 
-      if (itemsError) throw itemsError;
+        (productsData || []).forEach((product: Product) => {
+          productsMap[product.id] = product;
+        });
+      }
+
+      // Enrichir les articles
+      const enrichedItems = typedItems.map((item: InvoiceItem) => ({
+        ...item,
+        products_carreaux: item.product_id ? productsMap[item.product_id] || null : null,
+      }));
 
       return {
         invoice: invoice as Invoice,
-        items: (invoiceItems || []) as InvoiceItem[],
+        items: enrichedItems as InvoiceItem[],
       };
     } catch (error) {
       console.error(
@@ -248,7 +280,7 @@ export const useDeliveryNoteGenerator = () => {
         doc.setFont("helvetica", "normal");
 
         // Lignes du tableau (très compact)
-        items.slice(0, 4).forEach((item, index) => {
+        items.slice(0, 4).forEach((item: InvoiceItem, index: number) => {
           // Limiter à 4 items pour l'espace
           const product = item.products_carreaux;
 
@@ -422,11 +454,22 @@ export const useDeliveryNoteGenerator = () => {
       const url = URL.createObjectURL(pdfBlob);
 
       // Ouvrir dans une nouvelle fenêtre et déclencher l'impression
-      const printWindow = window.open(url, "_blank");
+      const openWindow = (
+        globalThis as unknown as {
+          open?: (url?: string, target?: string) => Window | null;
+        }
+      ).open;
+      const printWindow =
+        typeof openWindow === "function" ? openWindow(url, "_blank") : null;
       if (printWindow) {
-        printWindow.onload = function () {
-          printWindow.focus();
-          printWindow.print();
+        const safeWindow = printWindow as unknown as {
+          onload: null | (() => void);
+          focus?: () => void;
+          print?: () => void;
+        };
+        safeWindow.onload = function () {
+          safeWindow.focus?.();
+          safeWindow.print?.();
         };
       }
     } catch (error) {

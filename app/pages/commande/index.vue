@@ -86,7 +86,7 @@ const filteredInvoices = computed(() => {
     filtered = filtered.filter(
       (invoice) =>
         invoice.reference.toLowerCase().includes(query) ||
-        invoice.client_name.toLowerCase().includes(query)
+        invoice.client_name.toLowerCase().includes(query),
     );
   }
 
@@ -116,7 +116,7 @@ const filteredInvoices = computed(() => {
           now.getDate(),
           23,
           59,
-          59
+          59,
         );
         break;
       }
@@ -126,7 +126,7 @@ const filteredInvoices = computed(() => {
         startDate = new Date(
           yesterday.getFullYear(),
           yesterday.getMonth(),
-          yesterday.getDate()
+          yesterday.getDate(),
         );
         endDate = new Date(
           yesterday.getFullYear(),
@@ -134,7 +134,7 @@ const filteredInvoices = computed(() => {
           yesterday.getDate(),
           23,
           59,
-          59
+          59,
         );
         break;
       }
@@ -144,7 +144,7 @@ const filteredInvoices = computed(() => {
         startDate = new Date(
           weekStart.getFullYear(),
           weekStart.getMonth(),
-          weekStart.getDate()
+          weekStart.getDate(),
         );
         break;
       }
@@ -156,7 +156,7 @@ const filteredInvoices = computed(() => {
         startDate = new Date(
           lastWeekStart.getFullYear(),
           lastWeekStart.getMonth(),
-          lastWeekStart.getDate()
+          lastWeekStart.getDate(),
         );
         endDate = new Date(
           lastWeekEnd.getFullYear(),
@@ -164,7 +164,7 @@ const filteredInvoices = computed(() => {
           lastWeekEnd.getDate(),
           23,
           59,
-          59
+          59,
         );
         break;
       }
@@ -182,7 +182,7 @@ const filteredInvoices = computed(() => {
           lastMonthEnd.getDate(),
           23,
           59,
-          59
+          59,
         );
         break;
       }
@@ -214,7 +214,7 @@ const filteredInvoices = computed(() => {
         const invoiceDate = new Date(
           parseInt(year),
           parseInt(month) - 1,
-          parseInt(day)
+          parseInt(day),
         );
 
         if (startDate && endDate) {
@@ -233,7 +233,7 @@ const filteredInvoices = computed(() => {
 });
 
 const totalPages = computed(() =>
-  Math.ceil(filteredInvoices.value.length / itemsPerPage.value)
+  Math.ceil(filteredInvoices.value.length / itemsPerPage.value),
 );
 
 const paginatedInvoices = computed(() => {
@@ -248,7 +248,7 @@ watch(
   () => {
     currentPage.value = 0;
     saveFiltersToStorage(); // Sauvegarder les filtres à chaque changement
-  }
+  },
 );
 
 // Watcher séparé pour sauvegarder automatiquement les filtres
@@ -257,7 +257,7 @@ watch(
   () => {
     saveFiltersToStorage();
   },
-  { deep: true }
+  { deep: true },
 );
 
 const fetchInvoices = async () => {
@@ -277,7 +277,7 @@ const fetchInvoices = async () => {
         *,
         magasin_id,
         clients(name)
-      `
+      `,
       )
       .eq("magasin_id", magasinStore.magasinId)
       .order("date", { ascending: false });
@@ -376,6 +376,24 @@ const getStatusLabel = (invoice) => {
   }
 };
 
+const getPaymentStatusLabel = (invoice) => {
+  if (invoice.status === "paid") return "Payée";
+  if (invoice.status === "partially_paid") return "Partiellement payée";
+  return "Non payée";
+};
+
+const getPaymentStatusIcon = (invoice) => {
+  if (invoice.status === "paid") return "i-lucide-check-circle";
+  if (invoice.status === "partially_paid") return "i-lucide-alert-circle";
+  return "i-lucide-x-circle";
+};
+
+const getPaymentStatusClass = (invoice) => {
+  if (invoice.status === "paid") return "text-green-600";
+  if (invoice.status === "partially_paid") return "text-amber-600";
+  return "text-orange-600";
+};
+
 const getVisiblePages = () => {
   const pages = [];
   const total = totalPages.value;
@@ -398,7 +416,7 @@ const getVisiblePages = () => {
   }
 
   return pages.filter(
-    (page) => page !== "..." || pages.indexOf(page) === pages.lastIndexOf(page)
+    (page) => page !== "..." || pages.indexOf(page) === pages.lastIndexOf(page),
   );
 };
 
@@ -429,7 +447,7 @@ onMounted(() => {
           fetchInvoices();
           stop();
         }
-      }
+      },
     );
     // Si après 2 secondes magasinId n'est toujours pas défini, afficher une erreur
     setTimeout(() => {
@@ -448,7 +466,7 @@ watch(
   () => {
     magasinIdError.value = "";
     fetchInvoices();
-  }
+  },
 );
 </script>
 
@@ -594,7 +612,7 @@ watch(
               v-model="customStartDate"
               type="date"
               class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
+            />
             <label class="text-sm font-medium text-gray-700 whitespace-nowrap"
               >Au :</label
             >
@@ -602,7 +620,7 @@ watch(
               v-model="customEndDate"
               type="date"
               class="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
+            />
           </div>
 
           <!-- Bouton pour effacer tous les filtres -->
@@ -723,19 +741,13 @@ watch(
                 />
                 <div class="flex items-center gap-1">
                   <UIcon
-                    :name="
-                      invoice.delivery
-                        ? 'i-lucide-check-circle'
-                        : 'i-lucide-truck'
-                    "
-                    :class="
-                      invoice.delivery ? 'text-green-600' : 'text-orange-600'
-                    "
+                    :name="getPaymentStatusIcon(invoice)"
+                    :class="getPaymentStatusClass(invoice)"
                     class="w-4 h-4"
                   />
-                  <span class="text-xs text-gray-600">
-                    {{ invoice.delivery ? "Livrée" : "En cours" }}
-                  </span>
+                  <span class="text-xs text-gray-600">{{
+                    getPaymentStatusLabel(invoice)
+                  }}</span>
                 </div>
               </div>
             </div>
@@ -854,7 +866,7 @@ watch(
             {{
               Math.min(
                 (currentPage + 1) * itemsPerPage,
-                filteredInvoices.length
+                filteredInvoices.length,
               )
             }}
             sur {{ filteredInvoices.length }} commandes

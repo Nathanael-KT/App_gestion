@@ -98,21 +98,14 @@ const fetchInvoice = async () => {
     loading.value = true;
     error.value = null;
 
-    // Récupérer la facture avec ses items
+    // Étape 1: Récupérer la facture (sans jointe imbriquée problématique)
     const { data: invoice, error: invoiceError } = await supabase
       .from("invoices")
       .select(
         `
         *,
-        clients(id, name, email, phone, address),
-        invoice_items(
-          id,
-          product_id,
-          quantity,
-          price,
-          products_carreaux(id, reference, name, price, stock)
-        )
-      `
+        clients(id, name, email, phone, address)
+      `,
       )
       .eq("id", invoiceId)
       .single();
@@ -122,6 +115,25 @@ const fetchInvoice = async () => {
     if (!invoice) {
       throw new Error("Facture non trouvée");
     }
+
+    // Étape 2: Récupérer les articles séparément
+    const { data: itemsData, error: itemsError } = await supabase
+      .from("invoice_items")
+      .select(
+        `
+        id,
+        product_id,
+        quantity,
+        price,
+        is_external,
+        external_reference,
+        external_description,
+        products_carreaux(id, reference, name, price, stock)
+      `,
+      )
+      .eq("invoice_id", invoiceId);
+
+    if (itemsError) throw itemsError;
 
     // Remplir les données de la facture
     invoiceData.value = {
@@ -138,15 +150,20 @@ const fetchInvoice = async () => {
     selectedClient.value = invoice.clients;
 
     // Remplir les items de la facture
-    invoiceItems.value = invoice.invoice_items.map((item) => ({
+    invoiceItems.value = (itemsData || []).map((item) => ({
       id: item.id,
       product_id: item.product_id,
-      reference: item.products_carreaux?.reference || "N/A",
-      description: item.products_carreaux?.name || "Produit inconnu",
+      reference: item.is_external
+        ? item.external_reference
+        : item.products_carreaux?.reference || "N/A",
+      description: item.is_external
+        ? item.external_description
+        : item.products_carreaux?.name || "Produit inconnu",
       quantity: item.quantity,
       price: item.price,
       total: item.quantity * item.price,
       product: item.products_carreaux,
+      is_external: item.is_external,
     }));
 
     // Sauvegarder les items originaux pour le calcul du stock
@@ -319,7 +336,7 @@ const handleSubmit = async () => {
         product_id: item.product_id,
         quantity: item.quantity,
         price: item.price,
-      }))
+      })),
     );
 
     if (itemsError) throw itemsError;
@@ -327,7 +344,7 @@ const handleSubmit = async () => {
     // Restaurer le stock des anciens items
     for (const originalItem of originalItems.value) {
       const product = products.value.find(
-        (p) => p.id === originalItem.product_id
+        (p) => p.id === originalItem.product_id,
       );
       if (product) {
         const newStock = product.stock + originalItem.quantity;
@@ -352,7 +369,7 @@ const handleSubmit = async () => {
 
         if (newStock < 0) {
           throw new Error(
-            `Stock insuffisant pour le produit ${item.description}`
+            `Stock insuffisant pour le produit ${item.description}`,
           );
         }
 
@@ -465,15 +482,15 @@ onMounted(async () => {
                 invoiceData.status === 'paid'
                   ? 'green'
                   : invoiceData.status === 'pending'
-                  ? 'yellow'
-                  : 'gray'
+                    ? 'yellow'
+                    : 'gray'
               "
               :label="
                 invoiceData.status === 'paid'
                   ? 'Payée'
                   : invoiceData.status === 'pending'
-                  ? 'En attente'
-                  : invoiceData.status
+                    ? 'En attente'
+                    : invoiceData.status
               "
               variant="soft"
             />
