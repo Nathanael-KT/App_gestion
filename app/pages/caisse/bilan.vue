@@ -465,7 +465,7 @@ const loadCashHistory = async () => {
       // Filtrer les cash_counts par magasin et récupérer l'utilisateur
       const { data: countsData, error: countsError } = await supabase
         .from("cash_counts")
-        .select("*, users:users!fk_cash_counts_counted_by(id, name, email)")
+        .select("*, users:users(id, name, email)")
         .eq("magasin_id", magasinId);
 
       if (countsError) throw countsError;
@@ -515,9 +515,7 @@ const loadCashHistory = async () => {
       const { data: transactionsData, error: transactionsError } =
         await supabase
           .from("cash_transactions")
-          .select(
-            "*, users:users!fk_cash_transactions_created_by(id, name, email)",
-          )
+          .select("*, users:users(id, name, email)")
           .eq("magasin_id", magasinId);
 
       if (transactionsError) throw transactionsError;

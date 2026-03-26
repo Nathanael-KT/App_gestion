@@ -706,7 +706,7 @@ async function loadCashSummary() {
       .select(
         `
         *,
-        users:users!fk_cash_counts_counted_by (
+        users:users (
           name,
           email
         )
@@ -727,7 +727,7 @@ async function loadCashSummary() {
       .select(
         `
         *,
-        users:users!fk_cash_emptying_emptied_by (
+        users:users (
           name,
           email
         )
