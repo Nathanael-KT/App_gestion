@@ -9,17 +9,17 @@
 DELETE FROM public.users WHERE id IS NULL;
 
 -- Supprimer les doublons sur id en gardant le plus récent
-DELETE FROM public.users 
-WHERE id IN (
-    SELECT id 
+DELETE FROM public.users u
+USING (
+    SELECT ctid
     FROM (
-        SELECT id, 
-               created_at,
+        SELECT ctid,
                ROW_NUMBER() OVER (PARTITION BY id ORDER BY created_at DESC) as rn
         FROM public.users
-    ) t 
+    ) t
     WHERE t.rn > 1
-);
+) d
+WHERE u.ctid = d.ctid;
 
 -- ============================================
 -- Étape 2 : Supprimer l'ancien index et la contrainte existante
@@ -42,13 +42,13 @@ ALTER TABLE public.users ADD PRIMARY KEY (id);
 -- Étape 4 : Recréer les index nécessaires
 -- ============================================
 
--- Recréer l'index unique sur email (pour garantir l'unicité)
-DROP INDEX IF EXISTS public.users_email_key;
-CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email);
+-- Supprimer/recréer la contrainte unique sur email (et son index sous-jacent)
+ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_email_key;
+ALTER TABLE public.users ADD CONSTRAINT users_email_key UNIQUE (email);
 
--- Recréer l'index unique sur auth_user_id
-DROP INDEX IF EXISTS public.users_auth_user_id_key;
-CREATE UNIQUE INDEX users_auth_user_id_key ON public.users USING btree (auth_user_id);
+-- Supprimer/recréer la contrainte unique sur auth_user_id (et son index sous-jacent)
+ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_auth_user_id_key;
+ALTER TABLE public.users ADD CONSTRAINT users_auth_user_id_key UNIQUE (auth_user_id);
 
 -- Recréer les index de performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON public.users USING btree (email);
