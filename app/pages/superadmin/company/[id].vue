@@ -59,26 +59,15 @@ const menuToPath: Record<string, string> = {
 async function fetchCompanyInfo() {
   loading.value = true;
   error.value = "";
-  let result = await supabase
+  const { data, error: supaError } = await supabase
     .from("company_settings")
     .select("*")
     .eq("id", companyId)
     .single();
-  if (
-    result.error &&
-    result.error.message.includes('relation "public.companies" does not exist')
-  ) {
-    result = await supabase
-      .from("company")
-      .select("id, company_name, company_phone, company_address, company_email")
-      .eq("id", companyId)
-      .single();
-  }
-  const { data, error: supaError } = result;
   if (!supaError && data) {
     company.value = data as Company;
   } else {
-    error.value = supaError?.message || "Erreur lors du chargement";
+    error.value = supaError?.message || "Erreur lors du chargement des données de l'entreprise";
   }
   loading.value = false;
 }
@@ -109,25 +98,30 @@ async function fetchBlockedMenus() {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function setMenuStatus(menu: string, blocked: boolean) {
   menuActionLoading.value = menu;
   let newBlockedMenus: string[];
   if (blocked) {
-    newBlockedMenus = [...blockedMenus.value, menu];
+    // Le menu doit être bloqué
+    if (!blockedMenus.value.includes(menu)) {
+      newBlockedMenus = [...blockedMenus.value, menu];
+    } else {
+      newBlockedMenus = blockedMenus.value;
+    }
   } else {
+    // Le menu doit être débloqué
     newBlockedMenus = blockedMenus.value.filter((m) => m !== menu);
   }
   const { error: supaError } = await supabase
     .from("company_settings")
-    .update({ blocked_menus: newBlockedMenus })
+    .update({ blocked_menus: newBlockedMenus, updated_at: new Date().toISOString() })
     .eq("id", companyId);
   menuActionLoading.value = null;
   if (!supaError) {
     blockedMenus.value = newBlockedMenus;
     lastUpdate.value = new Date();
   } else {
-    error.value = supaError?.message || "Erreur lors de la mise à jour";
+    error.value = supaError?.message || "Erreur lors de la mise à jour du menu";
   }
 }
 
@@ -202,7 +196,7 @@ onMounted(async () => {
           >⚠️ Cette compagnie est actuellement bloquée globalement.</span
         >
         <span class="text-red-700 font-semibold"
-          >Aucun accès n'est autorisé tant que le blocage global est actif.<br />Les
+          >Aucun accès n'est autorisé tant que le blocage global est actif.<br >Les
           switches de menu sont désactivés.</span
         >
       </div>
@@ -309,21 +303,25 @@ onMounted(async () => {
                       ? "Bloqué"
                       : "Actif"
                 }}
-              </span>
-            </div>
-            <div class="flex items-center justify-center" style="width: 90px">
-              <label
-                class="inline-flex items-center cursor-pointer"
+              </sclass="{ 'opacity-50 cursor-not-allowed': companyBlocked }"
                 :title="
-                  blockedMenus.includes(menu)
-                    ? 'Ce menu est bloqué pour cette compagnie'
-                    : 'Ce menu est actif'
+                  companyBlocked
+                    ? 'La compagnie est bloquée globalement'
+                    : blockedMenus.includes(menu)
+                      ? 'Cliquer pour débloquer ce menu'
+                      : 'Cliquer pour bloquer ce menu'
                 "
               >
                 <input
                   type="checkbox"
                   class="sr-only peer"
                   :checked="blockedMenus.includes(menu)"
+                  :disabled="companyBlocked || menuActionLoading === menu"
+                  @change="setMenuStatus(menu, !blockedMenus.includes(menu))"
+                >
+                <div
+                  class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-all duration-200 relative"
+                  :class="{ 'opacity-50': companyBlocked || menuActionLoading === menu }
                   :disabled="true"
                   @change.prevent
                 />
@@ -366,12 +364,12 @@ onMounted(async () => {
                   </span>
                 </div>
               </label>
-            </div>
+            </span></div>
           </div>
         </div>
         <p class="mt-4 text-sm text-gray-500">
           Utilisez le switch pour activer ou bloquer chaque menu. Le statut est
-          sauvegardé et affiché après chaque rafraîchissement.<br />
+          sauvegardé et affiché après chaque rafraîchissement.<br >
           <span class="text-red-600 font-semibold"
             >Si la compagnie est globalement bloquée, tous les accès sont
             désactivés.</span

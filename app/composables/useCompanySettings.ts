@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 // Types pour les paramètres de l'entreprise
 export interface CompanySettings {
   blocked_menus?: string[];
+  blocked?: boolean; // Statut de blocage global
   id?: string;
   company_name?: string;
   company_email?: string;
@@ -42,6 +43,7 @@ export const useCompanySettings = () => {
 
   // Valeurs par défaut pour les nouveaux paramètres
   const defaultSettings: CompanySettings = {
+    blocked: false,
     currency: "EUR",
     tax_rate: 20,
     invoice_prefix: "INV",
@@ -315,7 +317,7 @@ export const useCompanySettings = () => {
       settingsToValidate.critical_stock_threshold &&
       settingsToValidate.low_stock_threshold &&
       settingsToValidate.critical_stock_threshold >
-        settingsToValidate.low_stock_threshold
+      settingsToValidate.low_stock_threshold
     ) {
       errors.push("Le seuil critique doit être inférieur ou égal au seuil bas");
     }
