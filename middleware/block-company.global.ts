@@ -1,48 +1,95 @@
 // middleware/block-company.global.ts
-export default defineNuxtRouteMiddleware(async (to, from) => {
-  // Ne pas bloquer les routes publiques ou d'authentification
-  if (to.path.startsWith("/auth/") || to.path === "/login" || to.path === "/error") {
+/**
+ * Middleware de blocage par compagnie et menus
+ * Vérifie l'accès utilisateur en fonction des paramètres de compagnie
+ */
+
+interface UserData {
+  roles?: string[];
+  company_id?: string;
+}
+
+interface CompanySettingsData {
+  blocked?: boolean;
+  blocked_menus?: string[];
+}
+
+const BLOCKED_MENU_PATHS: Record<string, string> = {
+  Accueil: "/",
+  Stock: "/stock",
+  Clients: "/client",
+  Commandes: "/commande",
+  Facture: "/facture",
+  Caisse: "/caisse",
+  Utilisateurs: "/utilisateurs",
+  Rapports: "/rapports",
+  Discussion: "/discussion",
+  Paramètres: "/parametres",
+  Aide: "/aide",
+};
+
+const PUBLIC_ROUTES = ["/auth/", "/login", "/error"];
+
+export default defineNuxtRouteMiddleware(async (to) => {
+  // Ne pas bloquer les routes publiques
+  if (PUBLIC_ROUTES.some((route) => to.path.startsWith(route))) {
     return;
   }
 
   try {
-    const nuxtApp = useNuxtApp();
-    const supabase = useSupabaseClient() as any;
-    const router = useRouter();
+    const supabase = useSupabaseClient();
 
-    // Récupérer l'utilisateur courant
+    // 1. Récupérer l'utilisateur authentifié
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (authError || !user) {
+      console.debug("[block-company middleware] No authenticated user");
       return;
     }
 
-    // Ne pas bloquer les super_admin
-    const { data: userData } = await supabase
+    // 2. Récupérer les données utilisateur (rôles et company_id)
+    const { data: userData, error: userError } = await supabase
       .from("users")
       .select("roles, company_id")
       .eq("auth_user_id", user.id)
       .single();
 
-    if (userData?.roles?.includes("super_admin")) {
+    if (userError) {
+      console.warn("[block-company middleware] User data fetch error:", userError.message);
       return;
     }
 
-    if (!userData?.company_id) {
+    const typedUserData = userData as UserData | null;
+
+    // Super admin peut accéder à tout
+    if (typedUserData?.roles?.includes("super_admin")) {
       return;
     }
 
-    // Vérifier si la compagnie est bloquée
-    const { data: companySettings } = await supabase
+    // Utilisateur sans company_id - aucune restriction
+    if (!typedUserData?.company_id) {
+      return;
+    }
+
+    // 3. Récupérer les paramètres de la compagnie
+    const { data: companySettings, error: settingsError } = await supabase
       .from("company_settings")
       .select("blocked, blocked_menus")
-      .eq("id", userData.company_id)
+      .eq("id", typedUserData.company_id)
       .single();
 
-    // Si la compagnie est globalement bloquée
-    if (companySettings?.blocked) {
+    if (settingsError) {
+      console.warn("[block-company middleware] Company settings fetch error:", settingsError.message);
+      return;
+    }
+
+    const typedCompanySettings = companySettings as CompanySettingsData | null;
+
+    // 4. Vérifier le blocage global de la compagnie
+    if (typedCompanySettings?.blocked === true) {
       return navigateTo({
         path: "/error",
         query: {
@@ -52,28 +99,14 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       });
     }
 
-    // Vérifier si le menu spécifique est bloqué
-    const blockedMenus = companySettings?.blocked_menus || [];
-    if (blockedMenus && Array.isArray(blockedMenus) && blockedMenus.length > 0) {
-      const blockedMenuPaths: Record<string, string> = {
-        Accueil: "/",
-        Stock: "/stock",
-        Clients: "/client",
-        Commandes: "/commande",
-        Facture: "/facture",
-        Caisse: "/caisse",
-        Utilisateurs: "/utilisateurs",
-        Rapports: "/rapports",
-        Discussion: "/discussion",
-        Paramètres: "/parametres",
-        Aide: "/aide",
-      };
-
+    // 5. Vérifier les menus bloqués spécifiques
+    const blockedMenus = typedCompanySettings?.blocked_menus;
+    if (Array.isArray(blockedMenus) && blockedMenus.length > 0) {
       for (const menu of blockedMenus) {
-        const blockedPath = blockedMenuPaths[menu];
+        const blockedPath = BLOCKED_MENU_PATHS[menu];
         if (
           blockedPath &&
-          (to.path === blockedPath || to.path.startsWith(blockedPath + "/"))
+          (to.path === blockedPath || to.path.startsWith(`${blockedPath}/`))
         ) {
           return navigateTo({
             path: "/error",
@@ -85,7 +118,8 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       }
     }
   } catch (error) {
-    console.error("[block-company middleware] Error:", error);
-    // En cas d'erreur, laisser passer l'utilisateur (ne pas bloquer)
+    console.error("[block-company middleware] Unexpected error:", error);
+    // En cas d'erreur inattendue, laisser passer (fail-open)
+    return;
   }
 });

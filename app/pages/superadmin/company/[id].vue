@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useSupabaseClient } from "#imports";
 
-const router = useRouter();
 const route = useRoute();
+const supabase = useSupabaseClient();
 
 const companyId = route.params.id as string;
-const supabase = useSupabaseClient() as any;
 
 interface Company {
   id: string;
@@ -17,6 +14,9 @@ interface Company {
   company_email: string;
   company_website: string;
   currency?: string;
+  blocked?: boolean;
+  blocked_menus?: string[];
+  updated_at?: string;
 }
 
 const company = ref<Company | null>(null);
@@ -26,6 +26,8 @@ const error = ref("");
 const blockedMenus = ref<string[]>([]);
 const companyBlocked = ref(false);
 const lastUpdate = ref<Date | null>(null);
+const menuActionLoading = ref<string | null>(null);
+
 const allMenus = [
   "Accueil",
   "Stock",
@@ -39,129 +41,139 @@ const allMenus = [
   "Paramètres",
   "Aide",
 ];
-const menuActionLoading = ref<string | null>(null);
-
-// Mapping menu -> path principal
-const menuToPath: Record<string, string> = {
-  Accueil: "/",
-  Stock: "/stock",
-  Clients: "/client",
-  Commandes: "/commande",
-  Facture: "/facture",
-  Caisse: "/caisse",
-  Utilisateurs: "/utilisateurs",
-  Rapports: "/rapports",
-  Discussion: "/discussion",
-  Paramètres: "/parametres",
-  Aide: "/aide",
-};
 
 async function fetchCompanyInfo() {
   loading.value = true;
   error.value = "";
-  const { data, error: supaError } = await supabase
-    .from("company_settings")
-    .select("*")
-    .eq("id", companyId)
-    .single();
-  if (!supaError && data) {
-    company.value = data as Company;
-  } else {
-    error.value = supaError?.message || "Erreur lors du chargement des données de l'entreprise";
+  try {
+    const { data, error: supaError } = await supabase
+      .from("company_settings")
+      .select("*")
+      .eq("id", companyId)
+      .single();
+
+    if (supaError) {
+      error.value =
+        supaError.message ||
+        "Erreur lors du chargement des données de l'entreprise";
+      console.error("[company detail] Fetch error:", supaError);
+      return;
+    }
+
+    if (data) {
+      company.value = data as Company;
+    }
+  } catch (err) {
+    error.value =
+      err instanceof Error
+        ? err.message
+        : "Erreur lors du chargement des données";
+    console.error("[company detail] Unexpected error:", err);
+  } finally {
+    loading.value = false;
   }
-  loading.value = false;
 }
 
 async function fetchBlockedMenus() {
-  const { data, error: supaError } = await supabase
-    .from("company_settings")
-    .select("blocked_menus, updated_at, blocked")
-    .eq("id", companyId)
-    .single();
-  type BlockedMenusResponse = {
-    blocked_menus?: string[];
-    updated_at?: string;
-    blocked?: boolean;
-  };
-  const typedData = data as BlockedMenusResponse | null;
-  const blockedMenusArr = typedData?.blocked_menus;
-  if (!supaError && Array.isArray(blockedMenusArr)) {
-    blockedMenus.value = blockedMenusArr;
-    lastUpdate.value = typedData?.updated_at
-      ? new Date(typedData.updated_at)
-      : null;
-    companyBlocked.value = !!typedData?.blocked;
-  } else {
-    blockedMenus.value = [];
-    lastUpdate.value = null;
-    companyBlocked.value = false;
+  try {
+    const { data, error: supaError } = await supabase
+      .from("company_settings")
+      .select("blocked_menus, updated_at, blocked")
+      .eq("id", companyId)
+      .single();
+
+    if (supaError) {
+      console.warn("[company detail] Blocked menus fetch error:", supaError);
+      return;
+    }
+
+    if (data && typeof data === "object") {
+      const typedData = data as Record<string, unknown>;
+      blockedMenus.value = Array.isArray(typedData.blocked_menus)
+        ? (typedData.blocked_menus as string[])
+        : [];
+      lastUpdate.value = typedData.updated_at
+        ? new Date(typedData.updated_at as string)
+        : null;
+      companyBlocked.value = typedData.blocked === true;
+    }
+  } catch (err) {
+    console.error(
+      "[company detail] Unexpected error fetching blocked menus:",
+      err,
+    );
   }
 }
 
-async function setMenuStatus(menu: string, blocked: boolean) {
+async function setMenuStatus(menu: string, shouldBlock: boolean) {
   menuActionLoading.value = menu;
-  let newBlockedMenus: string[];
-  if (blocked) {
-    // Le menu doit être bloqué
-    if (!blockedMenus.value.includes(menu)) {
-      newBlockedMenus = [...blockedMenus.value, menu];
-    } else {
-      newBlockedMenus = blockedMenus.value;
+  try {
+    const newBlockedMenus = shouldBlock
+      ? [...new Set([...blockedMenus.value, menu])]
+      : blockedMenus.value.filter((m) => m !== menu);
+
+    const { error: supaError } = await supabase
+      .from("company_settings")
+      .update({
+        blocked_menus: newBlockedMenus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", companyId);
+
+    if (supaError) {
+      error.value =
+        supaError.message || "Erreur lors de la mise à jour du menu";
+      console.error("[company detail] Update error:", supaError);
+      return;
     }
-  } else {
-    // Le menu doit être débloqué
-    newBlockedMenus = blockedMenus.value.filter((m) => m !== menu);
-  }
-  const { error: supaError } = await supabase
-    .from("company_settings")
-    .update({ blocked_menus: newBlockedMenus, updated_at: new Date().toISOString() })
-    .eq("id", companyId);
-  menuActionLoading.value = null;
-  if (!supaError) {
+
     blockedMenus.value = newBlockedMenus;
     lastUpdate.value = new Date();
-  } else {
-    error.value = supaError?.message || "Erreur lors de la mise à jour du menu";
+  } catch (err) {
+    error.value =
+      err instanceof Error ? err.message : "Erreur lors de la mise à jour";
+    console.error("[company detail] Unexpected error updating menu:", err);
+  } finally {
+    menuActionLoading.value = null;
   }
 }
 
 async function setCompanyBlocked(blocked: boolean) {
   loading.value = true;
-  const { error: supaError } = await supabase
-    .from("company_settings")
-    .update({ blocked })
-    .eq("id", companyId);
-  loading.value = false;
-  if (!supaError) {
+  try {
+    const { error: supaError } = await supabase
+      .from("company_settings")
+      .update({
+        blocked,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", companyId);
+
+    if (supaError) {
+      error.value =
+        supaError.message || "Erreur lors du blocage global de la compagnie";
+      console.error("[company detail] Update error:", supaError);
+      return;
+    }
+
     companyBlocked.value = blocked;
     lastUpdate.value = new Date();
-  } else {
-    error.value = supaError?.message || "Erreur lors du blocage global";
+  } catch (err) {
+    error.value =
+      err instanceof Error
+        ? err.message
+        : "Erreur lors du blocage de la compagnie";
+    console.error(
+      "[company detail] Unexpected error updating blocked status:",
+      err,
+    );
+  } finally {
+    loading.value = false;
   }
 }
 
 onMounted(async () => {
-  await fetchCompanyInfo();
-  await fetchBlockedMenus();
-
-  if (blockedMenus.value.length > 0) {
-    const blockedPaths = blockedMenus.value
-      .map((menu) => menuToPath[menu])
-      .filter(Boolean);
-    if (
-      blockedPaths.some(
-        (p) => route.path === p || route.path.startsWith(p + "/"),
-      )
-    ) {
-      router.replace({
-        path: "/error",
-        query: {
-          message:
-            "Vous n'avez pas le droit d'accéder à cette page. Contactez votre administrateur.",
-        },
-      });
-    }
-  }
+  await Promise.all([fetchCompanyInfo(), fetchBlockedMenus()]);
 });
 </script>
 
@@ -196,7 +208,7 @@ onMounted(async () => {
           >⚠️ Cette compagnie est actuellement bloquée globalement.</span
         >
         <span class="text-red-700 font-semibold"
-          >Aucun accès n'est autorisé tant que le blocage global est actif.<br >Les
+          >Aucun accès n'est autorisé tant que le blocage global est actif.<br />Les
           switches de menu sont désactivés.</span
         >
       </div>
@@ -303,7 +315,12 @@ onMounted(async () => {
                       ? "Bloqué"
                       : "Actif"
                 }}
-              </sclass="{ 'opacity-50 cursor-not-allowed': companyBlocked }"
+              </span>
+            </div>
+            <div class="flex items-center justify-center" style="width: 90px">
+              <label
+                class="inline-flex items-center cursor-pointer"
+                :class="{ 'opacity-50 cursor-not-allowed': companyBlocked }"
                 :title="
                   companyBlocked
                     ? 'La compagnie est bloquée globalement'
@@ -318,15 +335,12 @@ onMounted(async () => {
                   :checked="blockedMenus.includes(menu)"
                   :disabled="companyBlocked || menuActionLoading === menu"
                   @change="setMenuStatus(menu, !blockedMenus.includes(menu))"
-                >
-                <div
-                  class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-all duration-200 relative"
-                  :class="{ 'opacity-50': companyBlocked || menuActionLoading === menu }
-                  :disabled="true"
-                  @change.prevent
                 />
                 <div
                   class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-all duration-200 relative"
+                  :class="{
+                    'opacity-50': companyBlocked || menuActionLoading === menu,
+                  }"
                 >
                   <div
                     :class="
@@ -364,12 +378,12 @@ onMounted(async () => {
                   </span>
                 </div>
               </label>
-            </span></div>
+            </div>
           </div>
         </div>
         <p class="mt-4 text-sm text-gray-500">
           Utilisez le switch pour activer ou bloquer chaque menu. Le statut est
-          sauvegardé et affiché après chaque rafraîchissement.<br >
+          sauvegardé et affiché après chaque rafraîchissement.<br />
           <span class="text-red-600 font-semibold"
             >Si la compagnie est globalement bloquée, tous les accès sont
             désactivés.</span
