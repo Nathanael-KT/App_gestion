@@ -19,9 +19,30 @@ interface Company {
   updated_at?: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  name?: string;
+  roles?: string[];
+  created_at?: string;
+}
+
+interface Magasin {
+  id: string;
+  nom: string;
+  adresse?: string;
+  telephone?: string;
+  email?: string;
+  created_at?: string;
+}
+
 const company = ref<Company | null>(null);
 const loading = ref(false);
 const error = ref("");
+const users = ref<User[]>([]);
+const magasins = ref<Magasin[]>([]);
+const usersLoading = ref(false);
+const magasinsLoading = ref(false);
 
 const blockedMenus = ref<string[]>([]);
 const companyBlocked = ref(false);
@@ -172,8 +193,55 @@ async function setCompanyBlocked(blocked: boolean) {
   }
 }
 
+async function fetchUsers() {
+  usersLoading.value = true;
+  try {
+    const { data, error: supaError } = await supabase
+      .from("users")
+      .select("id, email, name, roles, created_at")
+      .eq("company_id", companyId);
+
+    if (supaError) {
+      console.warn("[company detail] Users fetch error:", supaError);
+      return;
+    }
+
+    users.value = Array.isArray(data) ? (data as User[]) : [];
+  } catch (err) {
+    console.error("[company detail] Unexpected error fetching users:", err);
+  } finally {
+    usersLoading.value = false;
+  }
+}
+
+async function fetchMagasins() {
+  magasinsLoading.value = true;
+  try {
+    const { data, error: supaError } = await supabase
+      .from("magasins")
+      .select("id, nom, adresse, telephone, email, created_at")
+      .eq("company_id", companyId);
+
+    if (supaError) {
+      console.warn("[company detail] Magasins fetch error:", supaError);
+      return;
+    }
+
+    magasins.value = Array.isArray(data) ? (data as Magasin[]) : [];
+  } catch (err) {
+    console.error("[company detail] Unexpected error fetching magasins:", err);
+  } finally {
+    magasinsLoading.value = false;
+  }
+}
+
 onMounted(async () => {
-  await Promise.all([fetchCompanyInfo(), fetchBlockedMenus()]);
+  await Promise.all([
+    fetchCompanyInfo(),
+    fetchBlockedMenus(),
+    fetchUsers(),
+    fetchMagasins(),
+  ]);
 });
 </script>
 
@@ -389,6 +457,124 @@ onMounted(async () => {
             désactivés.</span
           >
         </p>
+      </div>
+
+      <!-- Utilisateurs Section -->
+      <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4">
+          Utilisateurs ({{ users.length }})
+        </h2>
+        <div v-if="usersLoading" class="text-gray-500 animate-pulse">
+          <div class="h-4 bg-gray-200 rounded w-full mb-2" />
+          <div class="h-4 bg-gray-100 rounded w-full mb-2" />
+        </div>
+        <div
+          v-else-if="users.length === 0"
+          class="text-center py-8 text-gray-500"
+        >
+          <UIcon
+            name="heroicons:users-20-solid"
+            class="h-12 w-12 mx-auto text-gray-300 mb-2"
+          />
+          <p>Aucun utilisateur associé à cette compagnie</p>
+        </div>
+        <div v-else class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b">
+                <th class="text-left py-2 px-2 font-semibold">Email</th>
+                <th class="text-left py-2 px-2 font-semibold">Nom</th>
+                <th class="text-left py-2 px-2 font-semibold">Rôles</th>
+                <th class="text-left py-2 px-2 font-semibold">Date d'ajout</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="user in users"
+                :key="user.id"
+                class="border-b hover:bg-gray-50"
+              >
+                <td class="py-2 px-2 text-sm">{{ user.email }}</td>
+                <td class="py-2 px-2 text-sm">{{ user.name || "-" }}</td>
+                <td class="py-2 px-2">
+                  <div class="flex gap-1 flex-wrap">
+                    <span
+                      v-for="role in user.roles || []"
+                      :key="role"
+                      class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded"
+                    >
+                      {{ role }}
+                    </span>
+                  </div>
+                </td>
+                <td class="py-2 px-2 text-sm text-gray-500">
+                  {{
+                    user.created_at
+                      ? new Date(user.created_at).toLocaleDateString("fr-FR")
+                      : "-"
+                  }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Magasins Section -->
+      <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4">
+          Magasins/Filiales ({{ magasins.length }})
+        </h2>
+        <div v-if="magasinsLoading" class="text-gray-500 animate-pulse">
+          <div class="h-4 bg-gray-200 rounded w-full mb-2" />
+          <div class="h-4 bg-gray-100 rounded w-full mb-2" />
+        </div>
+        <div
+          v-else-if="magasins.length === 0"
+          class="text-center py-8 text-gray-500"
+        >
+          <UIcon
+            name="heroicons:building-storefront-20-solid"
+            class="h-12 w-12 mx-auto text-gray-300 mb-2"
+          />
+          <p>Aucun magasin associé à cette compagnie</p>
+        </div>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div
+            v-for="magasin in magasins"
+            :key="magasin.id"
+            class="bg-gray-50 rounded-lg p-4 border"
+          >
+            <h3 class="font-semibold text-gray-900 mb-2">{{ magasin.nom }}</h3>
+            <div class="text-sm text-gray-600 space-y-1">
+              <div v-if="magasin.adresse" class="flex items-start gap-2">
+                <UIcon
+                  name="heroicons:map-pin-20-solid"
+                  class="h-4 w-4 mt-0.5 flex-shrink-0"
+                />
+                <span>{{ magasin.adresse }}</span>
+              </div>
+              <div v-if="magasin.telephone" class="flex items-center gap-2">
+                <UIcon
+                  name="heroicons:phone-20-solid"
+                  class="h-4 w-4 flex-shrink-0"
+                />
+                <span>{{ magasin.telephone }}</span>
+              </div>
+              <div v-if="magasin.email" class="flex items-center gap-2">
+                <UIcon
+                  name="heroicons:envelope-20-solid"
+                  class="h-4 w-4 flex-shrink-0"
+                />
+                <span>{{ magasin.email }}</span>
+              </div>
+              <div v-if="magasin.created_at" class="text-xs text-gray-500 mt-2">
+                Créé le:
+                {{ new Date(magasin.created_at).toLocaleDateString("fr-FR") }}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
