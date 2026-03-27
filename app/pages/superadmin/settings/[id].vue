@@ -360,11 +360,11 @@ import { useRoute } from "vue-router";
 
 const route = useRoute();
 const companyId = route.params.id as string;
-const supabase = useSupabaseClient() as any;
+const supabase = useSupabaseClient();
 
 // Utilisateurs
 interface User {
-  magasin_id: string;
+  magasin_id: string | null;
   id: string;
   name: string | null;
   email: string;
@@ -388,9 +388,9 @@ const userForm = reactive({
 interface Magasin {
   id: string;
   nom: string;
-  adresse: string;
-  telephone: string;
-  email: string;
+  adresse: string | null;
+  telephone: string | null;
+  email: string | null;
 }
 const magasins = ref<Magasin[]>([]);
 const loadingMagasins = ref(false);
@@ -427,10 +427,17 @@ function getInitials(name: string) {
 // Chargement utilisateurs
 async function loadUsers() {
   loadingUsers.value = true;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("users")
-    .select("id, name, email, phone, roles")
+    .select("id, magasin_id, name, email, phone, roles")
     .eq("company_id", companyId);
+
+  if (error) {
+    console.error("[superadmin settings] loadUsers error:", error);
+    loadingUsers.value = false;
+    return;
+  }
+
   users.value = Array.isArray(data) ? data : [];
   loadingUsers.value = false;
 }
@@ -438,10 +445,17 @@ async function loadUsers() {
 // Chargement magasins
 async function loadMagasins() {
   loadingMagasins.value = true;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("magasins")
     .select("id, nom, adresse, telephone, email")
     .eq("company_id", companyId);
+
+  if (error) {
+    console.error("[superadmin settings] loadMagasins error:", error);
+    loadingMagasins.value = false;
+    return;
+  }
+
   magasins.value = Array.isArray(data) ? data : [];
   loadingMagasins.value = false;
 }
@@ -472,64 +486,60 @@ async function saveUser() {
     !userForm.name ||
     !userForm.email ||
     userForm.roles.length === 0 ||
-    !userForm.magasin_id ||
-    !userForm.password ||
-    userForm.password.length < 8
-  )
+    !userForm.magasin_id
+  ) {
+    alert(
+      "Veuillez remplir tous les champs obligatoires (nom, email, magasin, roles).",
+    );
     return;
+  }
+
+  if (!userForm.id && (!userForm.password || userForm.password.length < 8)) {
+    alert(
+      "Le mot de passe est obligatoire (8 caractères minimum) pour un nouvel utilisateur.",
+    );
+    return;
+  }
+
   if (!userForm.id) {
-    // Création sécurisée via Supabase Auth
+    // Création via route serveur (service role) pour respecter RLS + Auth.
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: userForm.email,
-        password: userForm.password,
-        options: {
-          data: {
-            name: userForm.name,
-            roles: userForm.roles,
-            phone: userForm.phone || null,
-            magasin_id: userForm.magasin_id,
-            company_id: companyId,
-          },
-          emailRedirectTo: `${window.location.origin}/login`,
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error("Session invalide: veuillez vous reconnecter.");
+      }
+
+      await $fetch("/api/superadmin/create-user", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: {
+          companyId,
+          email: userForm.email,
+          password: userForm.password,
+          name: userForm.name,
+          phone: userForm.phone || null,
+          roles: userForm.roles,
+          magasin_id: userForm.magasin_id,
         },
       });
 
-      if (authError) {
-        throw new Error(`Erreur création compte: ${authError.message}`);
-      }
-      if (!authData.user) {
-        throw new Error("Aucun utilisateur créé");
-      }
-
-      // Attendre le trigger Supabase pour synchroniser le profil
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Vérifier la création du profil public
-      const { data: publicUser, error: checkError } = await supabase
-        .from("users")
-        .select("*")
-        .eq("auth_user_id", authData.user.id)
-        .single();
-
-      if (checkError || !publicUser) {
-        // Création manuelle si le trigger n'a pas fonctionné
-        await supabase.from("users").insert([
-          {
-            auth_user_id: authData.user.id,
-            name: userForm.name,
-            email: userForm.email,
-            phone: userForm.phone || null,
-            roles: userForm.roles,
-            magasin_id: userForm.magasin_id,
-            company_id: companyId,
-          },
-        ]);
-      }
-
       await loadUsers();
       showUserForm.value = false;
+
+      userForm.id = null;
+      userForm.name = "";
+      userForm.email = "";
+      userForm.phone = "";
+      userForm.password = "";
+      userForm.roles = [];
+      userForm.magasin_id = "";
     } catch (error) {
+      console.error("[superadmin settings] saveUser create error:", error);
       alert(
         error instanceof Error ? error.message : "Erreur création utilisateur",
       );
@@ -549,6 +559,9 @@ async function saveUser() {
     if (!error) {
       await loadUsers();
       showUserForm.value = false;
+    } else {
+      console.error("[superadmin settings] saveUser update error:", error);
+      alert(error.message || "Erreur lors de la mise à jour de l'utilisateur");
     }
   }
 }
@@ -558,7 +571,14 @@ function confirmDeleteUser(user: User) {
     .from("users")
     .delete()
     .eq("id", user.id)
-    .then(() => loadUsers());
+    .then(({ error }) => {
+      if (error) {
+        console.error("[superadmin settings] delete user error:", error);
+        alert(error.message || "Erreur lors de la suppression");
+        return;
+      }
+      void loadUsers();
+    });
 }
 
 // Magasin CRUD
@@ -573,13 +593,16 @@ function openMagasinForm() {
 function editMagasin(magasin: Magasin) {
   magasinForm.id = magasin.id;
   magasinForm.nom = magasin.nom;
-  magasinForm.adresse = magasin.adresse;
-  magasinForm.telephone = magasin.telephone;
-  magasinForm.email = magasin.email;
+  magasinForm.adresse = magasin.adresse || "";
+  magasinForm.telephone = magasin.telephone || "";
+  magasinForm.email = magasin.email || "";
   showMagasinForm.value = true;
 }
 async function saveMagasin() {
-  if (!magasinForm.nom) return;
+  if (!magasinForm.nom) {
+    alert("Le nom du magasin est obligatoire.");
+    return;
+  }
   if (!magasinForm.id) {
     // Création
     const { error } = await supabase.from("magasins").insert({
@@ -592,6 +615,9 @@ async function saveMagasin() {
     if (!error) {
       await loadMagasins();
       showMagasinForm.value = false;
+    } else {
+      console.error("[superadmin settings] saveMagasin create error:", error);
+      alert(error.message || "Erreur lors de la création du magasin");
     }
   } else {
     // Edition
@@ -607,6 +633,9 @@ async function saveMagasin() {
     if (!error) {
       await loadMagasins();
       showMagasinForm.value = false;
+    } else {
+      console.error("[superadmin settings] saveMagasin update error:", error);
+      alert(error.message || "Erreur lors de la mise à jour du magasin");
     }
   }
 }
@@ -616,7 +645,14 @@ function confirmDeleteMagasin(magasin: Magasin) {
     .from("magasins")
     .delete()
     .eq("id", magasin.id)
-    .then(() => loadMagasins());
+    .then(({ error }) => {
+      if (error) {
+        console.error("[superadmin settings] delete magasin error:", error);
+        alert(error.message || "Erreur lors de la suppression");
+        return;
+      }
+      void loadMagasins();
+    });
 }
 
 onMounted(() => {
