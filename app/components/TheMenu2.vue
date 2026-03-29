@@ -59,7 +59,7 @@ watch(
   () => props.mobileMenuOpen,
   (newVal) => {
     isMenuOpen.value = newVal;
-  }
+  },
 );
 
 onBeforeUnmount(() => {
@@ -90,8 +90,7 @@ const menuItems: Array<{
       { name: "Utilisateurs", path: "/superadmin/utilisateurs" },
       { name: "Backups", path: "/superadmin/backup" },
       { name: "Logs", path: "/superadmin/logs" },
-      { name: "Paramètres", path: "/superadmin/settings" },
-
+      { name: "Paramètres", path: "/superadmin/parametres" },
     ],
   },
   {
@@ -105,7 +104,6 @@ const menuItems: Array<{
     ],
   },
   {
-     
     name: "Aide",
     path: "/aide",
     icon: "heroicons:question-mark-circle-20-solid",
@@ -181,7 +179,7 @@ watch(
       isLoadingRoles.value = false;
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Fonction pour charger les menus bloqués pour la compagnie courante
@@ -205,7 +203,7 @@ watch(
   (id) => {
     if (id) loadBlockedMenus();
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Filtrer les éléments de menu : supprimer si l'utilisateur n'a pas le bon rôle, mais afficher en disabled si le menu est bloqué
@@ -316,8 +314,8 @@ onMounted(() => {
           isMobile
             ? 'Fermer le menu'
             : expanded
-            ? 'Réduire le menu'
-            : 'Étendre le menu'
+              ? 'Réduire le menu'
+              : 'Étendre le menu'
         "
         class="text-white hover:bg-gray-700 rounded p-2 transition-colors"
         @click="toggleMenu"
@@ -327,8 +325,8 @@ onMounted(() => {
             isMobile
               ? 'heroicons:x-mark-20-solid'
               : expanded
-              ? 'heroicons:chevron-left-20-solid'
-              : 'heroicons:chevron-right-20-solid'
+                ? 'heroicons:chevron-left-20-solid'
+                : 'heroicons:chevron-right-20-solid'
           "
           class="h-6 w-6"
         />
@@ -356,8 +354,8 @@ onMounted(() => {
               item.disabled
                 ? $event.preventDefault()
                 : item.children.length
-                ? toggleSubMenu(item.name)
-                : navigateTo(item.path, item.disabled)
+                  ? toggleSubMenu(item.name)
+                  : navigateTo(item.path, item.disabled)
             "
           >
             <UIcon
