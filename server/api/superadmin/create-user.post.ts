@@ -19,13 +19,25 @@ function extractBearerToken(authHeader?: string): string | null {
 }
 
 export default defineEventHandler(async (event) => {
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const runtimeConfig = useRuntimeConfig(event);
+
+    const supabaseUrl =
+        process.env.SUPABASE_URL ||
+        process.env.NUXT_PUBLIC_SUPABASE_URL ||
+        process.env.NUXT_SUPABASE_URL ||
+        runtimeConfig.public?.supabaseUrl;
+
+    const serviceRoleKey =
+        process.env.SUPABASE_SERVICE_ROLE_KEY ||
+        process.env.NUXT_SUPABASE_SERVICE_ROLE_KEY ||
+        process.env.SUPABASE_SERVICE_KEY ||
+        runtimeConfig.supabaseServiceRoleKey;
 
     if (!supabaseUrl || !serviceRoleKey) {
         throw createError({
             statusCode: 500,
-            statusMessage: "SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY manquant",
+            statusMessage:
+                "Configuration Supabase manquante: URL ou clé service_role introuvable",
         });
     }
 
