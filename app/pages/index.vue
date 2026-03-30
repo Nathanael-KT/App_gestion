@@ -362,7 +362,7 @@
                     <div
                       :class="`p-2 rounded-lg mr-4 ${activity.bgColor.replace(
                         '50',
-                        '100'
+                        '100',
                       )}`"
                     >
                       <UIcon
@@ -707,7 +707,7 @@
                     <div
                       :class="`p-1 rounded ${alert.bgColor.replace(
                         '50',
-                        '100'
+                        '100',
                       )}`"
                     >
                       <UIcon
@@ -823,7 +823,6 @@
 </template>
 
 <script setup>
-import { useRouter } from "vue-router";
 import { ref, onMounted } from "vue";
 import { useMagasinStore } from "../composables/useMagasinStore";
 import { useCurrentUser } from "../composables/useCurrentUser";
@@ -840,49 +839,11 @@ const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
   useCompanySettings();
 
-const router = useRouter();
 onMounted(async () => {
   if (isLoadingUser.value) {
     await loadCurrentUser();
   }
   if (companyId.value) await fetchCompanySettings(companyId.value);
-  // Si la compagnie est bloquée, redirige vers une page d'erreur
-  if (!isSuperAdmin.value && companySettings?.blocked) {
-    router.replace({
-      path: "/error",
-      query: {
-        message:
-          "Votre entreprise est actuellement bloquée par l'administrateur. Aucun accès n'est autorisé tant que le blocage global est actif. Veuillez contacter votre administrateur.",
-      },
-    });
-  }
-  if (!isSuperAdmin.value && companySettings?.blocked) {
-    router.replace({
-      path: "/error",
-      query: {
-        message:
-          "Votre entreprise est actuellement bloquée par l'administrateur. Aucun accès n'est autorisé tant que le blocage global est actif. Veuillez contacter votre administrateur.",
-      },
-    });
-  }
-  if (blockedMenus.value.length > 0) {
-    const blockedPaths = blockedMenus.value
-      .map((menu) => menuToPath[menu])
-      .filter(Boolean);
-    if (
-      blockedPaths.some(
-        (p) => route.path === p || route.path.startsWith(p + "/")
-      )
-    ) {
-      router.replace({
-        path: "/error",
-        query: {
-          message:
-            "Vous n'avez pas le droit d'accéder à cette page. Contactez votre administrateur.",
-        },
-      });
-    }
-  }
 });
 
 const { userRoles, userName, userEmail, userPhone } = useCurrentUser();
@@ -917,7 +878,7 @@ onMounted(async () => {
           await loadDashboardData(val);
           stop();
         }
-      }
+      },
     );
   } else {
     await loadDashboardData(magasinStore.magasinId);
