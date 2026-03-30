@@ -82,6 +82,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
         return navigateTo({
             path: "/error",
             query: {
+                reason: "company_access_check_failed",
                 message:
                     "Impossible de verifier le statut de votre entreprise. Acces temporairement refuse.",
             },
@@ -94,6 +95,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
         return navigateTo({
             path: "/error",
             query: {
+                reason: "company_blocked",
                 message:
                     "Votre entreprise est actuellement bloquee par l'administrateur. Aucun acces n'est autorise.",
             },
@@ -116,6 +118,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
             return navigateTo({
                 path: "/error",
                 query: {
+                    reason: "menu_blocked",
+                    menu: menuName,
                     message: `L'acces a la section \"${menuName}\" est desactive pour votre entreprise.`,
                 },
             });
