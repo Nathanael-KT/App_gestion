@@ -97,7 +97,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
             query: {
                 reason: "company_blocked",
                 message:
-                    "Votre entreprise est actuellement bloquee par l'administrateur. Aucun acces n'est autorise.",
+                    "Votre entreprise est actuellement bloquee par le support. Aucun acces n'est autorise.",
             },
         });
     }

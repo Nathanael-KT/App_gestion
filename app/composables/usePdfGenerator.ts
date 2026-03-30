@@ -112,13 +112,27 @@ export const usePdfGenerator = () => {
           external_description
         `,
         )
-        .eq("invoice_id", invoiceId);
+        .eq("invoice_id", invoiceId)
+        .order("id", { ascending: true });
 
       if (itemsError) throw itemsError;
 
       // Étape 3: Charger les produits si nécessaire
       const typedItems = (invoiceItems || []) as InvoiceItem[];
-      const productIds = typedItems
+
+      // Dédoublonnage défensif: évite les lignes répétées en cas de réponse incohérente.
+      const uniqueItemsMap = new Map<string, InvoiceItem>();
+      typedItems.forEach((item, index) => {
+        const key = item.id
+          ? item.id
+          : `${item.invoice_id}-${item.product_id || item.external_reference || "item"}-${item.quantity}-${item.price}-${index}`;
+        if (!uniqueItemsMap.has(key)) {
+          uniqueItemsMap.set(key, item);
+        }
+      });
+      const normalizedItems = Array.from(uniqueItemsMap.values());
+
+      const productIds = normalizedItems
         .filter((item: InvoiceItem) => item.product_id && !item.is_external)
         .map((item: InvoiceItem) => item.product_id as string);
 
@@ -145,7 +159,7 @@ export const usePdfGenerator = () => {
       }
 
       // Enrichir les articles
-      const enrichedItems = typedItems.map((item: InvoiceItem) => ({
+      const enrichedItems = normalizedItems.map((item: InvoiceItem) => ({
         ...item,
         products_carreaux: item.product_id
           ? productsMap[item.product_id] || null
@@ -291,28 +305,43 @@ export const usePdfGenerator = () => {
       ];
       const colWidths = [70, 30, 20, 25, 25];
       let currentY = startY;
+      const pageHeight =
+        ((doc as unknown as {
+          internal?: { pageSize?: { getHeight?: () => number } };
+        }).internal?.pageSize?.getHeight?.() || 297) as number;
+      const bottomMargin = 20;
+
+      const drawItemsHeader = () => {
+        doc.setFillColor(...primaryColor);
+        doc.rect(15, currentY, 170, 10, "F");
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+
+        let headerX = 20;
+        tableHeaders.forEach((header, index) => {
+          doc.text(header, headerX, currentY + 7);
+          headerX += colWidths[index] ?? 40;
+        });
+
+        currentY += 10;
+        doc.setTextColor(...darkColor);
+        doc.setFont("helvetica", "normal");
+      };
 
       // En-tête du tableau
-      doc.setFillColor(...primaryColor);
-      doc.rect(15, currentY, 170, 10, "F");
-
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-
-      let currentX = 20;
-      tableHeaders.forEach((header, index) => {
-        doc.text(header, currentX, currentY + 7);
-        currentX += colWidths[index] ?? 40;
-      });
-
-      currentY += 10;
-      doc.setTextColor(...darkColor);
-      doc.setFont("helvetica", "normal");
+      drawItemsHeader();
 
       // Lignes du tableau
       let subtotal = 0;
       items.forEach((item: InvoiceItem, index: number) => {
+        if (currentY + 8 > pageHeight - bottomMargin) {
+          doc.addPage();
+          currentY = 20;
+          drawItemsHeader();
+        }
+
         const product = item.products_carreaux;
         const total = item.quantity * item.price;
         subtotal += total;
@@ -323,7 +352,7 @@ export const usePdfGenerator = () => {
           doc.rect(15, currentY, 170, 8, "F");
         }
 
-        currentX = 20;
+        let currentX = 20;
         // Gérer les produits internes et externes
         const productName = item.is_external
           ? item.external_description || "Produit externe"
@@ -361,6 +390,10 @@ export const usePdfGenerator = () => {
 
       // Totaux
       currentY += 15;
+      if (currentY + 24 > pageHeight - bottomMargin) {
+        doc.addPage();
+        currentY = 20;
+      }
       const totalX = 135;
 
       doc.setFont("helvetica", "normal");
@@ -395,7 +428,7 @@ export const usePdfGenerator = () => {
       );
 
       // Pied de page
-      currentY = 270;
+      currentY = pageHeight - 22;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
@@ -652,27 +685,47 @@ export const usePdfGenerator = () => {
 
       const tableHeaders = ["Description", "Qté", "Prix unit.", "Total"];
       const colWidths = [90, 20, 25, 25];
+      const pageHeight =
+        ((doc as unknown as {
+          internal?: { pageSize?: { getHeight?: () => number } };
+        }).internal?.pageSize?.getHeight?.() || 297) as number;
+      const bottomMargin = 20;
+
+      const drawItemsHeader = () => {
+        doc.setFillColor(...primaryColor);
+        doc.rect(15, currentY, 160, 10, "F");
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+
+        let headerX = 20;
+        tableHeaders.forEach((header, index) => {
+          doc.text(header, headerX, currentY + 7);
+          headerX += colWidths[index] ?? 40;
+        });
+
+        currentY += 10;
+        doc.setTextColor(...darkColor);
+        doc.setFont("helvetica", "normal");
+      };
 
       // En-tête du tableau
-      doc.setFillColor(...primaryColor);
-      doc.rect(15, currentY, 160, 10, "F");
-
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-
-      let currentX = 20;
-      tableHeaders.forEach((header, index) => {
-        doc.text(header, currentX, currentY + 7);
-        currentX += colWidths[index] ?? 40;
-      });
-
-      currentY += 10;
-      doc.setTextColor(...darkColor);
-      doc.setFont("helvetica", "normal");
+      drawItemsHeader();
 
       // Lignes du tableau (condensées)
       items.forEach((item: InvoiceItem, index: number) => {
+        if (currentY + 8 > pageHeight - bottomMargin) {
+          doc.addPage();
+          currentY = 20;
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(...darkColor);
+          doc.text("DÉTAIL DES ARTICLES (suite)", 15, currentY);
+          currentY += 8;
+          drawItemsHeader();
+        }
+
         if (index % 2 === 0) {
           doc.setFillColor(250, 250, 250);
           doc.rect(15, currentY, 160, 8, "F");
@@ -681,7 +734,7 @@ export const usePdfGenerator = () => {
         const product = item.products_carreaux;
         const total = item.quantity * item.price;
 
-        currentX = 20;
+        let currentX = 20;
         const productName = item.is_external
           ? item.external_description || "Produit externe"
           : product?.name || "Produit inconnu";
@@ -715,31 +768,51 @@ export const usePdfGenerator = () => {
         const paymentHeaders = ["Date", "Méthode", "Montant", "Référence"];
         const paymentColWidths = [40, 40, 30, 50];
 
-        doc.setFillColor(...greenColor);
-        doc.rect(15, currentY, 160, 10, "F");
+        const drawPaymentsHeader = () => {
+          doc.setFillColor(...greenColor);
+          doc.rect(15, currentY, 160, 10, "F");
 
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
 
-        currentX = 20;
-        paymentHeaders.forEach((header, index) => {
-          doc.text(header, currentX, currentY + 7);
-          currentX += paymentColWidths[index] ?? 40;
-        });
+          let headerX = 20;
+          paymentHeaders.forEach((header, index) => {
+            doc.text(header, headerX, currentY + 7);
+            headerX += paymentColWidths[index] ?? 40;
+          });
 
-        currentY += 10;
-        doc.setTextColor(...darkColor);
-        doc.setFont("helvetica", "normal");
+          currentY += 10;
+          doc.setTextColor(...darkColor);
+          doc.setFont("helvetica", "normal");
+        };
+
+        if (currentY + 10 > pageHeight - bottomMargin) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        drawPaymentsHeader();
 
         // Lignes des paiements
         payments.forEach((payment: Partial<Payment>, index: number) => {
+          if (currentY + 8 > pageHeight - bottomMargin) {
+            doc.addPage();
+            currentY = 20;
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(...darkColor);
+            doc.text("HISTORIQUE DES PAIEMENTS (suite)", 15, currentY);
+            currentY += 8;
+            drawPaymentsHeader();
+          }
+
           if (index % 2 === 0) {
             doc.setFillColor(248, 255, 248);
             doc.rect(15, currentY, 160, 8, "F");
           }
 
-          currentX = 20;
+          let currentX = 20;
           const paymentData = [
             payment.payment_date
               ? new Date(payment.payment_date).toLocaleDateString("fr-FR")
@@ -768,6 +841,10 @@ export const usePdfGenerator = () => {
 
       // Récapitulatif final
       currentY += 15;
+      if (currentY + 25 > pageHeight - bottomMargin) {
+        doc.addPage();
+        currentY = 20;
+      }
       doc.setFillColor(245, 245, 245);
       doc.rect(15, currentY, 170, 25, "F");
 
@@ -806,7 +883,7 @@ export const usePdfGenerator = () => {
       );
 
       // Pied de page
-      const footerY = 270;
+      const footerY = pageHeight - 22;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(...grayColor);

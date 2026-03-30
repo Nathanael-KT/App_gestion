@@ -899,7 +899,7 @@ const getRoleDescription = () => {
   if (highestRole) {
     return highestRole.description;
   }
-  return "Contactez votre administrateur pour obtenir des permissions.";
+  return "Contactez votre support pour obtenir des permissions.";
 };
 
 // SEO

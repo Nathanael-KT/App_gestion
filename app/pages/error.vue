@@ -83,7 +83,7 @@
           >
             <p class="text-sm text-red-900 font-medium">Action recommandée</p>
             <p class="text-sm text-red-800 mt-1">
-              Contactez votre administrateur pour régulariser l'abonnement ou
+              Contactez votre support pour régulariser l'abonnement ou
               lever le blocage global de l'entreprise.
             </p>
           </div>
