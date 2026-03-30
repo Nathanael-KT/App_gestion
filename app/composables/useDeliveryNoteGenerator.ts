@@ -441,8 +441,8 @@ export const useDeliveryNoteGenerator = () => {
       > | null;
 
       const fileName = `Bon_Livraison_${invoiceData?.reference || invoiceId}_${invoiceData?.date
-          ? new Date(invoiceData.date).toISOString().split("T")[0]
-          : new Date().toISOString().split("T")[0]
+        ? new Date(invoiceData.date).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0]
         }.pdf`;
       doc.save(fileName);
     } catch (error) {
