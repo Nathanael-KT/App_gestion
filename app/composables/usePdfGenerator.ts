@@ -25,6 +25,7 @@ interface InvoiceItem {
     name: string;
     reference: string | null;
     description: string | null;
+    storage_location: string | null;
     type_produit: string | null;
   } | null;
 }
@@ -60,6 +61,7 @@ interface ProductCarreau {
   name: string;
   reference: string | null;
   description: string | null;
+  storage_location: string | null;
   type_produit: string | null;
 }
 
@@ -161,6 +163,7 @@ export const usePdfGenerator = () => {
             name,
             reference,
             description,
+            storage_location,
             type_produit
             `,
           )
@@ -314,11 +317,12 @@ export const usePdfGenerator = () => {
       const tableHeaders = [
         "Description",
         "Réf.",
+        "Empl.",
         "Qté",
         "Prix unit.",
         "Total",
       ];
-      const colWidths = [70, 30, 20, 25, 25];
+      const colWidths = [58, 22, 22, 15, 26, 27];
       let currentY = startY;
       const pageHeight =
         ((doc as unknown as {
@@ -375,18 +379,22 @@ export const usePdfGenerator = () => {
         const productRef = item.is_external
           ? item.external_reference || "N/A"
           : product?.reference || "N/A";
+        const productLocation = item.is_external
+          ? "-"
+          : product?.storage_location || "-";
 
         const rowData = [
           productName,
           productRef,
+          productLocation,
           item.quantity.toString(),
           `${item.price.toFixed(2)} ${companySettings.value?.currency}`,
           `${total.toFixed(2)} ${companySettings.value?.currency}`,
         ];
 
         rowData.forEach((data, colIndex) => {
-          if (colIndex === 0) {
-            // Couper le texte si trop long
+          if (colIndex === 0 || colIndex === 2) {
+            // Couper le texte si trop long (description + emplacement)
             const maxWidth = (colWidths[colIndex] || 40) - 5;
             const text = doc.splitTextToSize(data, maxWidth);
             doc.text(text[0] || data, currentX, currentY + 6);
@@ -698,8 +706,8 @@ export const usePdfGenerator = () => {
       doc.text("DÉTAIL DES ARTICLES", 15, currentY);
       currentY += 10;
 
-      const tableHeaders = ["Description", "Qté", "Prix unit.", "Total"];
-      const colWidths = [90, 20, 25, 25];
+      const tableHeaders = ["Description", "Empl.", "Qté", "Prix unit.", "Total"];
+      const colWidths = [68, 30, 15, 23, 24];
       const pageHeight =
         ((doc as unknown as {
           internal?: { pageSize?: { getHeight?: () => number } };
@@ -758,6 +766,9 @@ export const usePdfGenerator = () => {
           productName.length > 35
             ? productName.substring(0, 35) + "..."
             : productName,
+          item.is_external
+            ? "-"
+            : (product?.storage_location || "-").substring(0, 16),
           item.quantity.toString(),
           `${item.price.toFixed(2)} ${companySettings.value?.currency}`,
           `${total.toFixed(2)} ${companySettings.value?.currency}`,

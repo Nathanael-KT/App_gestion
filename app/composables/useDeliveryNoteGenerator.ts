@@ -18,6 +18,7 @@ interface Product {
   name: string;
   reference?: string | null;
   description?: string | null;
+  storage_location?: string | null;
   type_produit?: string | null;
   nbr_pieces?: number | null;
   longueur?: number | null;
@@ -112,6 +113,7 @@ export const useDeliveryNoteGenerator = () => {
             name,
             reference,
             description,
+            storage_location,
             type_produit,
             nbr_pieces,
             longueur,
@@ -260,7 +262,7 @@ export const useDeliveryNoteGenerator = () => {
         currentY += 60;
 
         // Tableau des articles (très compact)
-        const tableHeaders = ["Article", "Réf.", "Qté", "Cartons", "Pièces"];
+        const tableHeaders = ["Article", "Emp.", "Qté", "Cartons", "Pièces"];
         const colWidths = [45, 20, 20, 20, 20];
 
         // En-tête du tableau
@@ -313,13 +315,15 @@ export const useDeliveryNoteGenerator = () => {
           const productName = item.is_external
             ? (item.external_description || "Produit externe").substring(0, 15)
             : (product?.name || "Produit").substring(0, 15);
-          const productRef = item.is_external
-            ? item.external_reference || "EXT"
-            : product?.reference || "N/A";
+          const storageLocation = item.is_external
+            ? "-"
+            : product?.storage_location || "-";
 
           const rowData = [
             productName,
-            productRef,
+            storageLocation.length > 10
+              ? storageLocation.substring(0, 10)
+              : storageLocation,
             item.quantity.toString() + (item.is_external ? "" : "m²"),
             item.is_external ? "-" : cartons.toString(),
             item.is_external ? "-" : pieces.toString(),

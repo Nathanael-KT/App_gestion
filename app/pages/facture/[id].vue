@@ -299,6 +299,11 @@ onMounted(async () => {
                   Quantité
                 </th>
                 <th
+                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Emplacement
+                </th>
+                <th
                   class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Prix unitaire
@@ -356,6 +361,13 @@ onMounted(async () => {
                   class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center"
                 >
                   {{ item.quantity }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{
+                    item.is_external
+                      ? "N/A"
+                      : item.products_carreaux?.storage_location || "Non défini"
+                  }}
                 </td>
                 <td
                   class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
