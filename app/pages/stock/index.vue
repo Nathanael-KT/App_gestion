@@ -763,6 +763,11 @@ onMounted(async () => {
                   <th
                     class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase"
                   >
+                    Emplacement
+                  </th>
+                  <th
+                    class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase"
+                  >
                     Prix
                   </th>
                   <th
@@ -809,6 +814,9 @@ onMounted(async () => {
                   </td>
                   <td class="px-6 py-4 text-sm text-right text-gray-500">
                     {{ product.type_produit }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-right text-gray-500">
+                    {{ product.storage_location || "Non défini" }}
                   </td>
                   <td class="px-6 py-4 text-sm text-right text-gray-500">
                     {{ formatCurrency(product.price) }}
@@ -877,6 +885,9 @@ onMounted(async () => {
                 </p>
                 <p>Prix : {{ formatCurrency(product.price) }}</p>
                 <p>Type : {{ product.type_produit }}</p>
+                <p>
+                  Emplacement : {{ product.storage_location || "Non défini" }}
+                </p>
               </div>
               <div
                 v-if="userRoles.includes('admin')"
@@ -970,6 +981,11 @@ onMounted(async () => {
                 Type
               </th>
               <th
+                class="px-6 py-3 text-right text-xs font-medium text-blue-700 uppercase"
+              >
+                Emplacement
+              </th>
+              <th
                 class="px-6 py-3 text-right text-xs font-medium text-blue-700 uppercase hidden md:table-cell"
               >
                 Taille (cm²)
@@ -1025,6 +1041,9 @@ onMounted(async () => {
               </td>
               <td class="px-6 py-4 text-sm text-right text-gray-500">
                 {{ product.type_produit }}
+              </td>
+              <td class="px-6 py-4 text-sm text-right text-gray-500">
+                {{ product.storage_location || "Non défini" }}
               </td>
               <td
                 class="px-6 py-4 text-sm text-right text-gray-500 hidden md:table-cell"
@@ -1097,6 +1116,7 @@ onMounted(async () => {
             </p>
             <p>Prix : {{ formatCurrency(product.price) }}</p>
             <p>Type : {{ product.type_produit }}</p>
+            <p>Emplacement : {{ product.storage_location || "Non défini" }}</p>
             <p><CartonCalculator :product="product" /></p>
           </div>
           <div class="flex justify-end gap-2 mt-3">
@@ -1164,6 +1184,11 @@ onMounted(async () => {
               <th
                 class="px-6 py-3 text-right text-xs font-medium text-green-700 uppercase"
               >
+                Emplacement
+              </th>
+              <th
+                class="px-6 py-3 text-right text-xs font-medium text-green-700 uppercase"
+              >
                 Prix
               </th>
               <th
@@ -1209,6 +1234,9 @@ onMounted(async () => {
               </td>
               <td class="px-6 py-4 text-sm text-right text-gray-500">
                 {{ product.type_produit }}
+              </td>
+              <td class="px-6 py-4 text-sm text-right text-gray-500">
+                {{ product.storage_location || "Non défini" }}
               </td>
               <td class="px-6 py-4 text-sm text-right text-gray-500">
                 {{ formatCurrency(product.price) }}
@@ -1270,6 +1298,7 @@ onMounted(async () => {
             </p>
             <p>Prix : {{ formatCurrency(product.price) }}</p>
             <p>Type : {{ product.type_produit }}</p>
+            <p>Emplacement : {{ product.storage_location || "Non défini" }}</p>
           </div>
           <div class="flex justify-end gap-2 mt-3">
             <NuxtLink
