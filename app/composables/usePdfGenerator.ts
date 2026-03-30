@@ -43,6 +43,7 @@ interface Invoice {
     phone?: string;
     address?: string;
   };
+  invoice_items?: InvoiceItem[];
 }
 
 interface Payment {
@@ -89,6 +90,16 @@ export const usePdfGenerator = () => {
             email,
             phone,
             address
+          ),
+          invoice_items (
+            id,
+            invoice_id,
+            product_id,
+            quantity,
+            price,
+            is_external,
+            external_reference,
+            external_description
           )
         `,
         )
@@ -118,14 +129,18 @@ export const usePdfGenerator = () => {
       if (itemsError) throw itemsError;
 
       // Étape 3: Charger les produits si nécessaire
-      const typedItems = (invoiceItems || []) as InvoiceItem[];
+      let typedItems = (invoiceItems || []) as InvoiceItem[];
+
+      // Fallback: certains environnements retournent les lignes via la relation
+      // embarquée sur invoices alors que la requête directe est vide.
+      if (typedItems.length === 0 && Array.isArray(invoice?.invoice_items)) {
+        typedItems = (invoice.invoice_items || []) as InvoiceItem[];
+      }
 
       // Dédoublonnage défensif: évite les lignes répétées en cas de réponse incohérente.
       const uniqueItemsMap = new Map<string, InvoiceItem>();
-      typedItems.forEach((item, index) => {
-        const key = item.id
-          ? item.id
-          : `${item.invoice_id}-${item.product_id || item.external_reference || "item"}-${item.quantity}-${item.price}-${index}`;
+      typedItems.forEach((item) => {
+        const key = item.id;
         if (!uniqueItemsMap.has(key)) {
           uniqueItemsMap.set(key, item);
         }

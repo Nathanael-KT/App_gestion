@@ -1,6 +1,7 @@
 <script setup>
 import { useCurrentUser } from "../../composables/useCurrentUser";
 import { useCompanySettings } from "../../composables/useCompanySettings";
+import { usePdfGenerator } from "../../composables/usePdfGenerator";
 
 const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
@@ -16,86 +17,20 @@ const loading = ref(false);
 const error = ref(null);
 const downloadingPdf = ref(false);
 
+const { fetchInvoiceDetails: fetchInvoiceDetailsForPdf, downloadPDF } =
+  usePdfGenerator();
+
 const fetchInvoiceDetails = async () => {
   try {
     loading.value = true;
     const invoiceId = route.params.id;
 
-    // Étape 1: Récupérer les détails de la facture avec le client
-    const { data: invoiceData, error: invoiceError } = await supabase
-      .from("invoices")
-      .select(
-        `
-        *,
-        clients (
-          id,
-          name,
-          email,
-          phone,
-          address
-        )
-      `,
-      )
-      .eq("id", invoiceId)
-      .single();
-
-    if (invoiceError) throw invoiceError;
-
-    // Étape 2: Récupérer SÉPARÉMENT les articles sans jointe problématique
-    const { data: itemsData, error: itemsError } = await supabase
-      .from("invoice_items")
-      .select(
-        `
-        id,
-        invoice_id,
-        product_id,
-        quantity,
-        price,
-        is_external,
-        external_reference,
-        external_description
-      `,
-      )
-      .eq("invoice_id", invoiceId);
-
-    if (itemsError) throw itemsError;
-
-    // Étape 3: Charger les produits si nécessaire
-    const productIds = (itemsData || [])
-      .filter((item) => item.product_id && !item.is_external)
-      .map((item) => item.product_id);
-
-    let productsMap = {};
-    if (productIds.length > 0) {
-      const { data: productsData } = await supabase
-        .from("products_carreaux")
-        .select(
-          `
-          id,
-          name,
-          reference,
-          description,
-          type_produit
-        `,
-        )
-        .in("id", productIds);
-
-      productsMap = (productsData || []).reduce((map, product) => {
-        map[product.id] = product;
-        return map;
-      }, {});
-    }
-
-    // Enrichir les articles
-    const enrichedItems = (itemsData || []).map((item) => ({
-      ...item,
-      products_carreaux: item.product_id
-        ? productsMap[item.product_id] || null
-        : null,
-    }));
+    const { invoice: invoiceData, items } = await fetchInvoiceDetailsForPdf(
+      String(invoiceId),
+    );
 
     invoice.value = invoiceData;
-    invoiceItems.value = enrichedItems;
+    invoiceItems.value = items;
   } catch (err) {
     error.value =
       err.message || "Erreur lors de la récupération de la facture.";
@@ -122,11 +57,7 @@ const markAsPaid = async () => {
 const handleDownloadPDF = async () => {
   try {
     downloadingPdf.value = true;
-    // Import explicite du composable
-    const { usePdfGenerator } =
-      await import("../../composables/usePdfGenerator");
-    const { downloadPDF } = usePdfGenerator();
-    await downloadPDF(route.params.id);
+    await downloadPDF(String(route.params.id));
   } catch (err) {
     error.value = err.message || "Erreur lors de la génération du PDF.";
   } finally {
