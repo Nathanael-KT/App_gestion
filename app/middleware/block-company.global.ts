@@ -120,7 +120,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
                 query: {
                     reason: "menu_blocked",
                     menu: menuName,
-                    message: `L'acces a la section \"${menuName}\" est desactive pour votre entreprise.`,
+                    message: `L'acces a la section "${menuName}" est desactive pour votre entreprise.`,
                 },
             });
         }
