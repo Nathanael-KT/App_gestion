@@ -215,37 +215,37 @@ const toggleMobileMenu = () => {
   <component :is="isSuperAdmin ? TheHeader2 : 'div'" v-show="!isLoadingRoles">
     <template v-if="!isSuperAdmin">
       <header
-        class="h-20 flex items-center p-4 shadow fixed top-0 left-0 right-0 bg-primary z-40"
+        class="h-16 md:h-20 flex items-center px-3 md:px-4 shadow fixed top-0 left-0 right-0 bg-primary z-40"
       >
-        <!-- Bouton hamburger pour mobile -->
+        <!-- Bouton hamburger pour mobile uniquement -->
         <button
           aria-label="Ouvrir le menu"
-          class="lg:hidden mr-4 text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
+          class="md:hidden mr-3 text-white hover:bg-white/10 p-2 rounded-lg transition-colors flex-shrink-0"
           @click="toggleMobileMenu"
         >
-          <CompanyLogo :company-id="companyId ?? ''" :size="48" />
+          <UIcon name="heroicons:bars-3-20-solid" class="h-6 w-6" />
         </button>
 
         <!-- Titre de l'application (visible sur tablet et desktop) -->
-        <div class="hidden sm:flex items-center text-white">
-          <CompanyLogo :company-id="companyId ?? ''" :size="50" />
+        <div class="hidden md:flex items-center text-white flex-shrink-0">
+          <CompanyLogo :company-id="companyId ?? ''" :size="40" />
           <!-- Séparation verticale -->
-          <span class="mx-4 h-8 w-px bg-white/30" />
-          <h1 class="text-xl font-bold">
+          <span class="mx-3 h-8 w-px bg-white/30" />
+          <h1 class="text-lg font-bold">
             <span
-              class="text-2xl font-extrabold tracking-wide uppercase text-white drop-shadow-lg"
+              class="text-xl font-extrabold tracking-wide uppercase text-white drop-shadow-lg"
             >
               {{ companySettings?.company_name || "" }}
             </span>
           </h1>
         </div>
 
-        <div v-if="user" class="ml-auto flex items-center space-x-6">
+        <div v-if="user" class="ml-auto flex items-center space-x-2 md:space-x-4">
           <!-- Sélecteur de magasin -->
           <div class="flex items-center">
             <MagasinSelector
               :magasins="magasins"
-              class="bg-primary text-white rounded-xl px-6 py-2 font-semibold shadow-lg border-2 border-secondary hover:bg-secondary hover:text-primary transition-all duration-200"
+              class="text-white text-sm font-semibold"
             />
           </div>
 
@@ -254,7 +254,7 @@ const toggleMobileMenu = () => {
 
           <!-- Menu utilisateur -->
           <UDropdownMenu :items="items">
-            <UButton variant="ghost" class="!p-0 !w-12 !h-12">
+            <UButton variant="ghost" class="!p-0 !w-10 !h-10 md:!w-12 md:!h-12">
               <span class="avatar-circle">
                 {{ user?.email ? user.email.charAt(0).toUpperCase() : "" }}
               </span>

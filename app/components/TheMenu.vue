@@ -416,7 +416,7 @@ onMounted(() => {
 
       <!-- Menu principal -->
       <aside
-        class="fixed h-full bg-gray-800 text-white transition-all duration-300 z-30 overflow-y-auto"
+        class="fixed top-16 md:top-20 bottom-0 bg-gray-800 text-white transition-all duration-300 z-30 overflow-y-auto"
         :class="[
           // Mobile styles (< 768px)
           isMobile ? 'transform shadow-xl w-64' : '',

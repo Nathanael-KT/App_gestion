@@ -44,17 +44,17 @@ const toggleMobileMenu = () => {
   <header
     class="h-16 md:h-20 flex items-center px-3 md:px-4 py-2 md:py-4 shadow fixed top-0 left-0 right-0 bg-primary z-40"
   >
-    <!-- Bouton hamburger pour mobile et tablette -->
+    <!-- Bouton hamburger pour mobile uniquement -->
     <button
       aria-label="Ouvrir le menu"
-      class="xl:hidden mr-2 md:mr-4 text-white hover:bg-white/10 p-2 rounded-lg transition-colors flex-shrink-0"
+      class="md:hidden mr-2 text-white hover:bg-white/10 p-2 rounded-lg transition-colors flex-shrink-0"
       @click="toggleMobileMenu"
     >
       <UIcon name="heroicons:bars-3-20-solid" class="h-6 w-6" />
     </button>
 
-    <!-- Logo visible sur desktop -->
-    <div class="hidden xl:flex items-center space-x-2 flex-shrink-0">
+    <!-- Logo visible sur tablet et desktop -->
+    <div class="hidden md:flex items-center space-x-2 flex-shrink-0">
       <CompanyLogo :company-id="companyId ?? ''" :size="32" />
     </div>
 
