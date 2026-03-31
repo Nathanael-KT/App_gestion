@@ -253,6 +253,7 @@ export type Database = {
         Row: {
           backup_frequency: string | null
           backup_retention: number | null
+          blocked: boolean | null
           blocked_menus: string[] | null
           company_address: string | null
           company_email: string
@@ -285,6 +286,7 @@ export type Database = {
         Insert: {
           backup_frequency?: string | null
           backup_retention?: number | null
+          blocked?: boolean | null
           blocked_menus?: string[] | null
           company_address?: string | null
           company_email?: string
@@ -317,6 +319,7 @@ export type Database = {
         Update: {
           backup_frequency?: string | null
           backup_retention?: number | null
+          blocked?: boolean | null
           blocked_menus?: string[] | null
           company_address?: string | null
           company_email?: string
