@@ -317,12 +317,11 @@ export const usePdfGenerator = () => {
       const tableHeaders = [
         "Description",
         "Réf.",
-        "Empl.",
         "Qté",
         "Prix unit.",
         "Total",
       ];
-      const colWidths = [58, 22, 22, 15, 26, 27];
+      const colWidths = [70, 30, 20, 25, 25];
       let currentY = startY;
       const pageHeight =
         ((doc as unknown as {
@@ -379,22 +378,18 @@ export const usePdfGenerator = () => {
         const productRef = item.is_external
           ? item.external_reference || "N/A"
           : product?.reference || "N/A";
-        const productLocation = item.is_external
-          ? "-"
-          : product?.storage_location || "-";
 
         const rowData = [
           productName,
           productRef,
-          productLocation,
           item.quantity.toString(),
           `${item.price.toFixed(2)} ${companySettings.value?.currency}`,
           `${total.toFixed(2)} ${companySettings.value?.currency}`,
         ];
 
         rowData.forEach((data, colIndex) => {
-          if (colIndex === 0 || colIndex === 2) {
-            // Couper le texte si trop long (description + emplacement)
+          if (colIndex === 0) {
+            // Couper le texte si trop long
             const maxWidth = (colWidths[colIndex] || 40) - 5;
             const text = doc.splitTextToSize(data, maxWidth);
             doc.text(text[0] || data, currentX, currentY + 6);
@@ -406,6 +401,38 @@ export const usePdfGenerator = () => {
 
         currentY += 8;
       });
+
+      const locations = Array.from(
+        new Set(
+          items
+            .filter((item: InvoiceItem) => !item.is_external)
+            .map((item: InvoiceItem) => item.products_carreaux?.storage_location)
+            .filter(
+              (location): location is string =>
+                typeof location === "string" && location.trim() !== "",
+            ),
+        ),
+      );
+
+      if (locations.length > 0) {
+        if (currentY + 16 > pageHeight - bottomMargin) {
+          doc.addPage();
+          currentY = 20;
+        }
+        currentY += 4;
+        doc.setFillColor(240, 248, 255);
+        doc.rect(15, currentY, 170, 10, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(...darkColor);
+        doc.text("EMPLACEMENTS DE RETRAIT:", 20, currentY + 6.5);
+
+        const locationsText = locations.join(" | ");
+        const compactText = doc.splitTextToSize(locationsText, 95)[0] || locationsText;
+        doc.setFont("helvetica", "normal");
+        doc.text(compactText, 88, currentY + 6.5);
+        currentY += 12;
+      }
 
       // Ligne de séparation
       doc.setDrawColor(grayColor[0], grayColor[1], grayColor[2]);
@@ -706,8 +733,8 @@ export const usePdfGenerator = () => {
       doc.text("DÉTAIL DES ARTICLES", 15, currentY);
       currentY += 10;
 
-      const tableHeaders = ["Description", "Empl.", "Qté", "Prix unit.", "Total"];
-      const colWidths = [68, 30, 15, 23, 24];
+      const tableHeaders = ["Description", "Qté", "Prix unit.", "Total"];
+      const colWidths = [90, 20, 25, 25];
       const pageHeight =
         ((doc as unknown as {
           internal?: { pageSize?: { getHeight?: () => number } };
@@ -766,9 +793,6 @@ export const usePdfGenerator = () => {
           productName.length > 35
             ? productName.substring(0, 35) + "..."
             : productName,
-          item.is_external
-            ? "-"
-            : (product?.storage_location || "-").substring(0, 16),
           item.quantity.toString(),
           `${item.price.toFixed(2)} ${companySettings.value?.currency}`,
           `${total.toFixed(2)} ${companySettings.value?.currency}`,
@@ -781,6 +805,38 @@ export const usePdfGenerator = () => {
 
         currentY += 8;
       });
+
+      const locations = Array.from(
+        new Set(
+          items
+            .filter((item: InvoiceItem) => !item.is_external)
+            .map((item: InvoiceItem) => item.products_carreaux?.storage_location)
+            .filter(
+              (location): location is string =>
+                typeof location === "string" && location.trim() !== "",
+            ),
+        ),
+      );
+
+      if (locations.length > 0) {
+        if (currentY + 12 > pageHeight - bottomMargin) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        doc.setFillColor(240, 248, 255);
+        doc.rect(15, currentY, 160, 8, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(...darkColor);
+        doc.text("EMPLACEMENTS:", 20, currentY + 5.5);
+
+        const locationsText = locations.join(" | ");
+        const compactText = doc.splitTextToSize(locationsText, 95)[0] || locationsText;
+        doc.setFont("helvetica", "normal");
+        doc.text(compactText, 52, currentY + 5.5);
+        currentY += 10;
+      }
 
       // Section des paiements
       currentY += 15;

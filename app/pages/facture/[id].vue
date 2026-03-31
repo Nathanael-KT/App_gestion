@@ -77,6 +77,17 @@ const calculateTax = () => {
   return calculateSubtotal() * (taxRate / 100);
 };
 
+const storageLocations = computed(() => {
+  const locations = invoiceItems.value
+    .filter((item) => !item.is_external)
+    .map((item) => item.products_carreaux?.storage_location)
+    .filter(
+      (location) => typeof location === "string" && location.trim() !== "",
+    );
+
+  return [...new Set(locations)];
+});
+
 onMounted(async () => {
   if (isLoadingUser.value) await loadCurrentUser();
   if (companyId.value) await fetchCompanySettings(companyId.value);
@@ -299,11 +310,6 @@ onMounted(async () => {
                   Quantité
                 </th>
                 <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                >
-                  Emplacement
-                </th>
-                <th
                   class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
                   Prix unitaire
@@ -362,13 +368,6 @@ onMounted(async () => {
                 >
                   {{ item.quantity }}
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {{
-                    item.is_external
-                      ? "N/A"
-                      : item.products_carreaux?.storage_location || "Non défini"
-                  }}
-                </td>
                 <td
                   class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
                 >
@@ -384,6 +383,27 @@ onMounted(async () => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <!-- Espace spécial: emplacements de retrait -->
+      <div class="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 class="text-sm font-semibold text-blue-900 mb-2">
+          Emplacements de retrait
+        </h4>
+        <div v-if="storageLocations.length" class="flex flex-wrap gap-2">
+          <UBadge
+            v-for="location in storageLocations"
+            :key="location"
+            color="blue"
+            variant="soft"
+            size="sm"
+          >
+            {{ location }}
+          </UBadge>
+        </div>
+        <p v-else class="text-sm text-blue-800">
+          Aucun emplacement défini pour cette facture.
+        </p>
       </div>
 
       <!-- Totaux -->

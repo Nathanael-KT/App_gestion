@@ -262,7 +262,7 @@ export const useDeliveryNoteGenerator = () => {
         currentY += 60;
 
         // Tableau des articles (très compact)
-        const tableHeaders = ["Article", "Emp.", "Qté", "Cartons", "Pièces"];
+        const tableHeaders = ["Article", "Réf.", "Qté", "Cartons", "Pièces"];
         const colWidths = [45, 20, 20, 20, 20];
 
         // En-tête du tableau
@@ -315,15 +315,13 @@ export const useDeliveryNoteGenerator = () => {
           const productName = item.is_external
             ? (item.external_description || "Produit externe").substring(0, 15)
             : (product?.name || "Produit").substring(0, 15);
-          const storageLocation = item.is_external
-            ? "-"
-            : product?.storage_location || "-";
+          const productRef = item.is_external
+            ? item.external_reference || "EXT"
+            : product?.reference || "N/A";
 
           const rowData = [
             productName,
-            storageLocation.length > 10
-              ? storageLocation.substring(0, 10)
-              : storageLocation,
+            productRef,
             item.quantity.toString() + (item.is_external ? "" : "m²"),
             item.is_external ? "-" : cartons.toString(),
             item.is_external ? "-" : pieces.toString(),
@@ -337,6 +335,31 @@ export const useDeliveryNoteGenerator = () => {
 
           currentY += 5;
         });
+
+        const locations = Array.from(
+          new Set(
+            items
+              .slice(0, 4)
+              .filter((item: InvoiceItem) => !item.is_external)
+              .map((item: InvoiceItem) => item.products_carreaux?.storage_location)
+              .filter(
+                (location): location is string =>
+                  typeof location === "string" && location.trim() !== "",
+              ),
+          ),
+        );
+
+        if (locations.length > 0) {
+          doc.setFillColor(240, 248, 255);
+          doc.rect(15, currentY, 125, 5, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(6);
+          doc.text("Emplacements:", 17, currentY + 3.5);
+          doc.setFont("helvetica", "normal");
+          const locText = doc.splitTextToSize(locations.join(" | "), 80)[0];
+          doc.text(locText || "-", 35, currentY + 3.5);
+          currentY += 6;
+        }
 
         // Si plus de 4 items, indiquer le nombre total
         if (items.length > 4) {
