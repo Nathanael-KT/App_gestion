@@ -1,27 +1,16 @@
 import { useCurrentUser } from "./useCurrentUser";
 import { useCompanySettings } from "./useCompanySettings";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let jsPDF: any = null;
+
+let jsPDFCtor: (new () => import("jspdf").jsPDF) | null = null;
 if (typeof window !== "undefined") {
   try {
-    jsPDF = (await import("jspdf")).jsPDF;
+    jsPDFCtor = (await import("jspdf")).jsPDF;
   } catch (err) {
     console.error("Erreur lors de l'import jsPDF:", err);
-    jsPDF = null;
+    jsPDFCtor = null;
   }
 }
 
-const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
-const { fetchCompanySettings } = useCompanySettings();
-
-onMounted(async () => {
-  if (isLoadingUser.value) {
-    await loadCurrentUser();
-  }
-  if (companyId.value) await fetchCompanySettings(companyId.value);
-
-  fetchInvoiceDetails();
-});
 interface InvoiceItem {
   id: string;
   invoice_id: string;
@@ -34,10 +23,11 @@ interface InvoiceItem {
   products_carreaux?: {
     id: string;
     name: string;
-    reference: string;
-    description?: string;
-    type_produit?: string;
-  };
+    reference: string | null;
+    description: string | null;
+    storage_location: string | null;
+    type_produit: string | null;
+  } | null;
 }
 
 interface Invoice {
@@ -54,6 +44,7 @@ interface Invoice {
     phone?: string;
     address?: string;
   };
+  invoice_items?: InvoiceItem[];
 }
 
 interface Payment {
@@ -62,11 +53,20 @@ interface Payment {
   amount: number;
   payment_date: string;
   payment_method?: string;
-  reference?: string;
+  reference?: string | null;
+}
+
+interface ProductCarreau {
+  id: string;
+  name: string;
+  reference: string | null;
+  description: string | null;
+  storage_location: string | null;
+  type_produit: string | null;
 }
 
 export const usePdfGenerator = () => {
-  const supabase = useSupabaseClient() as any;
+  const supabase = useSupabaseClient();
 
   // Utilisation du composable pour les paramètres de l'entreprise
   const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
@@ -80,7 +80,7 @@ export const usePdfGenerator = () => {
     items: InvoiceItem[];
   }> => {
     try {
-      // Récupérer les détails de la facture avec le client
+      // Étape 1: Récupérer les détails de la facture avec le client
       const { data: invoice, error: invoiceError } = await supabase
         .from("invoices")
         .select(
@@ -92,6 +92,16 @@ export const usePdfGenerator = () => {
             email,
             phone,
             address
+          ),
+          invoice_items (
+            id,
+            invoice_id,
+            product_id,
+            quantity,
+            price,
+            is_external,
+            external_reference,
+            external_description
           )
         `,
         )
@@ -100,28 +110,83 @@ export const usePdfGenerator = () => {
 
       if (invoiceError) throw invoiceError;
 
-      // Récupérer les articles de la facture avec les produits
+      // Étape 2: Récupérer SÉPARÉMENT les articles sans jointe problématique
       const { data: invoiceItems, error: itemsError } = await supabase
         .from("invoice_items")
         .select(
           `
-          *,
-          products_carreaux (
+          id,
+          invoice_id,
+          product_id,
+          quantity,
+          price,
+          is_external,
+          external_reference,
+          external_description
+        `,
+        )
+        .eq("invoice_id", invoiceId)
+        .order("id", { ascending: true });
+
+      if (itemsError) throw itemsError;
+
+      // Étape 3: Charger les produits si nécessaire
+      let typedItems = (invoiceItems || []) as InvoiceItem[];
+
+      // Fallback: certains environnements retournent les lignes via la relation
+      // embarquée sur invoices alors que la requête directe est vide.
+      if (typedItems.length === 0 && Array.isArray(invoice?.invoice_items)) {
+        typedItems = (invoice.invoice_items || []) as InvoiceItem[];
+      }
+
+      // Dédoublonnage défensif: évite les lignes répétées en cas de réponse incohérente.
+      const uniqueItemsMap = new Map<string, InvoiceItem>();
+      typedItems.forEach((item) => {
+        const key = item.id;
+        if (!uniqueItemsMap.has(key)) {
+          uniqueItemsMap.set(key, item);
+        }
+      });
+      const normalizedItems = Array.from(uniqueItemsMap.values());
+
+      const productIds = normalizedItems
+        .filter((item: InvoiceItem) => item.product_id && !item.is_external)
+        .map((item: InvoiceItem) => item.product_id as string);
+
+      const productsMap: Record<string, ProductCarreau> = {};
+      if (productIds.length > 0) {
+        const { data: productsData } = await supabase
+          .from("products_carreaux")
+          .select(
+            `
             id,
             name,
             reference,
             description,
+            storage_location,
             type_produit
+            `,
           )
-        `,
-        )
-        .eq("invoice_id", invoiceId);
+          .in("id", productIds);
 
-      if (itemsError) throw itemsError;
+        (productsData || []).forEach(
+          (product: ProductCarreau) => {
+            productsMap[product.id] = product;
+          },
+        );
+      }
+
+      // Enrichir les articles
+      const enrichedItems = normalizedItems.map((item: InvoiceItem) => ({
+        ...item,
+        products_carreaux: item.product_id
+          ? productsMap[item.product_id] || null
+          : null,
+      }));
 
       return {
-        invoice,
-        items: invoiceItems || [],
+        invoice: invoice as Invoice,
+        items: enrichedItems || [],
       };
     } catch (error) {
       console.error(
@@ -136,8 +201,6 @@ export const usePdfGenerator = () => {
     try {
       if (isLoadingUser.value) await loadCurrentUser();
       if (companyId.value) await fetchCompanySettings(companyId.value);
-      // Charger les paramètres de l'entreprise
-      await fetchCompanySettings();
 
       // Attendre que companySettings.value soit bien défini (boucle max 10x)
       let companyName = companySettings.value?.company_name;
@@ -151,14 +214,14 @@ export const usePdfGenerator = () => {
       const { invoice, items } = await fetchInvoiceDetails(invoiceId);
 
       // Créer un nouveau document PDF
-      if (!jsPDF) {
+      if (!jsPDFCtor) {
         throw new Error(
           "Impossible de générer le PDF : jsPDF n'est pas disponible côté serveur ou l'import a échoué.",
         );
       }
       let doc;
       try {
-        doc = new jsPDF();
+        doc = new jsPDFCtor();
       } catch (err) {
         console.error("Erreur jsPDF:", err);
         throw new Error(
@@ -189,7 +252,12 @@ export const usePdfGenerator = () => {
         69,
       );
       doc.text(
-        `Statut : ${invoice.status === "paid" ? "Payée" : "En attente"}`,
+        `Statut : ${invoice.status === "paid"
+          ? "Payee"
+          : invoice.status === "partially_paid"
+            ? "Partiellement payee"
+            : "En attente"
+        }`,
         15,
         75,
       );
@@ -255,28 +323,43 @@ export const usePdfGenerator = () => {
       ];
       const colWidths = [70, 30, 20, 25, 25];
       let currentY = startY;
+      const pageHeight =
+        ((doc as unknown as {
+          internal?: { pageSize?: { getHeight?: () => number } };
+        }).internal?.pageSize?.getHeight?.() || 297) as number;
+      const bottomMargin = 20;
+
+      const drawItemsHeader = () => {
+        doc.setFillColor(...primaryColor);
+        doc.rect(15, currentY, 170, 10, "F");
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+
+        let headerX = 20;
+        tableHeaders.forEach((header, index) => {
+          doc.text(header, headerX, currentY + 7);
+          headerX += colWidths[index] ?? 40;
+        });
+
+        currentY += 10;
+        doc.setTextColor(...darkColor);
+        doc.setFont("helvetica", "normal");
+      };
 
       // En-tête du tableau
-      doc.setFillColor(...primaryColor);
-      doc.rect(15, currentY, 170, 10, "F");
-
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-
-      let currentX = 20;
-      tableHeaders.forEach((header, index) => {
-        doc.text(header, currentX, currentY + 7);
-        currentX += colWidths[index] ?? 40;
-      });
-
-      currentY += 10;
-      doc.setTextColor(...darkColor);
-      doc.setFont("helvetica", "normal");
+      drawItemsHeader();
 
       // Lignes du tableau
       let subtotal = 0;
-      items.forEach((item: InvoiceItem, index) => {
+      items.forEach((item: InvoiceItem, index: number) => {
+        if (currentY + 8 > pageHeight - bottomMargin) {
+          doc.addPage();
+          currentY = 20;
+          drawItemsHeader();
+        }
+
         const product = item.products_carreaux;
         const total = item.quantity * item.price;
         subtotal += total;
@@ -287,7 +370,7 @@ export const usePdfGenerator = () => {
           doc.rect(15, currentY, 170, 8, "F");
         }
 
-        currentX = 20;
+        let currentX = 20;
         // Gérer les produits internes et externes
         const productName = item.is_external
           ? item.external_description || "Produit externe"
@@ -319,12 +402,48 @@ export const usePdfGenerator = () => {
         currentY += 8;
       });
 
+      const locations = Array.from(
+        new Set(
+          items
+            .filter((item: InvoiceItem) => !item.is_external)
+            .map((item: InvoiceItem) => item.products_carreaux?.storage_location)
+            .filter(
+              (location): location is string =>
+                typeof location === "string" && location.trim() !== "",
+            ),
+        ),
+      );
+
+      if (locations.length > 0) {
+        if (currentY + 16 > pageHeight - bottomMargin) {
+          doc.addPage();
+          currentY = 20;
+        }
+        currentY += 4;
+        doc.setFillColor(240, 248, 255);
+        doc.rect(15, currentY, 170, 10, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(...darkColor);
+        doc.text("EMPLACEMENTS DE RETRAIT:", 20, currentY + 6.5);
+
+        const locationsText = locations.join(" | ");
+        const compactText = doc.splitTextToSize(locationsText, 95)[0] || locationsText;
+        doc.setFont("helvetica", "normal");
+        doc.text(compactText, 88, currentY + 6.5);
+        currentY += 12;
+      }
+
       // Ligne de séparation
       doc.setDrawColor(grayColor[0], grayColor[1], grayColor[2]);
       doc.line(15, currentY + 5, 185, currentY + 5);
 
       // Totaux
       currentY += 15;
+      if (currentY + 24 > pageHeight - bottomMargin) {
+        doc.addPage();
+        currentY = 20;
+      }
       const totalX = 135;
 
       doc.setFont("helvetica", "normal");
@@ -359,7 +478,7 @@ export const usePdfGenerator = () => {
       );
 
       // Pied de page
-      currentY = 270;
+      currentY = pageHeight - 22;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
@@ -403,9 +522,8 @@ export const usePdfGenerator = () => {
         date?: string;
       } | null;
 
-      const fileName = `Facture_${invoiceData?.reference || invoiceId}_${
-        new Date(invoiceData?.date || new Date()).toISOString().split("T")[0]
-      }.pdf`;
+      const fileName = `Facture_${invoiceData?.reference || invoiceId}_${new Date(invoiceData?.date || new Date()).toISOString().split("T")[0]
+        }.pdf`;
       doc.save(fileName);
     } catch (error) {
       console.error("Erreur lors du téléchargement du PDF:", error);
@@ -422,11 +540,22 @@ export const usePdfGenerator = () => {
       const url = URL.createObjectURL(pdfBlob);
 
       // Ouvrir dans une nouvelle fenêtre et déclencher l'impression
-      const printWindow = (window as Window).open(url, "_blank");
+      const openWindow = (
+        globalThis as unknown as {
+          open?: (url?: string, target?: string) => Window | null;
+        }
+      ).open;
+      const printWindow =
+        typeof openWindow === "function" ? openWindow(url, "_blank") : null;
       if (printWindow) {
-        printWindow.onload = function () {
-          printWindow.focus();
-          printWindow.print();
+        const safeWindow = printWindow as unknown as {
+          onload: null | (() => void);
+          focus?: () => void;
+          print?: () => void;
+        };
+        safeWindow.onload = function () {
+          safeWindow.focus?.();
+          safeWindow.print?.();
         };
       }
     } catch (error) {
@@ -439,29 +568,28 @@ export const usePdfGenerator = () => {
     try {
       if (isLoadingUser.value) await loadCurrentUser();
       if (companyId.value) await fetchCompanySettings(companyId.value);
-      // Charger les paramètres de l'entreprise
-      await fetchCompanySettings();
 
       const { invoice, items } = await fetchInvoiceDetails(invoiceId);
 
       // Récupérer les paiements de la facture
-      const { data: payments, error: paymentsError } = await supabase
+      const { data: paymentsData, error: paymentsError } = await supabase
         .from("payments")
         .select("*")
         .eq("invoice_id", invoiceId)
         .order("payment_date", { ascending: true });
 
       if (paymentsError) throw paymentsError;
+      const payments = (paymentsData || []) as Array<Partial<Payment>>;
 
       // Créer un nouveau document PDF
-      if (!jsPDF) {
+      if (!jsPDFCtor) {
         throw new Error(
           "Impossible de générer le PDF : jsPDF n'est pas disponible côté serveur ou l'import a échoué.",
         );
       }
       let doc;
       try {
-        doc = new jsPDF();
+        doc = new jsPDFCtor();
       } catch (err) {
         console.error("Erreur jsPDF:", err);
         throw new Error(
@@ -548,11 +676,10 @@ export const usePdfGenerator = () => {
 
       // Résumé des montants
       const totalInvoice = invoice.total;
-      const totalPaid =
-        payments?.reduce(
-          (sum: number, payment: Payment) => sum + (payment.amount || 0),
-          0,
-        ) || 0;
+      const totalPaid = (payments || []).reduce(
+        (sum: number, payment: Partial<Payment>) => sum + (payment?.amount || 0),
+        0,
+      );
       const remaining = totalInvoice - totalPaid;
 
       doc.setFillColor(240, 248, 255);
@@ -565,8 +692,7 @@ export const usePdfGenerator = () => {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.text(
-        `Total facture: ${totalInvoice.toFixed(2)} ${
-          companySettings.value?.currency
+        `Total facture: ${totalInvoice.toFixed(2)} ${companySettings.value?.currency
         }`,
         115,
         93,
@@ -574,8 +700,7 @@ export const usePdfGenerator = () => {
 
       doc.setTextColor(...greenColor);
       doc.text(
-        `Montant payé: ${totalPaid.toFixed(2)} ${
-          companySettings.value?.currency
+        `Montant payé: ${(totalPaid || 0).toFixed(2)} ${companySettings.value?.currency
         }`,
         115,
         98,
@@ -587,8 +712,7 @@ export const usePdfGenerator = () => {
         remaining > 0 ? orangeColor[2] : greenColor[2],
       );
       doc.text(
-        `Reste à payer: ${remaining.toFixed(2)} ${
-          companySettings.value?.currency
+        `Reste à payer: ${remaining.toFixed(2)} ${companySettings.value?.currency
         }`,
         115,
         103,
@@ -596,7 +720,7 @@ export const usePdfGenerator = () => {
 
       doc.setTextColor(...darkColor);
       doc.text(
-        `Statut: ${remaining <= 0 ? "Soldée" : "Partiellement payée"}`,
+        `Statut: ${(remaining || 0) <= 0 ? "Soldée" : "Partiellement payée"}`,
         115,
         108,
       );
@@ -611,27 +735,47 @@ export const usePdfGenerator = () => {
 
       const tableHeaders = ["Description", "Qté", "Prix unit.", "Total"];
       const colWidths = [90, 20, 25, 25];
+      const pageHeight =
+        ((doc as unknown as {
+          internal?: { pageSize?: { getHeight?: () => number } };
+        }).internal?.pageSize?.getHeight?.() || 297) as number;
+      const bottomMargin = 20;
+
+      const drawItemsHeader = () => {
+        doc.setFillColor(...primaryColor);
+        doc.rect(15, currentY, 160, 10, "F");
+
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+
+        let headerX = 20;
+        tableHeaders.forEach((header, index) => {
+          doc.text(header, headerX, currentY + 7);
+          headerX += colWidths[index] ?? 40;
+        });
+
+        currentY += 10;
+        doc.setTextColor(...darkColor);
+        doc.setFont("helvetica", "normal");
+      };
 
       // En-tête du tableau
-      doc.setFillColor(...primaryColor);
-      doc.rect(15, currentY, 160, 10, "F");
-
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10);
-
-      let currentX = 20;
-      tableHeaders.forEach((header, index) => {
-        doc.text(header, currentX, currentY + 7);
-        currentX += colWidths[index] ?? 40;
-      });
-
-      currentY += 10;
-      doc.setTextColor(...darkColor);
-      doc.setFont("helvetica", "normal");
+      drawItemsHeader();
 
       // Lignes du tableau (condensées)
-      items.forEach((item: InvoiceItem, index) => {
+      items.forEach((item: InvoiceItem, index: number) => {
+        if (currentY + 8 > pageHeight - bottomMargin) {
+          doc.addPage();
+          currentY = 20;
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(...darkColor);
+          doc.text("DÉTAIL DES ARTICLES (suite)", 15, currentY);
+          currentY += 8;
+          drawItemsHeader();
+        }
+
         if (index % 2 === 0) {
           doc.setFillColor(250, 250, 250);
           doc.rect(15, currentY, 160, 8, "F");
@@ -640,7 +784,7 @@ export const usePdfGenerator = () => {
         const product = item.products_carreaux;
         const total = item.quantity * item.price;
 
-        currentX = 20;
+        let currentX = 20;
         const productName = item.is_external
           ? item.external_description || "Produit externe"
           : product?.name || "Produit inconnu";
@@ -662,6 +806,38 @@ export const usePdfGenerator = () => {
         currentY += 8;
       });
 
+      const locations = Array.from(
+        new Set(
+          items
+            .filter((item: InvoiceItem) => !item.is_external)
+            .map((item: InvoiceItem) => item.products_carreaux?.storage_location)
+            .filter(
+              (location): location is string =>
+                typeof location === "string" && location.trim() !== "",
+            ),
+        ),
+      );
+
+      if (locations.length > 0) {
+        if (currentY + 12 > pageHeight - bottomMargin) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        doc.setFillColor(240, 248, 255);
+        doc.rect(15, currentY, 160, 8, "F");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(...darkColor);
+        doc.text("EMPLACEMENTS:", 20, currentY + 5.5);
+
+        const locationsText = locations.join(" | ");
+        const compactText = doc.splitTextToSize(locationsText, 95)[0] || locationsText;
+        doc.setFont("helvetica", "normal");
+        doc.text(compactText, 52, currentY + 5.5);
+        currentY += 10;
+      }
+
       // Section des paiements
       currentY += 15;
       doc.setFont("helvetica", "bold");
@@ -674,35 +850,58 @@ export const usePdfGenerator = () => {
         const paymentHeaders = ["Date", "Méthode", "Montant", "Référence"];
         const paymentColWidths = [40, 40, 30, 50];
 
-        doc.setFillColor(...greenColor);
-        doc.rect(15, currentY, 160, 10, "F");
+        const drawPaymentsHeader = () => {
+          doc.setFillColor(...greenColor);
+          doc.rect(15, currentY, 160, 10, "F");
 
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10);
 
-        currentX = 20;
-        paymentHeaders.forEach((header, index) => {
-          doc.text(header, currentX, currentY + 7);
-          currentX += paymentColWidths[index] ?? 40;
-        });
+          let headerX = 20;
+          paymentHeaders.forEach((header, index) => {
+            doc.text(header, headerX, currentY + 7);
+            headerX += paymentColWidths[index] ?? 40;
+          });
 
-        currentY += 10;
-        doc.setTextColor(...darkColor);
-        doc.setFont("helvetica", "normal");
+          currentY += 10;
+          doc.setTextColor(...darkColor);
+          doc.setFont("helvetica", "normal");
+        };
+
+        if (currentY + 10 > pageHeight - bottomMargin) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        drawPaymentsHeader();
 
         // Lignes des paiements
-        payments.forEach((payment: Payment, index: number) => {
+        payments.forEach((payment: Partial<Payment>, index: number) => {
+          if (currentY + 8 > pageHeight - bottomMargin) {
+            doc.addPage();
+            currentY = 20;
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(...darkColor);
+            doc.text("HISTORIQUE DES PAIEMENTS (suite)", 15, currentY);
+            currentY += 8;
+            drawPaymentsHeader();
+          }
+
           if (index % 2 === 0) {
             doc.setFillColor(248, 255, 248);
             doc.rect(15, currentY, 160, 8, "F");
           }
 
-          currentX = 20;
+          let currentX = 20;
           const paymentData = [
-            new Date(payment.payment_date).toLocaleDateString("fr-FR"),
+            payment.payment_date
+              ? new Date(payment.payment_date).toLocaleDateString("fr-FR")
+              : "N/A",
             payment.payment_method || "N/A",
-            `${payment.amount.toFixed(2)} ${companySettings.value?.currency}`,
+            `${(payment.amount || 0).toFixed(2)} ${companySettings.value?.currency
+            }`,
             payment.reference || "N/A",
           ];
 
@@ -724,6 +923,10 @@ export const usePdfGenerator = () => {
 
       // Récapitulatif final
       currentY += 15;
+      if (currentY + 25 > pageHeight - bottomMargin) {
+        doc.addPage();
+        currentY = 20;
+      }
       doc.setFillColor(245, 245, 245);
       doc.rect(15, currentY, 170, 25, "F");
 
@@ -736,8 +939,7 @@ export const usePdfGenerator = () => {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.text(
-        `Total facture: ${totalInvoice.toFixed(2)} ${
-          companySettings.value?.currency
+        `Total facture: ${totalInvoice.toFixed(2)} ${companySettings.value?.currency
         }`,
         20,
         summaryY,
@@ -745,8 +947,7 @@ export const usePdfGenerator = () => {
 
       doc.setTextColor(...greenColor);
       doc.text(
-        `Total payé: ${totalPaid.toFixed(2)} ${
-          companySettings.value?.currency
+        `Total payé: ${(totalPaid || 0).toFixed(2)} ${companySettings.value?.currency
         }`,
         75,
         summaryY,
@@ -764,7 +965,7 @@ export const usePdfGenerator = () => {
       );
 
       // Pied de page
-      const footerY = 270;
+      const footerY = pageHeight - 22;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(...grayColor);
@@ -800,11 +1001,9 @@ export const usePdfGenerator = () => {
         date?: string;
       } | null;
 
-      const fileName = `Facture_Paiements_${
-        invoiceData?.reference || invoiceId
-      }_${
-        new Date(invoiceData?.date || new Date()).toISOString().split("T")[0]
-      }.pdf`;
+      const fileName = `Facture_Paiements_${invoiceData?.reference || invoiceId
+        }_${new Date(invoiceData?.date || new Date()).toISOString().split("T")[0]
+        }.pdf`;
       doc.save(fileName);
     } catch (error) {
       console.error("Erreur lors du téléchargement du PDF partiel:", error);
@@ -821,11 +1020,22 @@ export const usePdfGenerator = () => {
       const url = URL.createObjectURL(pdfBlob);
 
       // Ouvrir dans une nouvelle fenêtre et déclencher l'impression
-      const printWindow = window.open(url, "_blank");
+      const openWindow = (
+        globalThis as unknown as {
+          open?: (url?: string, target?: string) => Window | null;
+        }
+      ).open;
+      const printWindow =
+        typeof openWindow === "function" ? openWindow(url, "_blank") : null;
       if (printWindow) {
-        printWindow.onload = function () {
-          printWindow.focus();
-          printWindow.print();
+        const safeWindow = printWindow as unknown as {
+          onload: null | (() => void);
+          focus?: () => void;
+          print?: () => void;
+        };
+        safeWindow.onload = function () {
+          safeWindow.focus?.();
+          safeWindow.print?.();
         };
       }
     } catch (error) {
@@ -844,6 +1054,3 @@ export const usePdfGenerator = () => {
     fetchInvoiceDetails,
   };
 };
-function fetchInvoiceDetails() {
-  throw new Error("Function not implemented.");
-}

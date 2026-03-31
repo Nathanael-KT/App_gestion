@@ -28,7 +28,6 @@ const error = ref(null);
 const successMessage = ref(null);
 const downloadingPdf = ref(null);
 
-
 // Search and filters
 const searchQuery = ref("");
 const statusFilter = ref("all");
@@ -76,7 +75,7 @@ const filteredInvoices = computed(() => {
     filtered = filtered.filter(
       (invoice) =>
         invoice.reference.toLowerCase().includes(query) ||
-        invoice.client_name.toLowerCase().includes(query)
+        invoice.client_name.toLowerCase().includes(query),
     );
   }
 
@@ -106,7 +105,7 @@ const filteredInvoices = computed(() => {
 });
 
 const totalPages = computed(() =>
-  Math.ceil(filteredInvoices.value.length / itemsPerPage.value)
+  Math.ceil(filteredInvoices.value.length / itemsPerPage.value),
 );
 
 const paginatedInvoices = computed(() => {
@@ -127,7 +126,7 @@ watch(
   () => {
     saveFiltersToStorage();
   },
-  { deep: true }
+  { deep: true },
 );
 
 const fetchInvoices = async () => {
@@ -156,7 +155,7 @@ const fetchInvoices = async () => {
         *,
         magasin_id,
         clients(name)
-      `
+      `,
       )
       .eq("magasin_id", magasinStore.magasinId)
       .order("date", { ascending: false });
@@ -253,7 +252,9 @@ const handlePrintPartialPDF = async (invoiceId) => {
 const getStatusColor = (status) => {
   const colors = {
     paid: "green",
+    partially_paid: "amber",
     draft: "orange",
+    pending: "orange",
   };
   return colors[status] || "gray";
 };
@@ -261,11 +262,12 @@ const getStatusColor = (status) => {
 const getStatusLabel = (status) => {
   const labels = {
     paid: "Payée",
+    partially_paid: "Partiellement payée",
     draft: "Non payée",
+    pending: "En attente",
   };
   return labels[status] || status;
 };
-
 
 const getVisiblePages = () => {
   const pages = [];
@@ -289,7 +291,7 @@ const getVisiblePages = () => {
   }
 
   return pages.filter(
-    (page) => page !== "..." || pages.indexOf(page) === pages.lastIndexOf(page)
+    (page) => page !== "..." || pages.indexOf(page) === pages.lastIndexOf(page),
   );
 };
 
@@ -693,7 +695,7 @@ watch(() => magasinStore.magasinId, fetchInvoices);
               {{
                 Math.min(
                   (currentPage + 1) * itemsPerPage,
-                  filteredInvoices.length
+                  filteredInvoices.length,
                 )
               }}
               sur {{ filteredInvoices.length }} factures

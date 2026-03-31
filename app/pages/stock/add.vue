@@ -18,6 +18,7 @@ onMounted(async () => {
 const product = ref({
   name: "",
   stock: "",
+  storage_location: "",
   longueur: "",
   largeur: "",
   type_produit: "",
@@ -79,7 +80,7 @@ const fetchProductTypes = async () => {
 // Gérer le changement de type de produit
 const onTypeChange = () => {
   const selectedType = typeProduits.value.find(
-    (type) => type.id === product.value.type_produit
+    (type) => type.id === product.value.type_produit,
   );
 
   // Auto-détecter si c'est un produit de surface basé sur le nom du type
@@ -92,7 +93,7 @@ const onTypeChange = () => {
       "lame",
     ];
     const isSurfaceProduct = surfaceKeywords.some((keyword) =>
-      selectedType.name.toLowerCase().includes(keyword)
+      selectedType.name.toLowerCase().includes(keyword),
     );
 
     if (isSurfaceProduct) {
@@ -107,7 +108,7 @@ watch(
   (id) => {
     if (id) fetchProductTypes();
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Fonction pour gérer la sélection d'une image et l'aperçu
@@ -141,7 +142,7 @@ const addProduct = async () => {
     // Block if companyId is missing/null
     if (!companyId.value) {
       throw new Error(
-        "Aucune société sélectionnée. Veuillez choisir une société avant d'ajouter un produit."
+        "Aucune société sélectionnée. Veuillez choisir une société avant d'ajouter un produit.",
       );
     }
     // Validation des champs requis de base
@@ -154,7 +155,7 @@ const addProduct = async () => {
       !product.value.price
     ) {
       throw new Error(
-        "Les champs nom, référence, description, type, stock et prix sont obligatoires."
+        "Les champs nom, référence, description, type, stock et prix sont obligatoires.",
       );
     }
 
@@ -166,14 +167,14 @@ const addProduct = async () => {
         !product.value.nbr_pieces
       ) {
         throw new Error(
-          "Pour les produits de surface, les dimensions et le nombre de pièces sont obligatoires."
+          "Pour les produits de surface, les dimensions et le nombre de pièces sont obligatoires.",
         );
       }
     }
 
     // Vérifier que le type de produit existe
     const typeExists = typeProduits.value.some(
-      (type) => type.id === product.value.type_produit
+      (type) => type.id === product.value.type_produit,
     );
     if (!typeExists) {
       throw new Error("Le type de produit sélectionné est invalide.");
@@ -202,6 +203,7 @@ const addProduct = async () => {
       reference: product.value.reference,
       description: product.value.description,
       type_produit: product.value.type_produit,
+      storage_location: product.value.storage_location || null,
       stock: parseFloat(product.value.stock),
       price: parseFloat(product.value.price),
       unite: product.value.unite,
@@ -235,6 +237,7 @@ const addProduct = async () => {
     product.value = {
       name: "",
       stock: "",
+      storage_location: "",
       longueur: "",
       largeur: "",
       type_produit: "",
@@ -425,7 +428,7 @@ const addProduct = async () => {
               </h3>
             </template>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <UFormField
                 :label="`Stock disponible (${product.unite})`"
                 name="stock"
@@ -450,6 +453,15 @@ const addProduct = async () => {
                   type="number"
                   step="0.01"
                   :placeholder="`Prix unitaire (${companySettings?.currency})`"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField label="Lieu de stockage" name="storage_location">
+                <UInput
+                  v-model="product.storage_location"
+                  type="text"
+                  placeholder="Ex: Rayon A - Allée 2"
                   class="w-full"
                 />
               </UFormField>

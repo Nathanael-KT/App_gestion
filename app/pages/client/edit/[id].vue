@@ -81,8 +81,8 @@ onMounted(() => {
 
 <template>
   <div class="container mx-auto px-4 py-6">
-    // block l'affiche de la page si l'utilisateur nas pas de rôle admin ou
-    magasinier
+    <!-- Met un bouton de retour -->
+    <UButton label="Retour" to="/client" />
     <!-- Blocage simple pour les magasiniers -->
     <div v-if="userRoles?.includes('magasinier')" class="text-center py-12">
       <UIcon

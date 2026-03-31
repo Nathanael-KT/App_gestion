@@ -42,23 +42,28 @@ const toggleMobileMenu = () => {
 
 <template>
   <header
-    class="h-20 flex items-center p-4 shadow fixed top-0 left-0 right-0 bg-primary z-40"
+    class="h-16 md:h-20 flex items-center px-3 md:px-4 py-2 md:py-4 shadow fixed top-0 left-0 right-0 bg-primary z-40"
   >
-    <!-- Bouton hamburger pour mobile -->
+    <!-- Bouton hamburger pour mobile et tablette -->
     <button
       aria-label="Ouvrir le menu"
-      class="lg:hidden mr-4 text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
+      class="xl:hidden mr-2 md:mr-4 text-white hover:bg-white/10 p-2 rounded-lg transition-colors flex-shrink-0"
       @click="toggleMobileMenu"
     >
-      <CompanyLogo :company-id="companyId ?? ''" :size="48" />
+      <UIcon name="heroicons:bars-3-20-solid" class="h-6 w-6" />
     </button>
 
-    <div v-if="user" class="ml-auto flex items-center space-x-6">
+    <!-- Logo visible sur desktop -->
+    <div class="hidden xl:flex items-center space-x-2 flex-shrink-0">
+      <CompanyLogo :company-id="companyId ?? ''" :size="32" />
+    </div>
+
+    <div v-if="user" class="ml-auto flex items-center space-x-2 md:space-x-6">
       <!-- Notifications (visible sur desktop) -->
 
       <!-- Menu utilisateur -->
       <UDropdownMenu :items="items">
-        <UButton variant="ghost" class="!p-0 !w-12 !h-12">
+        <UButton variant="ghost" class="!p-0 !w-10 !h-10 md:!w-12 md:!h-12">
           <span class="avatar-circle">
             {{ user?.email ? user.email.charAt(0).toUpperCase() : "" }}
           </span>
@@ -73,11 +78,17 @@ const toggleMobileMenu = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 3rem;
-  height: 3rem;
+  width: 100%;
+  height: 100%;
   border-radius: 9999px;
   background-color: #f2591d;
   color: white;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .avatar-circle {
+    font-size: 1.5rem;
+  }
 }
 </style>

@@ -61,7 +61,7 @@ const generateInvoiceNumber = () => {
   const date = new Date();
   return `FAC-EXT-${date.getFullYear()}${String(date.getMonth() + 1).padStart(
     2,
-    "0"
+    "0",
   )}-${Math.floor(1000 + Math.random() * 9000)}`;
 };
 
@@ -118,7 +118,7 @@ watch(
   (id) => {
     if (id) fetchMagasinInfo();
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 const addItem = () => {
@@ -149,7 +149,7 @@ const addItem = () => {
   // Vérifier si la référence n'existe pas déjà
   const existingItem = invoiceItems.value.find(
     (item) =>
-      item.reference.toLowerCase() === newItem.value.reference.toLowerCase()
+      item.reference.toLowerCase() === newItem.value.reference.toLowerCase(),
   );
 
   if (existingItem) {
@@ -216,7 +216,7 @@ const editItem = (index) => {
 const calculateTotals = () => {
   subtotal.value = invoiceItems.value.reduce(
     (sum, item) => sum + item.total,
-    0
+    0,
   );
   taxAmount.value = subtotal.value * taxRate.value;
   total.value = subtotal.value + taxAmount.value;
@@ -290,7 +290,8 @@ const handleSubmit = async () => {
         external_reference: item.reference, // Référence personnalisée
         external_description: item.description, // Description personnalisée
         is_external: true, // Marquer comme article externe
-      }))
+        magasin_id: magasinStore.magasinId,
+      })),
     );
 
     if (itemsError) throw itemsError;
@@ -614,7 +615,9 @@ onMounted(async () => {
 
               <!-- Prix unitaire -->
               <div class="md:col-span-2">
-                <UFormGroup label="Prix unitaire ({{ companySettings?.currency }}) *">
+                <UFormGroup
+                  label="Prix unitaire ({{ companySettings?.currency }}) *"
+                >
                   <UInput
                     v-model.number="newItem.price"
                     type="number"
@@ -650,7 +653,8 @@ onMounted(async () => {
             >
               <p class="text-sm text-blue-700">
                 <span class="font-medium">Total de cet article :</span>
-                {{ (newItem.quantity * newItem.price).toFixed(2) }} {{ companySettings?.currency }}
+                {{ (newItem.quantity * newItem.price).toFixed(2) }}
+                {{ companySettings?.currency }}
               </p>
             </div>
           </UCard>
@@ -757,16 +761,23 @@ onMounted(async () => {
           <div class="w-full max-w-md space-y-3 bg-gray-50 p-6 rounded-lg">
             <div class="flex justify-between text-gray-600">
               <span>Sous-total HT :</span>
-              <span class="font-medium">{{ subtotal.toFixed(2) }} {{ companySettings?.currency }}</span>
+              <span class="font-medium"
+                >{{ subtotal.toFixed(2) }} {{ companySettings?.currency }}</span
+              >
             </div>
             <div class="flex justify-between text-gray-600">
               <span>TVA ({{ (taxRate.value * 100).toFixed(0) }}%) :</span>
-              <span class="font-medium">{{ taxAmount.toFixed(2) }} {{ companySettings?.currency }}</span>
+              <span class="font-medium"
+                >{{ taxAmount.toFixed(2) }}
+                {{ companySettings?.currency }}</span
+              >
             </div>
             <UDivider />
             <div class="flex justify-between text-lg font-bold text-gray-900">
               <span>Total TTC :</span>
-              <span>{{ total.toFixed(2) }} {{ companySettings?.currency }}</span>
+              <span
+                >{{ total.toFixed(2) }} {{ companySettings?.currency }}</span
+              >
             </div>
           </div>
         </div>

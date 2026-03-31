@@ -62,6 +62,34 @@ const paymentProgress = computed(() => {
   return Math.min((totalPaid.value / invoice.value.total) * 100, 100);
 });
 
+const getInvoiceStatusLabel = (status) => {
+  if (status === "paid") return "Payee";
+  if (status === "partially_paid") return "Partiellement payee";
+  return "En attente";
+};
+
+const getInvoiceStatusColor = (status) => {
+  if (status === "paid") return "green";
+  if (status === "partially_paid") return "amber";
+  return "yellow";
+};
+
+const syncInvoicePaymentStatus = async () => {
+  if (!invoice.value?.id) return;
+
+  const nextStatus = remainingAmount.value <= 0 ? "paid" : "partially_paid";
+
+  if (invoice.value.status === nextStatus) return;
+
+  const { error: statusError } = await supabase
+    .from("invoices")
+    .update({ status: nextStatus })
+    .eq("id", invoice.value.id);
+
+  if (statusError) throw statusError;
+  invoice.value.status = nextStatus;
+};
+
 // Récupérer la facture et ses paiements
 const fetchInvoiceData = async () => {
   try {
@@ -97,7 +125,7 @@ const fetchInvoiceData = async () => {
           quantity,
           price
         )
-      `
+      `,
       )
       .eq("id", invoiceId)
       .single();
@@ -116,7 +144,7 @@ const fetchInvoiceData = async () => {
 
     invoice.value = {
       ...invoiceData,
-      date: new Date(invoiceData.date).toLocaleDateString("fr-cf"),
+      date: new Date(invoiceData.date).toLocaleDateString("fr-FR"),
       hasExternalProducts:
         invoiceData.invoice_items?.some((item) => item.is_external) || false,
       externalProductsCount:
@@ -147,34 +175,20 @@ const fetchInvoiceData = async () => {
 // Charger les paiements existants
 const loadExistingPayments = async (invoiceId) => {
   try {
-    // Essayer d'abord de récupérer depuis une table payments si elle existe
+    // Charger les paiements reels en base
     const { data, error } = await supabase
       .from("payments")
       .select("*")
       .eq("invoice_id", invoiceId)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      // Si la table n'existe pas, initialiser avec un tableau vide
-      console.log(
-        "Table payments non trouvée, initialisation avec données vides"
-      );
-      payments.value = [];
-      useToast().add({
-        title: "Information",
-        description:
-          "Table de paiements non configurée. Fonctionnalité en mode simulation.",
-        icon: "i-lucide-info",
-        color: "blue",
-      });
-      return;
-    }
+    if (error) throw error;
 
     if (data && data.length > 0) {
       payments.value = data.map((payment) => ({
         ...payment,
-        date: new Date(payment.created_at).toLocaleDateString("fr-cf"),
-        time: new Date(payment.created_at).toLocaleTimeString("fr-cf", {
+        date: new Date(payment.created_at).toLocaleDateString("fr-FR"),
+        time: new Date(payment.created_at).toLocaleTimeString("fr-FR", {
           hour: "2-digit",
           minute: "2-digit",
         }),
@@ -183,20 +197,30 @@ const loadExistingPayments = async (invoiceId) => {
       payments.value = [];
     }
   } catch (err) {
-    // En cas d'erreur, initialiser avec un tableau vide
-    console.log("Initialisation des paiements vides:", err);
+    console.error("Erreur chargement paiements:", err);
     payments.value = [];
     useToast().add({
-      title: "Information",
-      description: "Mode simulation des paiements activé",
-      icon: "i-lucide-info",
-      color: "blue",
+      title: "Erreur",
+      description:
+        err.message || "Impossible de charger les paiements de la facture",
+      icon: "i-lucide-alert-circle",
+      color: "red",
     });
   }
 };
 
 // Ajouter un nouveau paiement
 const addPayment = async () => {
+  if (!companyId.value) {
+    useToast().add({
+      title: "Erreur",
+      description: "Entreprise introuvable. Reconnectez-vous puis reessayez.",
+      icon: "i-lucide-alert-circle",
+      color: "red",
+    });
+    return;
+  }
+
   if (newPayment.value.amount <= 0) {
     useToast().add({
       title: "Erreur",
@@ -211,7 +235,7 @@ const addPayment = async () => {
     useToast().add({
       title: "Erreur",
       description: `Le montant ne peut pas dépasser le reste à payer (${remainingAmount.value.toFixed(
-        2
+        2,
       )} {${companySettings?.currency}})`,
       icon: "i-lucide-alert-circle",
       color: "red",
@@ -230,6 +254,8 @@ const addPayment = async () => {
       payment_method: newPayment.value.method,
       reference: newPayment.value.reference || null,
       note: newPayment.value.note || null,
+      company_id: companyId.value,
+      magasin_id: invoice.value.magasin_id || null,
       created_at: new Date().toISOString(),
     };
 
@@ -240,18 +266,10 @@ const addPayment = async () => {
       .select()
       .single();
 
-    if (insertError) {
-      // Si la table n'existe pas, ajouter localement et marquer comme à créer
-      console.log("Table payments non trouvée, ajout local");
-      const localPayment = {
-        id: Date.now(), // ID temporaire
-        ...paymentData,
-        isLocal: true, // Marquer comme local
-      };
-      payments.value.unshift(localPayment);
-    } else {
-      payments.value.unshift(data);
-    }
+    if (insertError) throw insertError;
+
+    payments.value.unshift(data);
+    await syncInvoicePaymentStatus();
 
     // Réinitialiser le formulaire
     newPayment.value = {
@@ -274,7 +292,7 @@ const addPayment = async () => {
       setTimeout(() => {
         if (
           confirm(
-            "La facture est maintenant entièrement payée. Voulez-vous la marquer comme payée ?"
+            "La facture est maintenant entièrement payée. Voulez-vous la marquer comme payée ?",
           )
         ) {
           markInvoiceAsPaid();
@@ -370,9 +388,9 @@ const markInvoiceAsPaid = async () => {
 const generatePaymentReference = () => {
   const date = new Date();
   const ref = `PAY-${invoice.value.reference}-${date.getFullYear()}${String(
-    date.getMonth() + 1
+    date.getMonth() + 1,
   ).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}-${Math.floor(
-    100 + Math.random() * 900
+    100 + Math.random() * 900,
   )}`;
   newPayment.value.reference = ref;
 };
@@ -437,8 +455,8 @@ onMounted(() => {
           </h2>
           <div class="flex items-center gap-3">
             <UBadge
-              :color="invoice.status === 'paid' ? 'green' : 'yellow'"
-              :label="invoice.status === 'paid' ? 'Payée' : 'En attente'"
+              :color="getInvoiceStatusColor(invoice.status)"
+              :label="getInvoiceStatusLabel(invoice.status)"
               variant="soft"
             />
           </div>
@@ -667,7 +685,7 @@ onMounted(() => {
                   <UBadge
                     :label="
                       paymentMethods.find(
-                        (m) => m.value === payment.payment_method
+                        (m) => m.value === payment.payment_method,
                       )?.label || payment.payment_method
                     "
                     variant="soft"
@@ -680,7 +698,7 @@ onMounted(() => {
                 </div>
                 <p class="text-sm text-gray-600">
                   {{
-                    new Date(payment.payment_date).toLocaleDateString("fr-cf")
+                    new Date(payment.payment_date).toLocaleDateString("fr-FR")
                   }}
                   <span v-if="payment.reference">
                     • Réf: {{ payment.reference }}</span
@@ -705,7 +723,7 @@ onMounted(() => {
 
       <!-- Actions finales -->
       <div
-        v-if="!invoice.status === 'paid'"
+        v-if="invoice.status !== 'paid'"
         class="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
       >
         <div class="flex items-center justify-between">

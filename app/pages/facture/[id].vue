@@ -1,6 +1,7 @@
 <script setup>
 import { useCurrentUser } from "../../composables/useCurrentUser";
 import { useCompanySettings } from "../../composables/useCompanySettings";
+import { usePdfGenerator } from "../../composables/usePdfGenerator";
 
 const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 const { settings: companySettings, fetchCompanySettings } =
@@ -16,52 +17,20 @@ const loading = ref(false);
 const error = ref(null);
 const downloadingPdf = ref(false);
 
+const { fetchInvoiceDetails: fetchInvoiceDetailsForPdf, downloadPDF } =
+  usePdfGenerator();
+
 const fetchInvoiceDetails = async () => {
   try {
     loading.value = true;
     const invoiceId = route.params.id;
 
-    // Récupérer les détails de la facture avec le client
-    const { data: invoiceData, error: invoiceError } = await supabase
-      .from("invoices")
-      .select(
-        `
-        *,
-        clients (
-          id,
-          name,
-          email,
-          phone,
-          address
-        )
-      `
-      )
-      .eq("id", invoiceId)
-      .single();
-
-    if (invoiceError) throw invoiceError;
-
-    // Récupérer les articles de la facture avec les produits (internes et externes)
-    const { data: itemsData, error: itemsError } = await supabase
-      .from("invoice_items")
-      .select(
-        `
-        *,
-        products_carreaux (
-          id,
-          name,
-          reference,
-          description,
-          type_produit
-        )
-      `
-      )
-      .eq("invoice_id", invoiceId);
-
-    if (itemsError) throw itemsError;
+    const { invoice: invoiceData, items } = await fetchInvoiceDetailsForPdf(
+      String(invoiceId),
+    );
 
     invoice.value = invoiceData;
-    invoiceItems.value = itemsData || [];
+    invoiceItems.value = items;
   } catch (err) {
     error.value =
       err.message || "Erreur lors de la récupération de la facture.";
@@ -88,12 +57,7 @@ const markAsPaid = async () => {
 const handleDownloadPDF = async () => {
   try {
     downloadingPdf.value = true;
-    // Import explicite du composable
-    const { usePdfGenerator } = await import(
-      "../../composables/usePdfGenerator"
-    );
-    const { downloadPDF } = usePdfGenerator();
-    await downloadPDF(route.params.id);
+    await downloadPDF(String(route.params.id));
   } catch (err) {
     error.value = err.message || "Erreur lors de la génération du PDF.";
   } finally {
@@ -104,7 +68,7 @@ const handleDownloadPDF = async () => {
 const calculateSubtotal = () => {
   return invoiceItems.value.reduce(
     (sum, item) => sum + item.quantity * item.price,
-    0
+    0,
   );
 };
 
@@ -112,6 +76,17 @@ const calculateTax = () => {
   const taxRate = companySettings.value?.tax_rate || 20; // Utiliser le taux de TVA des paramètres ou 20% par défaut
   return calculateSubtotal() * (taxRate / 100);
 };
+
+const storageLocations = computed(() => {
+  const locations = invoiceItems.value
+    .filter((item) => !item.is_external)
+    .map((item) => item.products_carreaux?.storage_location)
+    .filter(
+      (location) => typeof location === "string" && location.trim() !== "",
+    );
+
+  return [...new Set(locations)];
+});
 
 onMounted(async () => {
   if (isLoadingUser.value) await loadCurrentUser();
@@ -142,9 +117,13 @@ onMounted(async () => {
           />
           <!-- Badge statut payé -->
           <UBadge
-            v-if="invoice?.status === 'paid'"
-            label="Payée"
-            color="green"
+            v-if="
+              invoice?.status === 'paid' || invoice?.status === 'partially_paid'
+            "
+            :label="
+              invoice?.status === 'paid' ? 'Payée' : 'Partiellement payée'
+            "
+            :color="invoice?.status === 'paid' ? 'green' : 'amber'"
             variant="soft"
           />
           <!-- Boutons d'actions -->
@@ -207,8 +186,20 @@ onMounted(async () => {
           </div>
           <div class="text-right">
             <UBadge
-              :label="invoice.status === 'paid' ? 'Payée' : 'En attente'"
-              :color="invoice.status === 'paid' ? 'green' : 'orange'"
+              :label="
+                invoice.status === 'paid'
+                  ? 'Payée'
+                  : invoice.status === 'partially_paid'
+                    ? 'Partiellement payée'
+                    : 'En attente'
+              "
+              :color="
+                invoice.status === 'paid'
+                  ? 'green'
+                  : invoice.status === 'partially_paid'
+                    ? 'amber'
+                    : 'orange'
+              "
               size="lg"
             />
             <p class="text-sm text-gray-600 mt-2">
@@ -380,17 +371,39 @@ onMounted(async () => {
                 <td
                   class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right"
                 >
-                  {{ item.price.toFixed(2) }}   {{ companySettings?.currency  }}
+                  {{ item.price.toFixed(2) }} {{ companySettings?.currency }}
                 </td>
                 <td
                   class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right"
                 >
-                  {{ (item.quantity * item.price).toFixed(2) }} {{ companySettings?.currency  }}
+                  {{ (item.quantity * item.price).toFixed(2) }}
+                  {{ companySettings?.currency }}
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
+      </div>
+
+      <!-- Espace spécial: emplacements de retrait -->
+      <div class="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 class="text-sm font-semibold text-blue-900 mb-2">
+          Emplacements de retrait
+        </h4>
+        <div v-if="storageLocations.length" class="flex flex-wrap gap-2">
+          <UBadge
+            v-for="location in storageLocations"
+            :key="location"
+            color="blue"
+            variant="soft"
+            size="sm"
+          >
+            {{ location }}
+          </UBadge>
+        </div>
+        <p v-else class="text-sm text-blue-800">
+          Aucun emplacement défini pour cette facture.
+        </p>
       </div>
 
       <!-- Totaux -->
@@ -399,7 +412,8 @@ onMounted(async () => {
           <div class="flex justify-between text-sm">
             <span class="text-gray-600">Sous-total HT:</span>
             <span class="font-medium"
-              >{{ calculateSubtotal().toFixed(2) }} {{ companySettings?.currency }}</span
+              >{{ calculateSubtotal().toFixed(2) }}
+              {{ companySettings?.currency }}</span
             >
           </div>
           <div class="flex justify-between text-sm">
@@ -407,14 +421,18 @@ onMounted(async () => {
               >TVA ({{ companySettings?.tax_rate || 20 }}%):</span
             >
             <span class="font-medium"
-              >{{ calculateTax().toFixed(2) }} {{ companySettings?.currency }}</span
+              >{{ calculateTax().toFixed(2) }}
+              {{ companySettings?.currency }}</span
             >
           </div>
           <div
             class="flex justify-between text-lg font-bold border-t border-gray-200 pt-3"
           >
             <span>Total TTC:</span>
-            <span>{{ invoice.total.toFixed(2) }} {{ companySettings?.currency }}</span>
+            <span
+              >{{ invoice.total.toFixed(2) }}
+              {{ companySettings?.currency }}</span
+            >
           </div>
         </div>
       </div>
@@ -427,7 +445,7 @@ onMounted(async () => {
             <strong>Date d'échéance:</strong>
             {{
               new Date(
-                new Date(invoice.date).getTime() + 30 * 24 * 60 * 60 * 1000
+                new Date(invoice.date).getTime() + 30 * 24 * 60 * 60 * 1000,
               ).toLocaleDateString("fr-FR")
             }}
           </p>

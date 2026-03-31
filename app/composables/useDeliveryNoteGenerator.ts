@@ -16,12 +16,13 @@ interface Client {
 interface Product {
   id: string;
   name: string;
-  reference?: string;
-  description?: string;
-  type_produit?: string;
-  nbr_pieces?: number;
-  longueur?: number;
-  largeur?: number;
+  reference?: string | null;
+  description?: string | null;
+  storage_location?: string | null;
+  type_produit?: string | null;
+  nbr_pieces?: number | null;
+  longueur?: number | null;
+  largeur?: number | null;
 }
 
 interface InvoiceItem {
@@ -57,7 +58,7 @@ export const useDeliveryNoteGenerator = () => {
 
   const fetchOrderDetails = async (invoiceId: string) => {
     try {
-      // Récupérer les détails de la commande avec le client
+      // Étape 1: Récupérer les détails de la commande avec le client
       const { data: invoice, error: invoiceError } = await supabase
         .from("invoices")
         .select(
@@ -70,43 +71,78 @@ export const useDeliveryNoteGenerator = () => {
             phone,
             address
           )
-        `
+        `,
         )
         .eq("id", invoiceId)
         .single();
 
       if (invoiceError) throw invoiceError;
 
-      // Récupérer les articles de la commande avec les produits
+      // Étape 2: Récupérer SÉPARÉMENT les articles sans jointe problématique
       const { data: invoiceItems, error: itemsError } = await supabase
         .from("invoice_items")
         .select(
           `
-          *,
-          products_carreaux (
-            id,
-            name,
-            reference,
-            description,
-            type_produit,
-            nbr_pieces,
-            longueur,
-            largeur
-          )
-        `
+          id,
+          invoice_id,
+          product_id,
+          quantity,
+          price,
+          is_external,
+          external_reference,
+          external_description
+        `,
         )
         .eq("invoice_id", invoiceId);
 
       if (itemsError) throw itemsError;
 
+      // Étape 3: Charger les produits si nécessaire
+      const typedItems = (invoiceItems || []) as InvoiceItem[];
+      const productIds = typedItems
+        .filter((item: InvoiceItem) => item.product_id && !item.is_external)
+        .map((item: InvoiceItem) => item.product_id as string);
+
+      const productsMap: Record<string, Product> = {};
+      if (productIds.length > 0) {
+        const { data: productsData } = await supabase
+          .from("products_carreaux")
+          .select(
+            `
+            id,
+            name,
+            reference,
+            description,
+            storage_location,
+            type_produit,
+            nbr_pieces,
+            longueur,
+            largeur
+            `,
+          )
+          .in("id", productIds);
+
+        (productsData || []).forEach((product: Product) => {
+          productsMap[product.id] = product;
+        });
+      }
+
+      // Enrichir les articles
+      const enrichedItems = typedItems.map((item: InvoiceItem) => ({
+        ...item,
+        products_carreaux: item.product_id
+          ? productsMap[item.product_id] || null
+          : null,
+      }));
+
       return {
         invoice: invoice as Invoice,
-        items: (invoiceItems || []) as InvoiceItem[],
+        items: enrichedItems as InvoiceItem[],
       };
     } catch (error) {
       console.error(
         "Erreur lors de la récupération des détails de la commande:",
-        error
+        error,
       );
       throw error;
     }
@@ -125,7 +161,7 @@ export const useDeliveryNoteGenerator = () => {
 
     // Calcul des pièces restantes - utilise exactement la même logique que CartonCalculator
     const conditionnement_calculer_precise = parseFloat(
-      (longueur * largeur * nbr_pieces).toFixed(3)
+      (longueur * largeur * nbr_pieces).toFixed(3),
     );
 
     if (nbr_pieces <= 0) {
@@ -135,7 +171,7 @@ export const useDeliveryNoteGenerator = () => {
     const remainingStock =
       stock -
       Math.floor(stock / conditionnement_calculer_precise) *
-        conditionnement_calculer_precise;
+      conditionnement_calculer_precise;
     const decimalPart = remainingStock / conditionnement_calculer_precise;
     const remainingPieces = Math.floor(decimalPart * nbr_pieces);
 
@@ -180,19 +216,19 @@ export const useDeliveryNoteGenerator = () => {
         doc.text(
           companySettings.value?.company_name || "MON ENTREPRISE",
           15,
-          currentY + 22
+          currentY + 22,
         );
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6);
         doc.text(
           companySettings.value?.company_address || "Adresse non définie",
           15,
-          currentY + 27
+          currentY + 27,
         );
         doc.text(
           `Tél: ${companySettings.value?.company_phone || "N/A"}`,
           15,
-          currentY + 32
+          currentY + 32,
         );
 
         // Numéro de bon et date (petite taille, à droite)
@@ -202,7 +238,7 @@ export const useDeliveryNoteGenerator = () => {
         doc.text(
           `Date: ${new Date(invoice.date).toLocaleDateString("fr-FR")}`,
           140,
-          currentY + 30
+          currentY + 30,
         );
 
         // Informations client
@@ -248,7 +284,7 @@ export const useDeliveryNoteGenerator = () => {
         doc.setFont("helvetica", "normal");
 
         // Lignes du tableau (très compact)
-        items.slice(0, 4).forEach((item, index) => {
+        items.slice(0, 4).forEach((item: InvoiceItem, index: number) => {
           // Limiter à 4 items pour l'espace
           const product = item.products_carreaux;
 
@@ -300,6 +336,31 @@ export const useDeliveryNoteGenerator = () => {
           currentY += 5;
         });
 
+        const locations = Array.from(
+          new Set(
+            items
+              .slice(0, 4)
+              .filter((item: InvoiceItem) => !item.is_external)
+              .map((item: InvoiceItem) => item.products_carreaux?.storage_location)
+              .filter(
+                (location): location is string =>
+                  typeof location === "string" && location.trim() !== "",
+              ),
+          ),
+        );
+
+        if (locations.length > 0) {
+          doc.setFillColor(240, 248, 255);
+          doc.rect(15, currentY, 125, 5, "F");
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(6);
+          doc.text("Emplacements:", 17, currentY + 3.5);
+          doc.setFont("helvetica", "normal");
+          const locText = doc.splitTextToSize(locations.join(" | "), 80)[0];
+          doc.text(locText || "-", 35, currentY + 3.5);
+          currentY += 6;
+        }
+
         // Si plus de 4 items, indiquer le nombre total
         if (items.length > 4) {
           doc.setFontSize(6);
@@ -307,7 +368,7 @@ export const useDeliveryNoteGenerator = () => {
           doc.text(
             `... et ${items.length - 4} autre(s) article(s)`,
             17,
-            currentY + 3
+            currentY + 3,
           );
           currentY += 5;
         }
@@ -345,13 +406,17 @@ export const useDeliveryNoteGenerator = () => {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(6);
         doc.setTextColor(...grayColor);
-        doc.text(`Total: ${invoice.total.toFixed(2)}${companySettings.value?.currency} TTC`, 15, currentY);
+        doc.text(
+          `Total: ${invoice.total.toFixed(2)}${companySettings.value?.currency} TTC`,
+          15,
+          currentY,
+        );
         doc.text(
           `Généré le ${new Date().toLocaleDateString(
-            "fr-FR"
+            "fr-FR",
           )} à ${new Date().toLocaleTimeString("fr-FR")}`,
           100,
-          currentY
+          currentY,
         );
 
         return currentY + 5;
@@ -398,16 +463,15 @@ export const useDeliveryNoteGenerator = () => {
         "reference" | "date"
       > | null;
 
-      const fileName = `Bon_Livraison_${invoiceData?.reference || invoiceId}_${
-        invoiceData?.date
-          ? new Date(invoiceData.date).toISOString().split("T")[0]
-          : new Date().toISOString().split("T")[0]
-      }.pdf`;
+      const fileName = `Bon_Livraison_${invoiceData?.reference || invoiceId}_${invoiceData?.date
+        ? new Date(invoiceData.date).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0]
+        }.pdf`;
       doc.save(fileName);
     } catch (error) {
       console.error(
         "Erreur lors du téléchargement du bon de livraison:",
-        error
+        error,
       );
       throw error;
     }
@@ -422,11 +486,22 @@ export const useDeliveryNoteGenerator = () => {
       const url = URL.createObjectURL(pdfBlob);
 
       // Ouvrir dans une nouvelle fenêtre et déclencher l'impression
-      const printWindow = window.open(url, "_blank");
+      const openWindow = (
+        globalThis as unknown as {
+          open?: (url?: string, target?: string) => Window | null;
+        }
+      ).open;
+      const printWindow =
+        typeof openWindow === "function" ? openWindow(url, "_blank") : null;
       if (printWindow) {
-        printWindow.onload = function () {
-          printWindow.focus();
-          printWindow.print();
+        const safeWindow = printWindow as unknown as {
+          onload: null | (() => void);
+          focus?: () => void;
+          print?: () => void;
+        };
+        safeWindow.onload = function () {
+          safeWindow.focus?.();
+          safeWindow.print?.();
         };
       }
     } catch (error) {

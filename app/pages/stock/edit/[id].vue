@@ -20,6 +20,7 @@ const productId = route.params.id;
 const product = ref({
   name: "",
   stock: "",
+  storage_location: "",
   longueur: "",
   largeur: "",
   type_produit: "",
@@ -102,7 +103,7 @@ const fetchProduct = async () => {
 
 const onTypeChange = () => {
   const selectedType = typeProduits.value.find(
-    (type) => type.id === product.value.type_produit
+    (type) => type.id === product.value.type_produit,
   );
   if (selectedType) {
     const surfaceKeywords = [
@@ -113,7 +114,7 @@ const onTypeChange = () => {
       "lame",
     ];
     const isSurfaceProduct = surfaceKeywords.some((keyword) =>
-      selectedType.name.toLowerCase().includes(keyword)
+      selectedType.name.toLowerCase().includes(keyword),
     );
     if (isSurfaceProduct) {
       product.value.is_surface_product = true;
@@ -161,7 +162,7 @@ const updateProduct = async () => {
       !product.value.price
     ) {
       throw new Error(
-        "Les champs nom, référence, description, type, stock et prix sont obligatoires."
+        "Les champs nom, référence, description, type, stock et prix sont obligatoires.",
       );
     }
     if (product.value.is_surface_product) {
@@ -171,12 +172,12 @@ const updateProduct = async () => {
         !product.value.nbr_pieces
       ) {
         throw new Error(
-          "Pour les produits de surface, les dimensions et le nombre de pièces sont obligatoires."
+          "Pour les produits de surface, les dimensions et le nombre de pièces sont obligatoires.",
         );
       }
     }
     const typeExists = typeProduits.value.some(
-      (type) => type.id === product.value.type_produit
+      (type) => type.id === product.value.type_produit,
     );
     if (!typeExists) {
       throw new Error("Le type de produit sélectionné est invalide.");
@@ -200,6 +201,7 @@ const updateProduct = async () => {
       reference: product.value.reference,
       description: product.value.description,
       type_produit: product.value.type_produit,
+      storage_location: product.value.storage_location || null,
       stock: parseFloat(product.value.stock),
       price: parseFloat(product.value.price),
       unite: product.value.unite,
@@ -322,13 +324,13 @@ const updateProduct = async () => {
                 accept="image/*"
                 class="block w-full border rounded p-2"
                 @change="onImageSelected"
-              >
+              />
               <div v-if="imagePreview" class="mt-2">
                 <img
                   :src="imagePreview"
                   alt="Aperçu"
                   class="max-h-32 rounded shadow"
-                >
+                />
               </div>
             </UFormField>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -371,7 +373,7 @@ const updateProduct = async () => {
                 v-model="product.is_surface_product"
                 type="checkbox"
                 class="rounded border-gray-300"
-              >
+              />
               <label for="surface-product" class="text-sm text-gray-700">
                 Ce produit nécessite des dimensions (longueur, largeur) - Ex:
                 carreaux, dalles
@@ -384,7 +386,7 @@ const updateProduct = async () => {
                 Données du stock
               </h3>
             </template>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <UFormField
                 :label="`Stock disponible (${product.unite})`"
                 name="stock"
@@ -408,6 +410,14 @@ const updateProduct = async () => {
                   type="number"
                   step="0.01"
                   :placeholder="`Prix unitaire (${companySettings?.currency})`"
+                  class="w-full"
+                />
+              </UFormField>
+              <UFormField label="Lieu de stockage" name="storage_location">
+                <UInput
+                  v-model="product.storage_location"
+                  type="text"
+                  placeholder="Ex: Rayon A - Allée 2"
                   class="w-full"
                 />
               </UFormField>

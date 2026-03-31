@@ -117,6 +117,8 @@ const statistics = ref({
   },
 });
 
+const usersById = ref({});
+
 // Options de période
 const periodOptions = [
   { label: "Aujourd'hui", value: "today" },
@@ -183,7 +185,7 @@ const userOptions = computed(() => [
 
 // Computed properties pour la pagination
 const totalPages = computed(() =>
-  Math.ceil(filteredAndSortedHistory.value.length / itemsPerPage.value)
+  Math.ceil(filteredAndSortedHistory.value.length / itemsPerPage.value),
 );
 
 // Computed properties pour le filtrage et tri avancé
@@ -200,7 +202,7 @@ const filteredAndSortedHistory = computed(() => {
         operation.note?.toLowerCase().includes(query) ||
         operation.reason?.toLowerCase().includes(query) ||
         operation.details?.source?.toLowerCase().includes(query) ||
-        operation.details?.recipient?.toLowerCase().includes(query)
+        operation.details?.recipient?.toLowerCase().includes(query),
     );
   }
 
@@ -324,7 +326,7 @@ const filteredStats = computed(() => {
       .reduce((sum, op) => sum + op.amount, 0),
     discrepancies: filtered.filter(
       (op) =>
-        op.type === "count" && op.difference && Math.abs(op.difference) > 0
+        op.type === "count" && op.difference && Math.abs(op.difference) > 0,
     ).length,
   };
 });
@@ -390,6 +392,36 @@ const loadUsers = async () => {
   } catch (err) {
     console.error("Erreur lors du chargement des utilisateurs:", err);
   }
+};
+
+const loadUsersByIds = async (ids) => {
+  const uniqueIds = Array.from(
+    new Set(ids.filter((id) => typeof id === "string" && id.trim() !== "")),
+  );
+
+  if (!uniqueIds.length) {
+    usersById.value = {};
+    return;
+  }
+
+  const { data, error: usersError } = await supabase
+    .from("users")
+    .select("id, name, email")
+    .in("id", uniqueIds);
+
+  if (usersError) {
+    console.warn(
+      "Impossible de charger les utilisateurs pour le mapping:",
+      usersError,
+    );
+    usersById.value = {};
+    return;
+  }
+
+  usersById.value = (data || []).reduce((acc, user) => {
+    acc[user.id] = user;
+    return acc;
+  }, {});
 };
 
 // Charger l'historique des opérations de caisse
@@ -460,51 +492,21 @@ const loadCashHistory = async () => {
     const selectedOpType =
       selectedOperationType.value?.value || selectedOperationType.value;
     const selectedUserId = selectedUser.value?.value || selectedUser.value;
+    let countsData = [];
+    let transactionsData = [];
 
     if (selectedOpType === "all" || selectedOpType === "count") {
       // Filtrer les cash_counts par magasin et récupérer l'utilisateur
-      const { data: countsData, error: countsError } = await supabase
+      const { data: countsResult, error: countsError } = await supabase
         .from("cash_counts")
-        .select("*, users:counted_by(id, name, email)")
+        .select("*")
         .eq("magasin_id", magasinId);
 
       if (countsError) throw countsError;
 
-      if (countsData) {
-        countsData.forEach((count) => {
-          if (
-            (selectedUserId === "all" || selectedUserId === count.counted_by) &&
-            count.magasin_id === magasinId
-          ) {
-            operations.push({
-              id: count.id,
-              type: "count",
-              date: count.created_at,
-              amount: count.actual_amount,
-              expectedAmount: count.expected_amount,
-              difference: count.difference,
-              note: count.note,
-              magasin_id: count.magasin_id,
-              user: count.users || {
-                id: count.counted_by,
-                name: "",
-                email: "",
-              },
-              userId: count.counted_by,
-              details: {
-                bills: count.bills_detail,
-                coins: count.coins_detail,
-                countType: count.count_type,
-                countDate: count.date,
-              },
-            });
-            stats.totalCounts++;
-          }
-        });
-      }
+      countsData = countsResult || [];
     }
 
-    // Charger les transactions de caisse (entrées/sorties)
     if (
       selectedOpType === "all" ||
       selectedOpType === "transaction" ||
@@ -512,59 +514,95 @@ const loadCashHistory = async () => {
       selectedOpType === "cash_out"
     ) {
       // Filtrer les cash_transactions par magasin et récupérer l'utilisateur
-      const { data: transactionsData, error: transactionsError } =
+      const { data: transactionsResult, error: transactionsError } =
         await supabase
           .from("cash_transactions")
-          .select("*, users:created_by(id, name, email)")
+          .select("*")
           .eq("magasin_id", magasinId);
 
       if (transactionsError) throw transactionsError;
 
-      if (transactionsData) {
-        transactionsData.forEach((transaction) => {
-          const isMatchingType =
-            selectedOpType === "all" ||
-            selectedOpType === "transaction" ||
-            (selectedOpType === "cash_in" && transaction.type === "in") ||
-            (selectedOpType === "cash_out" && transaction.type === "out");
-
-          if (
-            isMatchingType &&
-            (selectedUserId === "all" ||
-              selectedUserId === transaction.created_by) &&
-            transaction.magasin_id === magasinId
-          ) {
-            operations.push({
-              id: transaction.id,
-              type: transaction.type === "in" ? "cash_in" : "cash_out",
-              date: transaction.created_at,
-              amount: Math.abs(transaction.amount),
-              note: transaction.note,
-              reason: transaction.reason,
-              magasin_id: transaction.magasin_id,
-              user: transaction.users || {
-                id: transaction.created_by,
-                name: "",
-                email: "",
-              },
-              userId: transaction.created_by,
-              details: {
-                source: transaction.source,
-                recipient: transaction.recipient,
-                transactionType: transaction.type,
-              },
-            });
-
-            stats.totalTransactions++;
-            if (transaction.type === "in") {
-              stats.totalCashIn += Math.abs(transaction.amount);
-            } else {
-              stats.totalCashOut += Math.abs(transaction.amount);
-            }
-          }
-        });
-      }
+      transactionsData = transactionsResult || [];
     }
+
+    await loadUsersByIds([
+      ...countsData.map((count) => count.counted_by),
+      ...transactionsData.map((transaction) => transaction.created_by),
+    ]);
+
+    countsData.forEach((count) => {
+      if (
+        (selectedUserId === "all" || selectedUserId === count.counted_by) &&
+        count.magasin_id === magasinId
+      ) {
+        operations.push({
+          id: count.id,
+          type: "count",
+          date: count.created_at,
+          amount: count.actual_amount,
+          expectedAmount: count.expected_amount,
+          difference: count.difference,
+          note: count.note,
+          magasin_id: count.magasin_id,
+          user: usersById.value[count.counted_by] || {
+            id: count.counted_by,
+            name: "",
+            email: "",
+          },
+          userId: count.counted_by,
+          details: {
+            bills: count.bills_detail,
+            coins: count.coins_detail,
+            countType: count.count_type,
+            countDate: count.date,
+          },
+        });
+        stats.totalCounts++;
+      }
+    });
+
+    transactionsData.forEach((transaction) => {
+      const isMatchingType =
+        selectedOpType === "all" ||
+        selectedOpType === "transaction" ||
+        (selectedOpType === "cash_in" && transaction.type === "in") ||
+        (selectedOpType === "cash_out" && transaction.type === "out");
+
+      if (
+        isMatchingType &&
+        (selectedUserId === "all" ||
+          selectedUserId === transaction.created_by) &&
+        transaction.magasin_id === magasinId
+      ) {
+        operations.push({
+          id: transaction.id,
+          type: transaction.type === "in" ? "cash_in" : "cash_out",
+          date: transaction.created_at,
+          amount: Math.abs(transaction.amount),
+          note: transaction.note,
+          reason: transaction.reason,
+          magasin_id: transaction.magasin_id,
+          user: usersById.value[transaction.created_by] || {
+            id: transaction.created_by,
+            name: "",
+            email: "",
+          },
+          userId: transaction.created_by,
+          details: {
+            source: transaction.source,
+            recipient: transaction.recipient,
+            transactionType: transaction.type,
+          },
+        });
+
+        stats.totalTransactions++;
+        if (transaction.type === "in") {
+          stats.totalCashIn += Math.abs(transaction.amount);
+        } else {
+          stats.totalCashOut += Math.abs(transaction.amount);
+        }
+      }
+    });
 
     // Trier toutes les opérations par date (plus récent en premier)
     operations.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -661,7 +699,7 @@ const loadCashHistory = async () => {
     const daysDiff =
       Math.ceil(
         (new Date(dateRange.endDate) - new Date(dateRange.startDate)) /
-          (1000 * 60 * 60 * 24)
+          (1000 * 60 * 60 * 24),
       ) + 1;
     stats.averageOperationsPerDay = operations.length / daysDiff;
 
@@ -684,7 +722,7 @@ const loadCashHistory = async () => {
     });
 
     const peakDay = Object.entries(operationsByDate).sort(
-      (a, b) => b[1] - a[1]
+      (a, b) => b[1] - a[1],
     )[0];
     if (peakDay) {
       stats.peakOperationDay = {
@@ -695,7 +733,7 @@ const loadCashHistory = async () => {
 
     // Utilisateur le plus actif
     const mostActive = Object.entries(stats.operationsByUser).sort(
-      (a, b) => b[1].total - a[1].total
+      (a, b) => b[1].total - a[1].total,
     )[0];
     if (mostActive) {
       stats.mostActiveUser = {
@@ -904,7 +942,7 @@ watch(
   ],
   () => {
     currentPage.value = 1; // Reset pagination when filters change
-  }
+  },
 );
 
 watch(
@@ -912,7 +950,7 @@ watch(
   () => {
     currentPage.value = 1; // Reset pagination when amount filter changes
   },
-  { deep: true }
+  { deep: true },
 );
 
 watch([itemsPerPage], () => {
@@ -932,7 +970,7 @@ watch(
       loadCashHistory();
     }
   },
-  { deep: true }
+  { deep: true },
 );
 
 // Initialisation
@@ -1460,7 +1498,7 @@ onMounted(async () => {
                 <p class="text-3xl font-bold mb-1">
                   {{
                     formatCurrency(
-                      statistics.totalCashIn - statistics.totalCashOut
+                      statistics.totalCashIn - statistics.totalCashOut,
                     )
                   }}
                 </p>
@@ -1543,7 +1581,7 @@ onMounted(async () => {
                 >
                   {{
                     new Date(
-                      statistics.peakOperationDay.date
+                      statistics.peakOperationDay.date,
                     ).toLocaleDateString("fr-FR")
                   }}
                 </p>
@@ -1678,7 +1716,7 @@ onMounted(async () => {
                 <p class="text-sm text-gray-600 font-medium">
                   {{
                     formatCurrency(
-                      statistics.timeRangeStats?.morning?.amount || 0
+                      statistics.timeRangeStats?.morning?.amount || 0,
                     )
                   }}
                 </p>
@@ -1703,7 +1741,7 @@ onMounted(async () => {
                 <p class="text-sm text-gray-600 font-medium">
                   {{
                     formatCurrency(
-                      statistics.timeRangeStats?.afternoon?.amount || 0
+                      statistics.timeRangeStats?.afternoon?.amount || 0,
                     )
                   }}
                 </p>
@@ -1728,7 +1766,7 @@ onMounted(async () => {
                 <p class="text-sm text-gray-600 font-medium">
                   {{
                     formatCurrency(
-                      statistics.timeRangeStats?.evening?.amount || 0
+                      statistics.timeRangeStats?.evening?.amount || 0,
                     )
                   }}
                 </p>
@@ -1785,10 +1823,10 @@ onMounted(async () => {
                               (count /
                                 Math.max(
                                   ...Object.values(
-                                    statistics.operationsByWeekday || {}
-                                  )
+                                    statistics.operationsByWeekday || {},
+                                  ),
                                 )) *
-                                100
+                                100,
                             )
                           : 0
                       }%`,
@@ -1838,10 +1876,10 @@ onMounted(async () => {
                         index === 0
                           ? 'bg-gradient-to-r from-yellow-400 to-yellow-600'
                           : index === 1
-                          ? 'bg-gradient-to-r from-gray-400 to-gray-600'
-                          : index === 2
-                          ? 'bg-gradient-to-r from-amber-600 to-orange-600'
-                          : 'bg-gradient-to-r from-emerald-400 to-teal-600'
+                            ? 'bg-gradient-to-r from-gray-400 to-gray-600'
+                            : index === 2
+                              ? 'bg-gradient-to-r from-amber-600 to-orange-600'
+                              : 'bg-gradient-to-r from-emerald-400 to-teal-600'
                       "
                     >
                       {{ index + 1 }}
@@ -2109,7 +2147,7 @@ onMounted(async () => {
                         <UIcon
                           :name="getOperationIcon(operation.type)"
                           :class="`w-4 h-4 text-${getOperationColor(
-                            operation.type
+                            operation.type,
                           )}-600`"
                         />
                       </div>
@@ -2164,8 +2202,8 @@ onMounted(async () => {
                         getOperationColor(operation.type) === 'green'
                           ? 'text-green-600'
                           : getOperationColor(operation.type) === 'red'
-                          ? 'text-red-600'
-                          : 'text-purple-600'
+                            ? 'text-red-600'
+                            : 'text-purple-600'
                       "
                     >
                       {{ formatCurrency(operation.amount) }}
@@ -2191,7 +2229,7 @@ onMounted(async () => {
                         Date comptage:
                         {{
                           new Date(
-                            operation.details.countDate
+                            operation.details.countDate,
                           ).toLocaleDateString("fr-FR")
                         }}
                       </div>
@@ -2227,7 +2265,7 @@ onMounted(async () => {
                         />
                         {{
                           new Date(
-                            operation.details.countDate
+                            operation.details.countDate,
                           ).toLocaleDateString("fr-FR")
                         }}
                       </div>

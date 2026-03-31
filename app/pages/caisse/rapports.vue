@@ -571,6 +571,12 @@ interface CashEmptying {
   };
 }
 
+interface UserBasic {
+  id: string;
+  name: string | null;
+  email: string | null;
+}
+
 interface CashSummary {
   totalCumulated: number;
   totalCountedAmount: number;
@@ -669,6 +675,34 @@ function isValidMagasinId(id: unknown): boolean {
   return typeof id === "string" && id.trim() !== "";
 }
 
+async function loadUsersByIds(
+  userIds: string[],
+): Promise<Map<string, UserBasic>> {
+  const uniqueIds = Array.from(
+    new Set(
+      userIds.filter(
+        (id): id is string => typeof id === "string" && id.trim() !== "",
+      ),
+    ),
+  );
+
+  if (uniqueIds.length === 0) {
+    return new Map();
+  }
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, name, email")
+    .in("id", uniqueIds);
+
+  if (error) {
+    console.warn("Impossible de charger les utilisateurs:", error);
+    return new Map();
+  }
+
+  return new Map((data || []).map((user: UserBasic) => [user.id, user]));
+}
+
 // Chargement des données au montage : attend que magasinId soit prêt
 onMounted(async () => {
   // Si magasinId n'est pas prêt, on attend qu'il soit défini
@@ -700,18 +734,10 @@ async function loadCashSummary() {
       );
     }
 
-    // Récupérer tous les comptages de caisse avec les informations utilisateur
+    // Récupérer tous les comptages de caisse
     const { data: cashCounts, error: countsError } = await supabase
       .from("cash_counts")
-      .select(
-        `
-        *,
-        users:counted_by (
-          name,
-          email
-        )
-      `,
-      )
+      .select("*")
       .eq("magasin_id", magasinStore.magasinId)
       .order("created_at", { ascending: false });
 
@@ -721,18 +747,10 @@ async function loadCashSummary() {
 
     console.log("Comptages récupérés:", cashCounts?.length || 0);
 
-    // Récupérer tous les vidages de caisse avec les informations utilisateur
+    // Récupérer tous les vidages de caisse
     const { data: allEmptyings, error: emptyingError } = await supabase
       .from("cash_emptying")
-      .select(
-        `
-        *,
-        users:emptied_by (
-          name,
-          email
-        )
-      `,
-      )
+      .select("*")
       .eq("magasin_id", magasinStore.magasinId)
       .order("created_at", { ascending: false });
 
@@ -744,6 +762,14 @@ async function loadCashSummary() {
     }
 
     console.log("Vidages récupérés:", allEmptyings?.length || 0);
+
+    const userIds = [
+      ...(cashCounts || []).map((count: CashCount) => count.counted_by),
+      ...(allEmptyings || []).map(
+        (emptying: CashEmptying) => emptying.emptied_by,
+      ),
+    ];
+    const userMap = await loadUsersByIds(userIds);
 
     // Calculer les totaux des comptages
     let totalCountedAmount = 0;
@@ -780,7 +806,10 @@ async function loadCashSummary() {
           expected_amount: Number(count.expected_amount) || 0,
           actual_amount: Number(count.actual_amount) || 0,
           difference: Number(count.difference) || 0,
-          counted_by: count.users?.name || count.users?.email || "N/A",
+          counted_by:
+            userMap.get(count.counted_by)?.name ||
+            userMap.get(count.counted_by)?.email ||
+            "N/A",
           notes: count.notes,
         }),
       );
@@ -822,7 +851,10 @@ async function loadCashSummary() {
         date: emptying.date,
         amount: Number(emptying.amount) || 0,
         destination: emptying.destination || "",
-        emptied_by: emptying.users?.name || emptying.users?.email || "N/A",
+        emptied_by:
+          userMap.get(emptying.emptied_by)?.name ||
+          userMap.get(emptying.emptied_by)?.email ||
+          "N/A",
         notes: emptying.notes || "",
       }),
     );

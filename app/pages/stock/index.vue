@@ -37,7 +37,7 @@ const {
   loadCurrentUser,
 } = useCurrentUser();
 const userRoles = computed(() =>
-  Array.isArray(_userRoles.value) ? _userRoles.value : []
+  Array.isArray(_userRoles.value) ? _userRoles.value : [],
 );
 
 onMounted(async () => {
@@ -52,7 +52,7 @@ onMounted(async () => {
           await fetchProducts();
           stop();
         }
-      }
+      },
     );
   } else {
     await fetchProducts();
@@ -144,7 +144,7 @@ const fetchProducts = async () => {
         `
         *,
         product_types!inner(id, name)
-      `
+      `,
       )
       .eq("company_id", companyId.value)
       .order("name", { ascending: true });
@@ -192,7 +192,7 @@ const fetchProducts = async () => {
           signed_image_url: signedUrl,
           is_hidden: isHidden,
         };
-      })
+      }),
     );
     products.value = productsWithImages;
   } catch (err) {
@@ -245,40 +245,40 @@ const filteredProducts = computed(() => {
       (product) =>
         product.name.toLowerCase().includes(search) ||
         (product.type_produit &&
-          product.type_produit.toLowerCase().includes(search))
+          product.type_produit.toLowerCase().includes(search)),
     );
   }
 
   // Filtre par type de produit
   if (filters.value.type && filters.value.type !== "all") {
     filtered = filtered.filter(
-      (product) => product.type_produit === filters.value.type
+      (product) => product.type_produit === filters.value.type,
     );
   }
 
   // Filtre par unité
   if (filters.value.unite && filters.value.unite !== "all") {
     filtered = filtered.filter(
-      (product) => product.unite === filters.value.unite
+      (product) => product.unite === filters.value.unite,
     );
   }
 
   // Filtre par statut du stock
   if (filters.value.stockStatus && filters.value.stockStatus !== "all") {
     filtered = filtered.filter(
-      (product) => getStockStatus(product) === filters.value.stockStatus
+      (product) => getStockStatus(product) === filters.value.stockStatus,
     );
   }
 
   // Filtre par prix
   if (filters.value.priceMin) {
     filtered = filtered.filter(
-      (product) => product.price >= parseFloat(filters.value.priceMin)
+      (product) => product.price >= parseFloat(filters.value.priceMin),
     );
   }
   if (filters.value.priceMax) {
     filtered = filtered.filter(
-      (product) => product.price <= parseFloat(filters.value.priceMax)
+      (product) => product.price <= parseFloat(filters.value.priceMax),
     );
   }
 
@@ -296,32 +296,32 @@ const hiddenProducts = computed(() => {
       (product) =>
         product.name.toLowerCase().includes(search) ||
         (product.type_produit &&
-          product.type_produit.toLowerCase().includes(search))
+          product.type_produit.toLowerCase().includes(search)),
     );
   }
   if (filters.value.type && filters.value.type !== "all") {
     filtered = filtered.filter(
-      (product) => product.type_produit === filters.value.type
+      (product) => product.type_produit === filters.value.type,
     );
   }
   if (filters.value.unite && filters.value.unite !== "all") {
     filtered = filtered.filter(
-      (product) => product.unite === filters.value.unite
+      (product) => product.unite === filters.value.unite,
     );
   }
   if (filters.value.stockStatus && filters.value.stockStatus !== "all") {
     filtered = filtered.filter(
-      (product) => getStockStatus(product) === filters.value.stockStatus
+      (product) => getStockStatus(product) === filters.value.stockStatus,
     );
   }
   if (filters.value.priceMin) {
     filtered = filtered.filter(
-      (product) => product.price >= parseFloat(filters.value.priceMin)
+      (product) => product.price >= parseFloat(filters.value.priceMin),
     );
   }
   if (filters.value.priceMax) {
     filtered = filtered.filter(
-      (product) => product.price <= parseFloat(filters.value.priceMax)
+      (product) => product.price <= parseFloat(filters.value.priceMax),
     );
   }
   return filtered;
@@ -388,8 +388,8 @@ const carreauxProducts = computed(() => {
     ["carreau", "carrelage", "Carreau"].some(
       (type) =>
         product.type_produit &&
-        product.type_produit.toLowerCase().includes(type.toLowerCase())
-    )
+        product.type_produit.toLowerCase().includes(type.toLowerCase()),
+    ),
   );
 });
 
@@ -399,7 +399,7 @@ const otherProducts = computed(() => {
     (product) =>
       product.type_produit !== "carreau" &&
       product.type_produit !== "carrelage" &&
-      product.type_produit !== "Carreau"
+      product.type_produit !== "Carreaux",
   );
 });
 
@@ -763,6 +763,11 @@ onMounted(async () => {
                   <th
                     class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase"
                   >
+                    Emplacement
+                  </th>
+                  <th
+                    class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase"
+                  >
                     Prix
                   </th>
                   <th
@@ -786,7 +791,7 @@ onMounted(async () => {
                           :src="product.signed_image_url"
                           alt="Photo"
                           class="w-23 h-22 object-cover rounded shadow mx-auto"
-                        >
+                        />
                       </a>
                     </div>
                     <div v-else class="text-gray-400 italic">Aucune image</div>
@@ -809,6 +814,9 @@ onMounted(async () => {
                   </td>
                   <td class="px-6 py-4 text-sm text-right text-gray-500">
                     {{ product.type_produit }}
+                  </td>
+                  <td class="px-6 py-4 text-sm text-right text-gray-500">
+                    {{ product.storage_location || "Non défini" }}
                   </td>
                   <td class="px-6 py-4 text-sm text-right text-gray-500">
                     {{ formatCurrency(product.price) }}
@@ -861,7 +869,7 @@ onMounted(async () => {
                     :src="product.signed_image_url"
                     alt="Photo"
                     class="max-h-24 rounded shadow"
-                  >
+                  />
                 </a>
               </div>
               <div v-else class="text-gray-400 italic text-center mb-2">
@@ -877,6 +885,9 @@ onMounted(async () => {
                 </p>
                 <p>Prix : {{ formatCurrency(product.price) }}</p>
                 <p>Type : {{ product.type_produit }}</p>
+                <p>
+                  Emplacement : {{ product.storage_location || "Non défini" }}
+                </p>
               </div>
               <div
                 v-if="userRoles.includes('admin')"
@@ -970,6 +981,11 @@ onMounted(async () => {
                 Type
               </th>
               <th
+                class="px-6 py-3 text-right text-xs font-medium text-blue-700 uppercase"
+              >
+                Emplacement
+              </th>
+              <th
                 class="px-6 py-3 text-right text-xs font-medium text-blue-700 uppercase hidden md:table-cell"
               >
                 Taille (cm²)
@@ -1005,7 +1021,7 @@ onMounted(async () => {
                       :src="product.signed_image_url"
                       alt="Photo"
                       class="w-23 h-22 object-cover rounded shadow mx-auto"
-                    >
+                    />
                   </a>
                 </div>
                 <div v-else class="text-gray-400 italic">Aucune image</div>
@@ -1025,6 +1041,9 @@ onMounted(async () => {
               </td>
               <td class="px-6 py-4 text-sm text-right text-gray-500">
                 {{ product.type_produit }}
+              </td>
+              <td class="px-6 py-4 text-sm text-right text-gray-500">
+                {{ product.storage_location || "Non défini" }}
               </td>
               <td
                 class="px-6 py-4 text-sm text-right text-gray-500 hidden md:table-cell"
@@ -1081,7 +1100,7 @@ onMounted(async () => {
                 :src="product.signed_image_url"
                 alt="Photo"
                 class="max-h-24 rounded shadow"
-              >
+              />
             </a>
           </div>
           <div v-else class="text-gray-400 italic text-center mb-2">
@@ -1097,6 +1116,7 @@ onMounted(async () => {
             </p>
             <p>Prix : {{ formatCurrency(product.price) }}</p>
             <p>Type : {{ product.type_produit }}</p>
+            <p>Emplacement : {{ product.storage_location || "Non défini" }}</p>
             <p><CartonCalculator :product="product" /></p>
           </div>
           <div class="flex justify-end gap-2 mt-3">
@@ -1164,6 +1184,11 @@ onMounted(async () => {
               <th
                 class="px-6 py-3 text-right text-xs font-medium text-green-700 uppercase"
               >
+                Emplacement
+              </th>
+              <th
+                class="px-6 py-3 text-right text-xs font-medium text-green-700 uppercase"
+              >
                 Prix
               </th>
               <th
@@ -1187,7 +1212,7 @@ onMounted(async () => {
                       :src="product.signed_image_url"
                       alt="Photo"
                       class="w-23 h-22 object-cover rounded shadow mx-auto"
-                    >
+                    />
                   </a>
                 </div>
                 <div v-else class="text-gray-400 italic">Aucune image</div>
@@ -1209,6 +1234,9 @@ onMounted(async () => {
               </td>
               <td class="px-6 py-4 text-sm text-right text-gray-500">
                 {{ product.type_produit }}
+              </td>
+              <td class="px-6 py-4 text-sm text-right text-gray-500">
+                {{ product.storage_location || "Non défini" }}
               </td>
               <td class="px-6 py-4 text-sm text-right text-gray-500">
                 {{ formatCurrency(product.price) }}
@@ -1254,7 +1282,7 @@ onMounted(async () => {
                 :src="product.signed_image_url"
                 alt="Photo"
                 class="max-h-24 rounded shadow"
-              >
+              />
             </a>
           </div>
           <div v-else class="text-gray-400 italic text-center mb-2">
@@ -1270,6 +1298,7 @@ onMounted(async () => {
             </p>
             <p>Prix : {{ formatCurrency(product.price) }}</p>
             <p>Type : {{ product.type_produit }}</p>
+            <p>Emplacement : {{ product.storage_location || "Non défini" }}</p>
           </div>
           <div class="flex justify-end gap-2 mt-3">
             <NuxtLink

@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useSupabaseClient } from "#imports";
 
-const router = useRouter();
 const route = useRoute();
+const supabase = useSupabaseClient();
 
 const companyId = route.params.id as string;
-const supabase = useSupabaseClient() as any;
 
 interface Company {
   id: string;
@@ -17,15 +14,41 @@ interface Company {
   company_email: string;
   company_website: string;
   currency?: string;
+  blocked?: boolean;
+  blocked_menus?: string[];
+  updated_at?: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  name?: string;
+  roles?: string[];
+  created_at?: string;
+}
+
+interface Magasin {
+  id: string;
+  nom: string;
+  adresse?: string;
+  telephone?: string;
+  email?: string;
+  created_at?: string;
 }
 
 const company = ref<Company | null>(null);
 const loading = ref(false);
 const error = ref("");
+const users = ref<User[]>([]);
+const magasins = ref<Magasin[]>([]);
+const usersLoading = ref(false);
+const magasinsLoading = ref(false);
 
 const blockedMenus = ref<string[]>([]);
 const companyBlocked = ref(false);
 const lastUpdate = ref<Date | null>(null);
+const menuActionLoading = ref<string | null>(null);
+
 const allMenus = [
   "Accueil",
   "Stock",
@@ -39,135 +62,186 @@ const allMenus = [
   "Paramètres",
   "Aide",
 ];
-const menuActionLoading = ref<string | null>(null);
-
-// Mapping menu -> path principal
-const menuToPath: Record<string, string> = {
-  Accueil: "/",
-  Stock: "/stock",
-  Clients: "/client",
-  Commandes: "/commande",
-  Facture: "/facture",
-  Caisse: "/caisse",
-  Utilisateurs: "/utilisateurs",
-  Rapports: "/rapports",
-  Discussion: "/discussion",
-  Paramètres: "/parametres",
-  Aide: "/aide",
-};
 
 async function fetchCompanyInfo() {
   loading.value = true;
   error.value = "";
-  let result = await supabase
-    .from("company_settings")
-    .select("*")
-    .eq("id", companyId)
-    .single();
-  if (
-    result.error &&
-    result.error.message.includes('relation "public.companies" does not exist')
-  ) {
-    result = await supabase
-      .from("company")
-      .select("id, company_name, company_phone, company_address, company_email")
+  try {
+    const { data, error: supaError } = await supabase
+      .from("company_settings")
+      .select("*")
       .eq("id", companyId)
       .single();
+
+    if (supaError) {
+      error.value =
+        supaError.message ||
+        "Erreur lors du chargement des données de l'entreprise";
+      console.error("[company detail] Fetch error:", supaError);
+      return;
+    }
+
+    if (data) {
+      company.value = data as Company;
+    }
+  } catch (err) {
+    error.value =
+      err instanceof Error
+        ? err.message
+        : "Erreur lors du chargement des données";
+    console.error("[company detail] Unexpected error:", err);
+  } finally {
+    loading.value = false;
   }
-  const { data, error: supaError } = result;
-  if (!supaError && data) {
-    company.value = data as Company;
-  } else {
-    error.value = supaError?.message || "Erreur lors du chargement";
-  }
-  loading.value = false;
 }
 
 async function fetchBlockedMenus() {
-  const { data, error: supaError } = await supabase
-    .from("company_settings")
-    .select("blocked_menus, updated_at, blocked")
-    .eq("id", companyId)
-    .single();
-  type BlockedMenusResponse = {
-    blocked_menus?: string[];
-    updated_at?: string;
-    blocked?: boolean;
-  };
-  const typedData = data as BlockedMenusResponse | null;
-  const blockedMenusArr = typedData?.blocked_menus;
-  if (!supaError && Array.isArray(blockedMenusArr)) {
-    blockedMenus.value = blockedMenusArr;
-    lastUpdate.value = typedData?.updated_at
-      ? new Date(typedData.updated_at)
-      : null;
-    companyBlocked.value = !!typedData?.blocked;
-  } else {
-    blockedMenus.value = [];
-    lastUpdate.value = null;
-    companyBlocked.value = false;
+  try {
+    const { data, error: supaError } = await supabase
+      .from("company_settings")
+      .select("blocked_menus, updated_at, blocked")
+      .eq("id", companyId)
+      .single();
+
+    if (supaError) {
+      console.warn("[company detail] Blocked menus fetch error:", supaError);
+      return;
+    }
+
+    if (data && typeof data === "object") {
+      const typedData = data as Record<string, unknown>;
+      blockedMenus.value = Array.isArray(typedData.blocked_menus)
+        ? (typedData.blocked_menus as string[])
+        : [];
+      lastUpdate.value = typedData.updated_at
+        ? new Date(typedData.updated_at as string)
+        : null;
+      companyBlocked.value = typedData.blocked === true;
+    }
+  } catch (err) {
+    console.error(
+      "[company detail] Unexpected error fetching blocked menus:",
+      err,
+    );
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function setMenuStatus(menu: string, blocked: boolean) {
+async function setMenuStatus(menu: string, shouldBlock: boolean) {
   menuActionLoading.value = menu;
-  let newBlockedMenus: string[];
-  if (blocked) {
-    newBlockedMenus = [...blockedMenus.value, menu];
-  } else {
-    newBlockedMenus = blockedMenus.value.filter((m) => m !== menu);
-  }
-  const { error: supaError } = await supabase
-    .from("company_settings")
-    .update({ blocked_menus: newBlockedMenus })
-    .eq("id", companyId);
-  menuActionLoading.value = null;
-  if (!supaError) {
+  try {
+    const newBlockedMenus = shouldBlock
+      ? [...new Set([...blockedMenus.value, menu])]
+      : blockedMenus.value.filter((m) => m !== menu);
+
+    const { error: supaError } = await supabase
+      .from("company_settings")
+      .update({
+        blocked_menus: newBlockedMenus,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", companyId);
+
+    if (supaError) {
+      error.value =
+        supaError.message || "Erreur lors de la mise à jour du menu";
+      console.error("[company detail] Update error:", supaError);
+      return;
+    }
+
     blockedMenus.value = newBlockedMenus;
     lastUpdate.value = new Date();
-  } else {
-    error.value = supaError?.message || "Erreur lors de la mise à jour";
+  } catch (err) {
+    error.value =
+      err instanceof Error ? err.message : "Erreur lors de la mise à jour";
+    console.error("[company detail] Unexpected error updating menu:", err);
+  } finally {
+    menuActionLoading.value = null;
   }
 }
 
 async function setCompanyBlocked(blocked: boolean) {
   loading.value = true;
-  const { error: supaError } = await supabase
-    .from("company_settings")
-    .update({ blocked })
-    .eq("id", companyId);
-  loading.value = false;
-  if (!supaError) {
+  try {
+    const { error: supaError } = await supabase
+      .from("company_settings")
+      .update({
+        blocked,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", companyId);
+
+    if (supaError) {
+      error.value =
+        supaError.message || "Erreur lors du blocage global de la compagnie";
+      console.error("[company detail] Update error:", supaError);
+      return;
+    }
+
     companyBlocked.value = blocked;
     lastUpdate.value = new Date();
-  } else {
-    error.value = supaError?.message || "Erreur lors du blocage global";
+  } catch (err) {
+    error.value =
+      err instanceof Error
+        ? err.message
+        : "Erreur lors du blocage de la compagnie";
+    console.error(
+      "[company detail] Unexpected error updating blocked status:",
+      err,
+    );
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function fetchUsers() {
+  usersLoading.value = true;
+  try {
+    const { data, error: supaError } = await supabase
+      .from("users")
+      .select("id, email, name, roles, created_at")
+      .eq("company_id", companyId);
+
+    if (supaError) {
+      console.warn("[company detail] Users fetch error:", supaError);
+      return;
+    }
+
+    users.value = Array.isArray(data) ? (data as User[]) : [];
+  } catch (err) {
+    console.error("[company detail] Unexpected error fetching users:", err);
+  } finally {
+    usersLoading.value = false;
+  }
+}
+
+async function fetchMagasins() {
+  magasinsLoading.value = true;
+  try {
+    const { data, error: supaError } = await supabase
+      .from("magasins")
+      .select("id, nom, adresse, telephone, email, created_at")
+      .eq("company_id", companyId);
+
+    if (supaError) {
+      console.warn("[company detail] Magasins fetch error:", supaError);
+      return;
+    }
+
+    magasins.value = Array.isArray(data) ? (data as Magasin[]) : [];
+  } catch (err) {
+    console.error("[company detail] Unexpected error fetching magasins:", err);
+  } finally {
+    magasinsLoading.value = false;
   }
 }
 
 onMounted(async () => {
-  await fetchCompanyInfo();
-  await fetchBlockedMenus();
-
-  if (blockedMenus.value.length > 0) {
-    const blockedPaths = blockedMenus.value
-      .map((menu) => menuToPath[menu])
-      .filter(Boolean);
-    if (
-      blockedPaths.some(
-        (p) => route.path === p || route.path.startsWith(p + "/"),
-      )
-    ) {
-      router.replace({
-        path: "/error",
-        query: {
-          message:
-            "Vous n'avez pas le droit d'accéder à cette page. Contactez votre administrateur.",
-        },
-      });
-    }
-  }
+  await Promise.all([
+    fetchCompanyInfo(),
+    fetchBlockedMenus(),
+    fetchUsers(),
+    fetchMagasins(),
+  ]);
 });
 </script>
 
@@ -314,21 +388,27 @@ onMounted(async () => {
             <div class="flex items-center justify-center" style="width: 90px">
               <label
                 class="inline-flex items-center cursor-pointer"
+                :class="{ 'opacity-50 cursor-not-allowed': companyBlocked }"
                 :title="
-                  blockedMenus.includes(menu)
-                    ? 'Ce menu est bloqué pour cette compagnie'
-                    : 'Ce menu est actif'
+                  companyBlocked
+                    ? 'La compagnie est bloquée globalement'
+                    : blockedMenus.includes(menu)
+                      ? 'Cliquer pour débloquer ce menu'
+                      : 'Cliquer pour bloquer ce menu'
                 "
               >
                 <input
                   type="checkbox"
                   class="sr-only peer"
                   :checked="blockedMenus.includes(menu)"
-                  :disabled="true"
-                  @change.prevent
+                  :disabled="companyBlocked || menuActionLoading === menu"
+                  @change="setMenuStatus(menu, !blockedMenus.includes(menu))"
                 />
                 <div
                   class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-all duration-200 relative"
+                  :class="{
+                    'opacity-50': companyBlocked || menuActionLoading === menu,
+                  }"
                 >
                   <div
                     :class="
@@ -377,6 +457,124 @@ onMounted(async () => {
             désactivés.</span
           >
         </p>
+      </div>
+
+      <!-- Utilisateurs Section -->
+      <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4">
+          Utilisateurs ({{ users.length }})
+        </h2>
+        <div v-if="usersLoading" class="text-gray-500 animate-pulse">
+          <div class="h-4 bg-gray-200 rounded w-full mb-2" />
+          <div class="h-4 bg-gray-100 rounded w-full mb-2" />
+        </div>
+        <div
+          v-else-if="users.length === 0"
+          class="text-center py-8 text-gray-500"
+        >
+          <UIcon
+            name="heroicons:users-20-solid"
+            class="h-12 w-12 mx-auto text-gray-300 mb-2"
+          />
+          <p>Aucun utilisateur associé à cette compagnie</p>
+        </div>
+        <div v-else class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b">
+                <th class="text-left py-2 px-2 font-semibold">Email</th>
+                <th class="text-left py-2 px-2 font-semibold">Nom</th>
+                <th class="text-left py-2 px-2 font-semibold">Rôles</th>
+                <th class="text-left py-2 px-2 font-semibold">Date d'ajout</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="user in users"
+                :key="user.id"
+                class="border-b hover:bg-gray-50"
+              >
+                <td class="py-2 px-2 text-sm">{{ user.email }}</td>
+                <td class="py-2 px-2 text-sm">{{ user.name || "-" }}</td>
+                <td class="py-2 px-2">
+                  <div class="flex gap-1 flex-wrap">
+                    <span
+                      v-for="role in user.roles || []"
+                      :key="role"
+                      class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded"
+                    >
+                      {{ role }}
+                    </span>
+                  </div>
+                </td>
+                <td class="py-2 px-2 text-sm text-gray-500">
+                  {{
+                    user.created_at
+                      ? new Date(user.created_at).toLocaleDateString("fr-FR")
+                      : "-"
+                  }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Magasins Section -->
+      <div class="bg-white shadow rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4">
+          Magasins/Filiales ({{ magasins.length }})
+        </h2>
+        <div v-if="magasinsLoading" class="text-gray-500 animate-pulse">
+          <div class="h-4 bg-gray-200 rounded w-full mb-2" />
+          <div class="h-4 bg-gray-100 rounded w-full mb-2" />
+        </div>
+        <div
+          v-else-if="magasins.length === 0"
+          class="text-center py-8 text-gray-500"
+        >
+          <UIcon
+            name="heroicons:building-storefront-20-solid"
+            class="h-12 w-12 mx-auto text-gray-300 mb-2"
+          />
+          <p>Aucun magasin associé à cette compagnie</p>
+        </div>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div
+            v-for="magasin in magasins"
+            :key="magasin.id"
+            class="bg-gray-50 rounded-lg p-4 border"
+          >
+            <h3 class="font-semibold text-gray-900 mb-2">{{ magasin.nom }}</h3>
+            <div class="text-sm text-gray-600 space-y-1">
+              <div v-if="magasin.adresse" class="flex items-start gap-2">
+                <UIcon
+                  name="heroicons:map-pin-20-solid"
+                  class="h-4 w-4 mt-0.5 flex-shrink-0"
+                />
+                <span>{{ magasin.adresse }}</span>
+              </div>
+              <div v-if="magasin.telephone" class="flex items-center gap-2">
+                <UIcon
+                  name="heroicons:phone-20-solid"
+                  class="h-4 w-4 flex-shrink-0"
+                />
+                <span>{{ magasin.telephone }}</span>
+              </div>
+              <div v-if="magasin.email" class="flex items-center gap-2">
+                <UIcon
+                  name="heroicons:envelope-20-solid"
+                  class="h-4 w-4 flex-shrink-0"
+                />
+                <span>{{ magasin.email }}</span>
+              </div>
+              <div v-if="magasin.created_at" class="text-xs text-gray-500 mt-2">
+                Créé le:
+                {{ new Date(magasin.created_at).toLocaleDateString("fr-FR") }}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
