@@ -1,8 +1,9 @@
 <template>
-  <div>
-    <label>Magasin :</label>
-    <span class="font-semibold text-gray-700 ml-2">
-      {{ assignedMagasinName }}
+  <div class="flex items-center text-white text-sm">
+    <span class="hidden sm:inline opacity-75">Magasin :</span>
+    <span class="font-semibold text-white ml-1 sm:ml-2 max-w-[100px] sm:max-w-[140px] truncate">
+      <span v-if="assignedMagasinName">{{ assignedMagasinName }}</span>
+      <span v-else aria-label="Aucun magasin sélectionné">—</span>
     </span>
   </div>
 </template>

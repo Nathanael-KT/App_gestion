@@ -33,7 +33,7 @@ const mainMarginClass = computed(() => {
   if (isMobile.value) {
     return ""; // Pas de marge sur mobile
   } else if (isTablet.value) {
-    return isMenuExpanded.value ? "ml-60" : "ml-16"; // Tablet
+    return isMenuExpanded.value ? "ml-64" : "ml-16"; // Tablet
   } else {
     return isMenuExpanded.value ? "ml-64" : "ml-16"; // Desktop
   }
@@ -44,7 +44,7 @@ const mainMarginClass = computed(() => {
   <div class="min-h-screen bg-[#E7E9EB]">
     <TheHeader @toggle-mobile-menu="isMobileMenuOpen = !isMobileMenuOpen" />
 
-    <div class="flex pt-16">
+    <div class="flex pt-16 md:pt-20">
       <TheMenu
         :expanded="isMenuExpanded"
         :mobile-menu-open="isMobileMenuOpen"
@@ -53,7 +53,7 @@ const mainMarginClass = computed(() => {
       />
 
       <main
-        class="flex-grow p-4 sm:p-6 lg:p-8 transition-all duration-300 min-h-[calc(100vh-4rem)]"
+        class="flex-grow p-4 sm:p-6 lg:p-8 transition-all duration-300 min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-5rem)]"
         :class="mainMarginClass"
       >
         <slot />
