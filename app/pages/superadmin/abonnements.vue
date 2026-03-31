@@ -852,7 +852,7 @@ watch(
                 v-model="autoAlertEnabled"
                 type="checkbox"
                 class="rounded border-slate-300"
-              >
+              />
               Auto-scan
             </label>
             <button
@@ -967,7 +967,7 @@ watch(
           type="text"
           placeholder="Rechercher compagnie ou email"
           class="px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-slate-300 outline-none"
-        >
+        />
         <select
           v-model="statusFilter"
           class="px-3 py-2 rounded-lg border border-slate-300 bg-white"
@@ -999,7 +999,7 @@ watch(
             v-model="dueOnly7Days"
             type="checkbox"
             class="rounded border-slate-300"
-          >
+          />
           Echeance sous 7 jours
         </label>
       </div>
@@ -1045,7 +1045,7 @@ watch(
           <thead class="bg-slate-50 border-b border-slate-200">
             <tr>
               <th class="px-4 py-3 text-left">
-                <input type="checkbox" disabled >
+                <input type="checkbox" disabled />
               </th>
               <th class="px-4 py-3 text-left font-semibold text-slate-700">
                 Compagnie
@@ -1086,7 +1086,7 @@ watch(
                       ($event.target as HTMLInputElement).checked,
                     )
                   "
-                >
+                />
               </td>
               <td class="px-4 py-3">
                 <p class="font-semibold text-slate-900">
@@ -1197,7 +1197,7 @@ watch(
               type="number"
               min="1"
               class="w-24 px-3 py-2 rounded-md border border-slate-300"
-            >
+            />
             <button
               class="px-3 py-2 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700"
               :disabled="actionLoadingId === selectedItem.id"
@@ -1215,7 +1215,7 @@ watch(
               v-model="customDueDate"
               type="date"
               class="px-3 py-2 rounded-md border border-slate-300"
-            >
+            />
             <button
               class="px-3 py-2 rounded-md bg-cyan-600 text-white text-sm hover:bg-cyan-700"
               :disabled="actionLoadingId === selectedItem.id"
