@@ -152,8 +152,8 @@ onMounted(() => {
       [() => companyId.value, () => magasinId.value],
       ([newCompanyId, newMagasinId]) => {
         if (newCompanyId && newMagasinId) {
-          console.log("companyId récupéré :", companyId.value);
-          console.log("magasinId récupéré :", magasinId.value);
+          logger.log("companyId récupéré :", companyId.value);
+          logger.log("magasinId récupéré :", magasinId.value);
 
           fetchMagasins();
           fetchCompanySettings(newCompanyId);

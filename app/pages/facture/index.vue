@@ -44,7 +44,7 @@ const loadFiltersFromStorage = () => {
         statusFilter.value = filters.statusFilter || "all";
         typeFilter.value = filters.typeFilter || "all";
       } catch (e) {
-        console.log("Erreur lors du chargement des filtres:", e);
+        logger.log("Erreur lors du chargement des filtres:", e);
       }
     }
   }

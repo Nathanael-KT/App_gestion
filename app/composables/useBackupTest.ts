@@ -26,7 +26,7 @@ export const useBackupTest = () => {
     const startTime = Date.now();
 
     try {
-      console.log("🧪 Démarrage du test de backup AWS S3...");
+      logger.log("🧪 Démarrage du test de backup AWS S3...");
 
       // 1. Vérifier la connexion à la base de données
       const { data: companies, error: dbError } = await supabase
@@ -46,13 +46,13 @@ export const useBackupTest = () => {
       if (!testCompany) {
         throw new Error("Aucune compagnie disponible pour le test");
       }
-      console.log(
+      logger.log(
         `✅ Base de données OK - Test avec: ${testCompany.company_name}`,
       );
 
       // 2. Générer des données de test
       const testData = await generateTestBackupData(testCompany);
-      console.log("✅ Données de test générées");
+      logger.log("✅ Données de test générées");
 
       // 3. Tester l'upload AWS S3
       const awsResult = (await $fetch("/api/backup/aws-upload", {
@@ -66,7 +66,7 @@ export const useBackupTest = () => {
         },
       })) as Record<string, any>;
 
-      console.log("✅ Upload AWS S3 réussi:", awsResult);
+      logger.log("✅ Upload AWS S3 réussi:", awsResult);
 
       // 4. Calculer la durée
       const duration = Date.now() - startTime;
@@ -87,7 +87,7 @@ export const useBackupTest = () => {
         duration,
       };
 
-      console.log("🎉 Test de backup terminé avec succès");
+      logger.log("🎉 Test de backup terminé avec succès");
       return testResults.value;
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -200,21 +200,21 @@ export const useBackupTest = () => {
    * Test de simulation de crash de BDD
    */
   const simulateDatabaseCrash = async () => {
-    console.log("💥 Simulation d'un crash de base de données...");
+    logger.log("💥 Simulation d'un crash de base de données...");
 
     // Simuler différents scénarios de crash
     const crashScenarios = [
       {
         name: "Connexion perdue",
         simulate: () => {
-          console.log("📡 Simulation: Perte de connexion à Supabase");
+          logger.log("📡 Simulation: Perte de connexion à Supabase");
           return { canRecover: true, recoveryTime: "2-5 minutes" };
         },
       },
       {
         name: "Corruption de données",
         simulate: () => {
-          console.log("💾 Simulation: Corruption des données de production");
+          logger.log("💾 Simulation: Corruption des données de production");
           return {
             canRecover: false,
             recoveryTime: "Récupération depuis AWS S3 nécessaire",
@@ -224,7 +224,7 @@ export const useBackupTest = () => {
       {
         name: "Crash complet du serveur",
         simulate: () => {
-          console.log("🔥 Simulation: Crash complet du serveur Supabase");
+          logger.log("🔥 Simulation: Crash complet du serveur Supabase");
           return {
             canRecover: false,
             recoveryTime: "Restauration depuis backup AWS S3",
@@ -240,18 +240,18 @@ export const useBackupTest = () => {
     }
     const result = randomScenario.simulate();
 
-    console.log(`✅ Simulation terminée: ${randomScenario.name}`);
-    console.log(
+    logger.log(`✅ Simulation terminée: ${randomScenario.name}`);
+    logger.log(
       `🔄 Récupération possible: ${result.canRecover ? "Oui" : "Non"}`,
     );
-    console.log(`⏱️ Temps de récupération: ${result.recoveryTime}`);
+    logger.log(`⏱️ Temps de récupération: ${result.recoveryTime}`);
 
     if (!result.canRecover) {
-      console.log("☁️ Récupération depuis les backups AWS S3 en cours...");
-      console.log(
+      logger.log("☁️ Récupération depuis les backups AWS S3 en cours...");
+      logger.log(
         "📦 Fichiers disponibles sur S3 dans le bucket app-gestion-backups",
       );
-      console.log("⚡ Temps de récupération estimé: 5-10 minutes");
+      logger.log("⚡ Temps de récupération estimé: 5-10 minutes");
     }
 
     return {

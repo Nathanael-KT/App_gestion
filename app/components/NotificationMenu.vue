@@ -24,9 +24,6 @@ const dynamicNotifications = ref<
 onMounted(() => {
   setInterval(() => {
     const now = new Date();
-    // afficher l'heure dans la console pour le debug
-    console.log("Heure actuelle :", now.toLocaleTimeString());
-    console.log("Vérification de l'heure pour les notifications");
     // Notification à 14h
     if (now.getHours() === 14 && now.getMinutes() === 25) {
       if (

@@ -522,7 +522,7 @@ const loadCashTransactions = async (stats) => {
       });
     } catch {
       // Si la table n'existe pas, utiliser des valeurs simulées
-      console.log("Table cash_transactions non trouvée, simulation activée");
+      logger.log("Table cash_transactions non trouvée, simulation activée");
       cashTransactions.value = [];
       stats.cashOut = 0;
       stats.cashIn = 0;
@@ -555,13 +555,13 @@ const loadOpeningBalance = async (stats) => {
       // Si aucune ligne n'est retournée, PGRST116, on met à 0
       if (!closingData || closingError?.code === "PGRST116") {
         stats.openingBalance = 0;
-        console.log("Aucun solde de fermeture trouvé pour le jour précédent");
+        logger.log("Aucun solde de fermeture trouvé pour le jour précédent");
       } else {
         stats.openingBalance = parseFloat(closingData.closing_balance) || 0;
       }
     } catch (err) {
       stats.openingBalance = 0;
-      console.log(
+      logger.log(
         "Aucun solde de fermeture trouvé pour le jour précédent",
         err
       );
@@ -1349,7 +1349,7 @@ const saveCashCount = async () => {
           saveError.message?.includes("existe déjà") ||
           saveError.message?.includes("duplicate")
         ) {
-          console.log(
+          logger.log(
             "Comptage détecté après tentative de création, rechargement..."
           );
           await loadSelectedDateCashCount();
