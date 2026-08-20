@@ -49,6 +49,12 @@ export function useDashboardData() {
   const totalClients = ref(0);
   const activeOrders = ref(0);
   const monthSales = ref(0);
+
+  // Tendances réelles vs le mois précédent (null tant que non calculées ou
+  // si l'historique est insuffisant pour un calcul fiable — voir #75).
+  const productsTrend = ref<number | null>(null);
+  const clientsTrend = ref<number | null>(null);
+  const salesTrend = ref<number | null>(null);
   const recentActivities = ref<Activity[]>([]);
   const stockAlerts = ref<StockAlert[]>([]);
   const salesData = ref<SalesDataPoint[]>([]);
@@ -73,7 +79,9 @@ export function useDashboardData() {
         fetchTotalProducts();
         fetchTotalClients();
         fetchActiveOrders();
-        fetchMonthSales();
+        fetchMonthSales().then(() => fetchSalesTrend());
+        fetchProductsTrend();
+        fetchClientsTrend();
         fetchRecentActivities();
         fetchStockAlerts();
         fetchSalesData();
@@ -125,6 +133,70 @@ export function useDashboardData() {
     }
   }
 
+  // Calcule une variation en % entre deux valeurs, ou null si non calculable
+  // (évite une division par zéro / un pourcentage trompeur).
+  function computeTrendPercent(
+    current: number,
+    previous: number,
+  ): number | null {
+    if (previous === 0) {
+      return current > 0 ? null : 0;
+    }
+    return ((current - previous) / previous) * 100;
+  }
+
+  function getMonthRange(monthsAgo: number) {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+    const last = new Date(
+      now.getFullYear(),
+      now.getMonth() - monthsAgo + 1,
+      0,
+    );
+    return {
+      start: first.toISOString().split("T")[0],
+      end: last.toISOString().split("T")[0],
+    };
+  }
+
+  // Tendance produits : nouveaux produits créés ce mois vs le mois dernier.
+  async function fetchProductsTrend() {
+    try {
+      if (!companyId.value) {
+        productsTrend.value = null;
+        return;
+      }
+      const thisMonth = getMonthRange(0);
+      const lastMonth = getMonthRange(1);
+
+      const [{ count: currentCount }, { count: previousCount }] =
+        await Promise.all([
+          supabase
+            .from("products_carreaux")
+            .select("*", { count: "exact", head: true })
+            .eq("company_id", companyId.value)
+            .gte("created_at", thisMonth.start),
+          supabase
+            .from("products_carreaux")
+            .select("*", { count: "exact", head: true })
+            .eq("company_id", companyId.value)
+            .gte("created_at", lastMonth.start)
+            .lte("created_at", lastMonth.end),
+        ]);
+
+      productsTrend.value = computeTrendPercent(
+        currentCount || 0,
+        previousCount || 0,
+      );
+    } catch (err) {
+      console.error(
+        "Erreur lors du calcul de la tendance produits:",
+        err,
+      );
+      productsTrend.value = null;
+    }
+  }
+
   // Fonction pour récupérer le nombre total de clients
   async function fetchTotalClients() {
     try {
@@ -146,6 +218,41 @@ export function useDashboardData() {
     } catch (err) {
       console.error("Erreur lors de la récupération des clients:", err);
       totalClients.value = 0;
+    }
+  }
+
+  // Tendance clients : nouveaux clients ce mois vs le mois dernier.
+  async function fetchClientsTrend() {
+    try {
+      if (!magasinId.value) {
+        clientsTrend.value = null;
+        return;
+      }
+      const thisMonth = getMonthRange(0);
+      const lastMonth = getMonthRange(1);
+
+      const [{ count: currentCount }, { count: previousCount }] =
+        await Promise.all([
+          supabase
+            .from("clients")
+            .select("*", { count: "exact", head: true })
+            .eq("magasin_id", magasinId.value)
+            .gte("created_at", thisMonth.start),
+          supabase
+            .from("clients")
+            .select("*", { count: "exact", head: true })
+            .eq("magasin_id", magasinId.value)
+            .gte("created_at", lastMonth.start)
+            .lte("created_at", lastMonth.end),
+        ]);
+
+      clientsTrend.value = computeTrendPercent(
+        currentCount || 0,
+        previousCount || 0,
+      );
+    } catch (err) {
+      console.error("Erreur lors du calcul de la tendance clients:", err);
+      clientsTrend.value = null;
     }
   }
 
@@ -217,6 +324,43 @@ export function useDashboardData() {
     } catch (err) {
       console.error("Erreur lors de la récupération des ventes:", err);
       monthSales.value = 0;
+    }
+  }
+
+  // Tendance ventes : CA payé ce mois vs le mois dernier (à date comparable).
+  async function fetchSalesTrend() {
+    try {
+      if (!magasinId.value) {
+        salesTrend.value = null;
+        return;
+      }
+      const lastMonth = getMonthRange(1);
+
+      const { data, error: salesError } = await supabase
+        .from("invoices")
+        .select("total")
+        .eq("status", "paid")
+        .gte("date", lastMonth.start)
+        .lte("date", lastMonth.end)
+        .eq("magasin_id", magasinId.value);
+
+      if (salesError) {
+        console.error("Error fetching previous month sales:", salesError);
+        salesTrend.value = null;
+        return;
+      }
+
+      const previousTotal =
+        data?.reduce(
+          (sum: number, invoice: { total: number }) =>
+            sum + Number(invoice.total || 0),
+          0,
+        ) || 0;
+
+      salesTrend.value = computeTrendPercent(monthSales.value, previousTotal);
+    } catch (err) {
+      console.error("Erreur lors du calcul de la tendance des ventes:", err);
+      salesTrend.value = null;
     }
   }
 
@@ -554,6 +698,12 @@ export function useDashboardData() {
         fetchStockAlerts(),
         fetchSalesData("month"),
       ]);
+      // Calculées après monthSales car salesTrend en dépend.
+      await Promise.all([
+        fetchProductsTrend(),
+        fetchClientsTrend(),
+        fetchSalesTrend(),
+      ]);
     } catch (err) {
       console.error("Erreur lors du chargement des données du dashboard:", err);
       error.value = (err as Error).message;
@@ -568,6 +718,9 @@ export function useDashboardData() {
     totalClients,
     activeOrders,
     monthSales,
+    productsTrend,
+    clientsTrend,
+    salesTrend,
     recentActivities,
     stockAlerts,
     salesData,

@@ -173,15 +173,19 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm text-gray-600">Stock total</p>
-                  <div class="flex items-center mt-1">
+                  <div v-if="productsTrend !== null" class="flex items-center mt-1">
                     <UIcon
-                      name="i-lucide-trending-up"
-                      class="w-4 h-4 text-green-500 mr-1"
+                      :name="productsTrend >= 0 ? 'i-lucide-trending-up' : 'i-lucide-trending-down'"
+                      :class="productsTrend >= 0 ? 'text-green-500' : 'text-red-500'"
+                      class="w-4 h-4 mr-1"
                     />
-                    <span class="text-sm text-green-600 font-medium"
-                      >+5.2%</span
+                    <span
+                      :class="productsTrend >= 0 ? 'text-green-600' : 'text-red-600'"
+                      class="text-sm font-medium"
+                      >{{ productsTrend >= 0 ? "+" : "" }}{{ productsTrend.toFixed(1) }}% <span class="text-gray-400 font-normal">vs mois dernier</span></span
                     >
                   </div>
+                  <p v-else class="text-xs text-gray-400 mt-1">Historique insuffisant</p>
                 </div>
                 <UButton variant="ghost" size="sm" to="/stock"
                   >Voir détail</UButton
@@ -215,15 +219,19 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm text-gray-600">Clients actifs</p>
-                  <div class="flex items-center mt-1">
+                  <div v-if="clientsTrend !== null" class="flex items-center mt-1">
                     <UIcon
-                      name="i-lucide-trending-up"
-                      class="w-4 h-4 text-green-500 mr-1"
+                      :name="clientsTrend >= 0 ? 'i-lucide-trending-up' : 'i-lucide-trending-down'"
+                      :class="clientsTrend >= 0 ? 'text-green-500' : 'text-red-500'"
+                      class="w-4 h-4 mr-1"
                     />
-                    <span class="text-sm text-green-600 font-medium"
-                      >+12.8%</span
+                    <span
+                      :class="clientsTrend >= 0 ? 'text-green-600' : 'text-red-600'"
+                      class="text-sm font-medium"
+                      >{{ clientsTrend >= 0 ? "+" : "" }}{{ clientsTrend.toFixed(1) }}% <span class="text-gray-400 font-normal">vs mois dernier</span></span
                     >
                   </div>
+                  <p v-else class="text-xs text-gray-400 mt-1">Historique insuffisant</p>
                 </div>
                 <UButton variant="ghost" size="sm" to="/client"
                   >Voir détail</UButton
@@ -260,15 +268,7 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm text-gray-600">Ce mois</p>
-                  <div class="flex items-center mt-1">
-                    <UIcon
-                      name="i-lucide-trending-up"
-                      class="w-4 h-4 text-green-500 mr-1"
-                    />
-                    <span class="text-sm text-green-600 font-medium"
-                      >+8.3%</span
-                    >
-                  </div>
+                  <p class="text-xs text-gray-400 mt-1">Commandes non soldées actuellement</p>
                 </div>
                 <UButton variant="ghost" size="sm" to="/commande"
                   >Voir détail</UButton
@@ -303,15 +303,19 @@
               <div class="flex items-center justify-between">
                 <div>
                   <p class="text-sm text-gray-600">vs mois dernier</p>
-                  <div class="flex items-center mt-1">
+                  <div v-if="salesTrend !== null" class="flex items-center mt-1">
                     <UIcon
-                      name="i-lucide-trending-up"
-                      class="w-4 h-4 text-green-500 mr-1"
+                      :name="salesTrend >= 0 ? 'i-lucide-trending-up' : 'i-lucide-trending-down'"
+                      :class="salesTrend >= 0 ? 'text-green-500' : 'text-red-500'"
+                      class="w-4 h-4 mr-1"
                     />
-                    <span class="text-sm text-green-600 font-medium"
-                      >+15.7%</span
+                    <span
+                      :class="salesTrend >= 0 ? 'text-green-600' : 'text-red-600'"
+                      class="text-sm font-medium"
+                      >{{ salesTrend >= 0 ? "+" : "" }}{{ salesTrend.toFixed(1) }}%</span
                     >
                   </div>
+                  <p v-else class="text-xs text-gray-400 mt-1">Historique insuffisant</p>
                 </div>
                 <UButton variant="ghost" size="sm" to="/rapports/ventes"
                   >Voir détail</UButton
@@ -856,6 +860,9 @@ const {
   totalClients,
   activeOrders,
   monthSales,
+  productsTrend,
+  clientsTrend,
+  salesTrend,
   recentActivities,
   stockAlerts,
   salesData,
