@@ -7,6 +7,10 @@ import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 export default defineEventHandler(async (event) => {
   try {
+    // Sécurité: seuls les utilisateurs admin/super_admin peuvent déclencher
+    // un backup vers S3 (voir server/utils/requireAdmin.ts).
+    await requireAdmin(event);
+
     // Vérifier si AWS est configuré
     const awsAccessKey = process.env.AWS_ACCESS_KEY_ID;
     const awsSecretKey = process.env.AWS_SECRET_ACCESS_KEY;

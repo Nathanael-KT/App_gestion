@@ -12,6 +12,10 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    // Sécurité: seuls les utilisateurs admin/super_admin peuvent déclencher
+    // un backup cloud (voir server/utils/requireAdmin.ts).
+    await requireAdmin(event);
+
     const body = await readBody(event);
     const { filename, data, companyName } = body;
 
