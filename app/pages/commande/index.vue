@@ -52,8 +52,8 @@ const loadFiltersFromStorage = () => {
         periodFilter.value = filters.periodFilter || "all";
         customStartDate.value = filters.customStartDate || "";
         customEndDate.value = filters.customEndDate || "";
-      } catch (e) {
-        // console.log("Erreur lors du chargement des filtres:", e);
+      } catch {
+        // ignore les erreurs de parsing des filtres sauvegardés
       }
     }
   }
@@ -521,12 +521,11 @@ watch(
           class="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
         >
           <div class="flex-1 min-w-0">
-            <UInput
+            <VoiceSearchInput
               v-model="searchQuery"
               placeholder="Rechercher par référence ou client..."
               icon="i-lucide-search"
               size="lg"
-              class="w-full"
             />
           </div>
 

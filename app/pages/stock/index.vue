@@ -609,12 +609,12 @@ onMounted(async () => {
         <!-- Ligne 1: Recherche et boutons de catégorie -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 mt-4">
           <div class="md:col-span-2 flex gap-2">
-            <UInput
+            <VoiceSearchInput
               v-model="filters.search"
               placeholder="Rechercher par nom ou type..."
               icon="i-heroicons-magnifying-glass"
               size="md"
-              class="w-full md:w-[400px] lg:w-[600px]"
+              class="md:w-[400px] lg:w-[600px]"
             />
             <UInput
               v-model="filters.reference"

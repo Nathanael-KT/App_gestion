@@ -43,8 +43,8 @@ const loadFiltersFromStorage = () => {
         searchQuery.value = filters.searchQuery || "";
         statusFilter.value = filters.statusFilter || "all";
         typeFilter.value = filters.typeFilter || "all";
-      } catch (e) {
-        // console.log("Erreur lors du chargement des filtres:", e);
+      } catch {
+        // ignore les erreurs de parsing des filtres sauvegardés
       }
     }
   }
@@ -370,12 +370,11 @@ watch(() => magasinStore.magasinId, fetchInvoices);
           class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4"
         >
           <div class="flex-1 max-w-md">
-            <UInput
+            <VoiceSearchInput
               v-model="searchQuery"
               placeholder="Rechercher par référence ou client..."
               icon="i-lucide-search"
               size="lg"
-              class="w-full"
             />
           </div>
 
