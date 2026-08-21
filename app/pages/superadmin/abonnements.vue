@@ -478,21 +478,6 @@ const availablePlans = computed(() => [...plansById.value.values()]);
 // Offre sur laquelle porte la période gratuite. Par défaut : l'offre de
 // base (« rapide »), puisque l'accès offert doit correspondre à une offre.
 const freeGrantPlanId = ref<string>("");
-watch(
-  [selectedCompanyId, plansById],
-  () => {
-    const currentPlanId = selectedItem.value?.planId;
-    if (currentPlanId && plansById.value.has(currentPlanId)) {
-      freeGrantPlanId.value = currentPlanId;
-      return;
-    }
-    const fallback =
-      availablePlans.value.find((p) => p.slug === "rapide") ||
-      availablePlans.value[0];
-    freeGrantPlanId.value = fallback?.id || "";
-  },
-  { immediate: true },
-);
 
 const fetchCompanies = async () => {
   loading.value = true;
@@ -875,6 +860,25 @@ const selectedItem = computed(() => {
     items.value.find((item) => item.id === selectedCompanyId.value) || null
   );
 });
+
+// Offre de la période gratuite : suit l'offre actuelle de la compagnie
+// sélectionnée, sinon retombe sur « rapide ». (watch placé APRÈS selectedItem
+// pour éviter toute lecture avant initialisation.)
+watch(
+  [selectedCompanyId, plansById],
+  () => {
+    const currentPlanId = selectedItem.value?.planId;
+    if (currentPlanId && plansById.value.has(currentPlanId)) {
+      freeGrantPlanId.value = currentPlanId;
+      return;
+    }
+    const fallback =
+      availablePlans.value.find((p) => p.slug === "rapide") ||
+      availablePlans.value[0];
+    freeGrantPlanId.value = fallback?.id || "";
+  },
+  { immediate: true },
+);
 
 const sortedFilteredItems = computed(() => {
   const text = search.value.trim().toLowerCase();
