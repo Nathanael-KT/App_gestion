@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import type { TablesUpdate } from "~~/types/database.types";
+import { computeBlockedMenus } from "~/utils/subscriptionAccess";
 
 type SubscriptionStatus = "actif" | "en_attente" | "bloque" | "inactif";
 type SubscriptionPatch = TablesUpdate<"company_subscription">;
@@ -24,6 +25,7 @@ interface PlanRow {
   id: string;
   name?: string | null;
   slug?: string | null;
+  allowed_menus?: string[] | null;
 }
 
 interface StripeSyncResultItem {
@@ -62,6 +64,7 @@ interface CompanySubscriptionItem {
   lastPaymentDate: string | null;
   nextDueDate: string | null;
   planName: string | null;
+  planId: string | null;
   stripeLinked: boolean;
   daysToDue: number | null;
   isOverdue: boolean;
@@ -440,6 +443,7 @@ const rebuildViewModel = (rows: CompanyRow[]) => {
       lastPaymentDate: latestSub?.last_payment_date || null,
       nextDueDate,
       planName: plan?.name || null,
+      planId: latestSub?.plan_id || null,
       stripeLinked: !!latestSub?.stripe_subscription_id,
       daysToDue,
       isOverdue: typeof daysToDue === "number" && daysToDue < 0,
@@ -455,7 +459,9 @@ const rebuildViewModel = (rows: CompanyRow[]) => {
 const fetchPlans = async () => {
   const { data, error } = await supabase
     .from("subscription_plans")
-    .select("id, name, slug");
+    .select("id, name, slug, allowed_menus")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
 
   if (error) return;
 
@@ -465,6 +471,28 @@ const fetchPlans = async () => {
   }
   plansById.value = map;
 };
+
+// Liste des offres pour le sélecteur de la période gratuite.
+const availablePlans = computed(() => [...plansById.value.values()]);
+
+// Offre sur laquelle porte la période gratuite. Par défaut : l'offre de
+// base (« rapide »), puisque l'accès offert doit correspondre à une offre.
+const freeGrantPlanId = ref<string>("");
+watch(
+  [selectedCompanyId, plansById],
+  () => {
+    const currentPlanId = selectedItem.value?.planId;
+    if (currentPlanId && plansById.value.has(currentPlanId)) {
+      freeGrantPlanId.value = currentPlanId;
+      return;
+    }
+    const fallback =
+      availablePlans.value.find((p) => p.slug === "rapide") ||
+      availablePlans.value[0];
+    freeGrantPlanId.value = fallback?.id || "";
+  },
+  { immediate: true },
+);
 
 const fetchCompanies = async () => {
   loading.value = true;
@@ -718,11 +746,22 @@ const grantFreePeriod = async (
   companyId: string,
   amount: number,
   unit: "semaines" | "mois",
+  planId: string,
 ) => {
   if (!Number.isFinite(amount) || amount < 1) {
     notify(
       "Valeur invalide",
       "La duree offerte doit etre superieure ou egale a 1.",
+      "error",
+    );
+    return;
+  }
+
+  const plan = plansById.value.get(planId);
+  if (!plan) {
+    notify(
+      "Offre manquante",
+      "Selectionnez l'offre sur laquelle porte la periode gratuite.",
       "error",
     );
     return;
@@ -746,19 +785,26 @@ const grantFreePeriod = async (
     is_paid: true,
     status: "actif",
     next_due_date: toISODate(due),
+    plan_id: planId,
   });
 
   if (success) {
+    // L'accès offert suit le périmètre de l'offre choisie (menus autorisés).
+    await supabase
+      .from("company_settings")
+      .update({ blocked_menus: computeBlockedMenus(plan.allowed_menus) })
+      .eq("id", companyId);
+
     const unitLabel = unit === "mois" ? "mois" : "semaine(s)";
     recordAction(
       companyId,
       "free_grant",
-      `${amount} ${unitLabel} offert(s) par le super_admin (jusqu'au ${toISODate(due)})`,
+      `${amount} ${unitLabel} offert(s) sur l'offre "${plan.name || planId}" (jusqu'au ${toISODate(due)})`,
     );
     await setCompanyBlocked(companyId, false);
     notify(
       "Periode gratuite accordee",
-      `Acces offert jusqu'au ${formatDate(toISODate(due))}.`,
+      `Acces "${plan.name}" offert jusqu'au ${formatDate(toISODate(due))}.`,
       "success",
     );
     await fetchCompanies();
@@ -1453,8 +1499,9 @@ watch(
         <div class="rounded-lg border border-slate-200 p-4 space-y-3">
           <h3 class="font-semibold text-slate-900">Periode gratuite</h3>
           <p class="text-xs text-slate-500">
-            Privilege super_admin : offre un acces complet (sans paiement
-            Stripe) pour la duree choisie. L'echeance est prolongee d'autant.
+            Privilege super_admin : donne acces (sans paiement Stripe) pour la
+            duree choisie, <strong>selon le perimetre de l'offre
+            selectionnee</strong>. L'echeance est prolongee d'autant.
           </p>
           <div class="flex items-center gap-2 flex-wrap">
             <input
@@ -1470,6 +1517,19 @@ watch(
               <option value="semaines">semaine(s)</option>
               <option value="mois">mois</option>
             </select>
+            <select
+              v-model="freeGrantPlanId"
+              class="px-3 py-2 rounded-md border border-slate-300 bg-white"
+              title="Offre appliquee pendant la periode gratuite"
+            >
+              <option
+                v-for="plan in availablePlans"
+                :key="plan.id"
+                :value="plan.id"
+              >
+                Offre {{ plan.name }}
+              </option>
+            </select>
             <button
               class="px-3 py-2 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700"
               :disabled="actionLoadingId === selectedItem.id"
@@ -1478,6 +1538,7 @@ watch(
                   selectedItem.id,
                   extensionAmount,
                   extensionUnit,
+                  freeGrantPlanId,
                 )
               "
             >
