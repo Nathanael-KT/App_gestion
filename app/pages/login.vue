@@ -44,10 +44,15 @@
           <UButton
             type="submit"
             :loading="submitting"
+            :disabled="!!lockedUntil && lockRemainingSeconds > 0"
             class="w-full justify-center text-white"
             size="lg"
           >
-            SE CONNECTER
+            {{
+              lockedUntil && lockRemainingSeconds > 0
+                ? `Réessayez dans ${lockRemainingSeconds}s`
+                : "SE CONNECTER"
+            }}
           </UButton>
         </div>
        
@@ -120,8 +125,52 @@ function getError(errors: FormError<string>[] | undefined, field: string) {
   return errObj?.message;
 }
 
+// Protection anti-brute-force côté client : verrouillage temporaire et
+// progressif après plusieurs échecs de connexion consécutifs. Vient en
+// complément du rate-limiting Supabase Auth côté serveur (voir ticket
+// sécurité dédié).
+const MAX_ATTEMPTS_BEFORE_LOCK = 5;
+const failedAttempts = ref(0);
+const lockedUntil = ref<number | null>(null);
+const lockRemainingSeconds = ref(0);
+let lockTimer: ReturnType<typeof setInterval> | null = null;
+
+function lockoutDurationSeconds(attemptNumber: number) {
+  // Délai progressif : 30s, 60s, 120s, 240s... (plafonné à 5 min)
+  const base = 30 * Math.pow(2, attemptNumber - MAX_ATTEMPTS_BEFORE_LOCK);
+  return Math.min(base, 300);
+}
+
+function startLockCountdown(seconds: number) {
+  lockedUntil.value = Date.now() + seconds * 1000;
+  lockRemainingSeconds.value = seconds;
+  if (lockTimer) clearInterval(lockTimer);
+  lockTimer = setInterval(() => {
+    const remaining = Math.ceil(
+      ((lockedUntil.value ?? 0) - Date.now()) / 1000
+    );
+    if (remaining <= 0) {
+      lockRemainingSeconds.value = 0;
+      lockedUntil.value = null;
+      if (lockTimer) clearInterval(lockTimer);
+    } else {
+      lockRemainingSeconds.value = remaining;
+    }
+  }, 1000);
+}
+
 async function handleSubmit(event: FormSubmitEvent<Schema>) {
   event.preventDefault();
+
+  if (lockedUntil.value && Date.now() < lockedUntil.value) {
+    toast.add({
+      icon: "i-lucide-lock",
+      title: `Trop de tentatives. Réessayez dans ${lockRemainingSeconds.value}s`,
+      color: "error",
+    });
+    return;
+  }
+
   const parsed = schema.safeParse(form);
   if (!parsed.success) {
     // UForm automatically shows the errors
@@ -135,10 +184,28 @@ async function handleSubmit(event: FormSubmitEvent<Schema>) {
       password: form.password,
     });
     if (error) {
+      failedAttempts.value += 1;
+
+      if (failedAttempts.value >= MAX_ATTEMPTS_BEFORE_LOCK) {
+        const seconds = lockoutDurationSeconds(failedAttempts.value);
+        startLockCountdown(seconds);
+        toast.add({
+          icon: "i-lucide-lock",
+          title: `Trop de tentatives échouées. Compte verrouillé ${seconds}s`,
+          color: "error",
+        });
+        return;
+      }
+
       if (error.status === 400) {
+        const remaining = MAX_ATTEMPTS_BEFORE_LOCK - failedAttempts.value;
         toast.add({
           icon: "i-lucide-exclamation-triangle",
           title: "Email ou mot de passe incorrect",
+          description:
+            remaining <= 2
+              ? `${remaining} tentative(s) restante(s) avant verrouillage temporaire`
+              : undefined,
           color: "error",
         });
       } else {
@@ -150,6 +217,9 @@ async function handleSubmit(event: FormSubmitEvent<Schema>) {
       }
       return;
     }
+
+    // Connexion réussie : réinitialiser le compteur de tentatives.
+    failedAttempts.value = 0;
     // On success, redirect to stock listing (ou une autre page)
     toast.add({
       icon: "i-lucide-check-circle",
