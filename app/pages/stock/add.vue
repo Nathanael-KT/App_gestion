@@ -34,6 +34,7 @@ const imageFile = ref(null);
 const imagePreview = ref("");
 const fileInputRef = ref(null);
 const imagePath = ref("");
+const scannerOpen = ref(false);
 const typeProduits = ref([]); // Liste des types de produits
 const loading = ref(false);
 const error = ref(null);
@@ -132,6 +133,37 @@ const onImageSelected = async (event) => {
     imagePreview.value = e.target.result;
   };
   reader.readAsDataURL(file);
+};
+
+// Appliquer la fiche générée par la reconnaissance photo
+const applyScan = (suggestion) => {
+  if (!suggestion) return;
+  if (suggestion.name) product.value.name = suggestion.name;
+  if (suggestion.description) product.value.description = suggestion.description;
+  if (suggestion.reference) product.value.reference = suggestion.reference;
+  if (suggestion.estimated_price != null)
+    product.value.price = String(suggestion.estimated_price);
+  if (suggestion.unit) product.value.unite = suggestion.unit;
+
+  // Tenter de mapper la catégorie suggérée à un type existant (insensible à la casse)
+  if (suggestion.category && typeProduits.value.length) {
+    const cat = suggestion.category.toLowerCase();
+    const match = typeProduits.value.find((t) =>
+      cat.includes(String(t.name).toLowerCase()) ||
+      String(t.name).toLowerCase().includes(cat),
+    );
+    if (match) product.value.type_produit = match.id;
+  }
+
+  toast.add({
+    title: "Fiche pré-remplie",
+    description: suggestion.category
+      ? `Vérifiez les champs. Catégorie suggérée : ${suggestion.category}.`
+      : "Vérifiez les champs avant d'enregistrer.",
+    icon: "i-lucide-wand-2",
+    color: "success",
+    timeout: 3000,
+  });
 };
 
 // Ajouter un produit
@@ -313,6 +345,17 @@ const addProduct = async () => {
           :error-message="error"
           @submit.prevent="addProduct"
         >
+          <!-- Bouton reconnaissance photo (IA vision) -->
+          <div class="mb-4 flex justify-center sm:justify-end">
+            <UButton
+              icon="i-lucide-scan-line"
+              color="primary"
+              variant="soft"
+              label="Scanner une photo"
+              @click="scannerOpen = true"
+            />
+          </div>
+
           <!-- Section 1: Informations de base -->
           <UCard variant="subtle" :ui="{ body: 'space-y-4' }">
             <template #header>
@@ -552,6 +595,14 @@ const addProduct = async () => {
           />
         </div>
       </UCard>
+
+      <!-- Scanner photo IA -->
+      <ProductPhotoScanner
+        v-model:open="scannerOpen"
+        :currency="companySettings?.currency"
+        :hint="typeProduits.find((t) => t.id === product.type_produit)?.name"
+        @apply="applyScan"
+      />
     </div>
   </div>
 </template>

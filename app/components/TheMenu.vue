@@ -133,6 +133,8 @@ const regularMenuItems: MenuItem[] = [
     icon: "heroicons:credit-card-20-solid",
     children: [
       { name: "Caisse", path: "/caisse" },
+      { name: "Paiement QR", path: "/caisse/qr-pay", requiredRoles: ["admin", "employe"] },
+      { name: "Anti-fraude", path: "/caisse/anomalies", requiredRoles: ["admin"] },
       { name: "Rapports de caisse", path: "/caisse/rapports" },
       { name: "Bilan de caisse", path: "/caisse/bilan" },
     ],
@@ -170,6 +172,13 @@ const regularMenuItems: MenuItem[] = [
       { name: "Abonnement", path: "/parametres/abonnement", requiredRoles: ["admin"] },
     ],
     requiredRoles: ["admin", "employe", "magasinier"],
+  },
+  {
+    name: "Financement",
+    path: "/financing",
+    icon: "heroicons:banknotes-20-solid",
+    children: [],
+    requiredRoles: ["admin"],
   },
   {
     name: "Aide",
