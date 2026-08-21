@@ -529,9 +529,6 @@ const handleSubmit = async () => {
       .single();
 
     if (checkError || !publicUser) {
-      // console.warn(
-        "L'utilisateur n'a pas été trouvé dans public.users, création manuelle...",
-      );
 
       // Créer manuellement l'enregistrement dans public.users si le trigger n'a pas fonctionné
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

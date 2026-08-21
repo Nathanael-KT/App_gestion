@@ -410,10 +410,6 @@ const loadUsersByIds = async (ids) => {
     .in("id", uniqueIds);
 
   if (usersError) {
-    // console.warn(
-      "Impossible de charger les utilisateurs pour le mapping:",
-      usersError,
-    );
     usersById.value = {};
     return;
   }

@@ -383,13 +383,14 @@ async function callSettingsApi<T = unknown>(
   }
 
   const token = await getAccessToken();
-  return await $fetch<T>(`/api/superadmin/settings/${companyId}`, {
+  const res = await $fetch(`/api/superadmin/settings/${companyId}`, {
     method,
     headers: {
       Authorization: `Bearer ${token}`,
     },
     body,
   });
+  return res as T;
 }
 
 // Utilisateurs

@@ -11,9 +11,7 @@ import { createError, defineEventHandler, getHeader } from "h3";
 
 const GRACE_PERIOD_DAYS = 7;
 
-async function updateSubscriptions(
-  supabase: ReturnType<typeof createClient>
-) {
+async function updateSubscriptions(supabase: any) {
   const today = new Date();
   const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
@@ -27,12 +25,12 @@ async function updateSubscriptions(
     return;
   }
 
-  for (const sub of subscriptions) {
+  for (const sub of (subscriptions as any[]) || []) {
     // Si le paiement n'est pas fait pour le mois
-    if (
-      !sub.last_payment_date ||
-      new Date(sub.last_payment_date) < firstOfMonth
-    ) {
+    const lastPay = sub.last_payment_date
+      ? new Date(sub.last_payment_date as string)
+      : null;
+    if (!lastPay || lastPay < firstOfMonth) {
       // Calculer la date limite de grâce
       const graceLimit = new Date(firstOfMonth);
       graceLimit.setDate(graceLimit.getDate() + GRACE_PERIOD_DAYS);
@@ -40,19 +38,19 @@ async function updateSubscriptions(
       if (today > graceLimit) {
         await supabase
           .from("company_subscription")
-          .update({ status: "bloque" })
+          .update({ status: "bloque" } as any)
           .eq("id", sub.id);
       } else {
         await supabase
           .from("company_subscription")
-          .update({ status: "en_attente" })
+          .update({ status: "en_attente" } as any)
           .eq("id", sub.id);
       }
     } else {
       // Paiement ok, abonnement actif
       await supabase
         .from("company_subscription")
-        .update({ status: "actif" })
+        .update({ status: "actif" } as any)
         .eq("id", sub.id);
     }
   }

@@ -755,10 +755,6 @@ async function loadCashSummary() {
       .order("created_at", { ascending: false });
 
     if (emptyingError) {
-      // console.warn(
-        "Erreur lors de la récupération des vidages:",
-        emptyingError,
-      );
     }
 
     // console.log("Vidages récupérés:", allEmptyings?.length || 0);
@@ -836,13 +832,6 @@ async function loadCashSummary() {
     const lastEmptyDate =
       allEmptyings && allEmptyings.length > 0 ? allEmptyings[0].date : null;
 
-    // console.log("Calculs finaux:", {
-      totalCountedAmount,
-      totalEmptied,
-      totalCumulated,
-      totalExpected,
-      totalDifference,
-    });
 
     // Récupérer l'historique des vidages pour l'affichage
     emptyingHistory.value = (allEmptyings || []).map(

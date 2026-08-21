@@ -561,10 +561,6 @@ const loadOpeningBalance = async (stats) => {
       }
     } catch (err) {
       stats.openingBalance = 0;
-      // console.log(
-        "Aucun solde de fermeture trouvé pour le jour précédent",
-        err
-      );
     }
   } catch (err) {
     console.error("Erreur lors du chargement du solde d'ouverture:", err);
@@ -593,9 +589,6 @@ const loadSelectedDateCashCount = async () => {
       .eq("magasin_id", magasinStore.magasinId);
 
     if (totalCounts && totalCounts > 1) {
-      // console.warn(
-        `⚠️ Attention: ${totalCounts} comptages trouvés pour ${selectedDate.value}. Utilisation du plus récent.`
-      );
       toast.add({
         title: "Attention",
         description: `${totalCounts} comptages trouvés pour cette date. Utilisation du plus récent.`,
@@ -1349,9 +1342,6 @@ const saveCashCount = async () => {
           saveError.message?.includes("existe déjà") ||
           saveError.message?.includes("duplicate")
         ) {
-          // console.log(
-            "Comptage détecté après tentative de création, rechargement..."
-          );
           await loadSelectedDateCashCount();
 
           if (selectedDateCashCount.value) {
