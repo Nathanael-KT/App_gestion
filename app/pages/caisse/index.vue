@@ -559,7 +559,7 @@ const loadOpeningBalance = async (stats) => {
       } else {
         stats.openingBalance = parseFloat(closingData.closing_balance) || 0;
       }
-    } catch (err) {
+    } catch {
       stats.openingBalance = 0;
     }
   } catch (err) {
@@ -956,7 +956,7 @@ const loadCashHistory = async () => {
           });
         });
       }
-    } catch (error) {
+    } catch {
       // console.warn("Erreur lors du chargement des comptages:", error);
     }
 
@@ -993,7 +993,7 @@ const loadCashHistory = async () => {
           }
         });
       }
-    } catch (error) {
+    } catch {
       // console.warn("Erreur lors du chargement des transactions:", error);
     }
 
@@ -1023,7 +1023,7 @@ const loadCashHistory = async () => {
           cashHistory.value.summary.totalCashSales += sale.amount;
         });
       }
-    } catch (error) {
+    } catch {
       // console.warn("Erreur lors du chargement des ventes:", error);
     }
 
@@ -1055,7 +1055,7 @@ const loadCashHistory = async () => {
           cashHistory.value.summary.totalEmptied += empty.amount;
         });
       }
-    } catch (error) {
+    } catch {
       // console.warn("Table cash_emptying non disponible:", error);
     }
 
