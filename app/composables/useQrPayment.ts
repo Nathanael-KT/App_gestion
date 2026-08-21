@@ -27,6 +27,15 @@ export interface QrPaymentHistory extends QrPaymentStatus {
   created_at: string;
 }
 
+export interface SelectableInvoice {
+  id: string;
+  reference: string | null;
+  total: number;
+  status: string;
+  client_name: string | null;
+  date: string | null;
+}
+
 export const useQrPayment = () => {
   const supabase = useSupabaseClient();
   const { notifyError } = useErrorToast();
@@ -43,10 +52,11 @@ export const useQrPayment = () => {
   });
 
   const create = async (payload: {
-    amount: number;
+    amount?: number;
     currency?: string;
     note?: string;
     customerName?: string;
+    invoiceId?: string;
   }): Promise<QrPaymentSession | null> => {
     try {
       const res = await $fetch<{ ok: boolean; payment: QrPaymentSession }>(
@@ -57,6 +67,19 @@ export const useQrPayment = () => {
     } catch (err) {
       notifyError(err, "Création du paiement impossible");
       return null;
+    }
+  };
+
+  /** Liste les factures/commandes impayées sélectionnables pour l'encaissement. */
+  const unpaidInvoices = async (): Promise<SelectableInvoice[]> => {
+    try {
+      const res = await $fetch<{ ok: boolean; invoices: SelectableInvoice[] }>(
+        "/api/payments/qr/invoices",
+        { method: "GET", headers: await authHeaders() },
+      );
+      return res.invoices ?? [];
+    } catch {
+      return [];
     }
   };
 
@@ -85,5 +108,5 @@ export const useQrPayment = () => {
     }
   };
 
-  return { create, cancel, list };
+  return { create, cancel, list, unpaidInvoices };
 };

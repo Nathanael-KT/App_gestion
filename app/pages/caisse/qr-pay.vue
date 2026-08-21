@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { useQrPayment, type QrPaymentHistory } from "~/composables/useQrPayment";
+import {
+  useQrPayment,
+  type QrPaymentHistory,
+  type SelectableInvoice,
+} from "~/composables/useQrPayment";
 
 definePageMeta({ middleware: "auth" });
 
 type BadgeColor = "error" | "info" | "success" | "primary" | "secondary" | "warning" | "neutral";
 
-const { create, cancel, list } = useQrPayment();
+const { create, cancel, list, unpaidInvoices } = useQrPayment();
 
 const amount = ref<string>("");
 const currency = ref("XOF");
 const customerName = ref("");
 const note = ref("");
+const invoices = ref<SelectableInvoice[]>([]);
+const selectedInvoiceId = ref<string>("");
 
 const creating = ref(false);
 const session = ref<{ id: string; reference: string; paymentUrl: string; amount: number; currency: string } | null>(null);
@@ -47,6 +53,24 @@ const statusLabel: Record<string, string> = {
   expired: "Expiré",
 };
 
+const invoiceItems = computed(() => [
+  { label: "— Montant libre —", value: "" },
+  ...invoices.value.map((inv) => ({
+    label: `${inv.client_name || "Client"} · ${inv.reference || inv.id.slice(0, 8)} · ${inv.total}`,
+    value: inv.id,
+  })),
+]);
+
+const onInvoiceChange = (val: string) => {
+  selectedInvoiceId.value = val;
+  if (!val) {
+    amount.value = "";
+    return;
+  }
+  const inv = invoices.value.find((i) => i.id === val);
+  amount.value = inv ? String(inv.total) : "";
+};
+
 const stopPolling = () => {
   if (pollTimer) {
     clearInterval(pollTimer);
@@ -71,16 +95,25 @@ const pollStatus = async () => {
 };
 
 const generate = async () => {
-  const amt = Number(amount.value);
-  if (!Number.isFinite(amt) || amt <= 0) return;
   creating.value = true;
   stopPolling();
-  const s = await create({
-    amount: amt,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const payload: Record<string, any> = {
     currency: currency.value,
     customerName: customerName.value || undefined,
     note: note.value || undefined,
-  });
+  };
+  if (selectedInvoiceId.value) {
+    payload.invoiceId = selectedInvoiceId.value;
+  } else {
+    const amt = Number(amount.value);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      creating.value = false;
+      return;
+    }
+    payload.amount = amt;
+  }
+  const s = await create(payload);
   creating.value = false;
   if (s) {
     session.value = {
@@ -111,6 +144,7 @@ const newPayment = () => {
   amount.value = "";
   customerName.value = "";
   note.value = "";
+  selectedInvoiceId.value = "";
 };
 
 const loadHistory = async () => {
@@ -125,7 +159,10 @@ const formatTime = (iso: string) =>
     minute: "2-digit",
   });
 
-onMounted(loadHistory);
+onMounted(async () => {
+  invoices.value = await unpaidInvoices();
+  await loadHistory();
+});
 onBeforeUnmount(stopPolling);
 
 const showQr = computed(() => session.value && status.value !== "success");
@@ -150,6 +187,15 @@ const showSuccess = computed(() => status.value === "success");
         </template>
 
         <div class="space-y-4">
+          <UFormField label="Commande à encaisser (optionnel)">
+            <USelect
+              :model-value="selectedInvoiceId"
+              :items="invoiceItems"
+              class="w-full"
+              @update:model-value="onInvoiceChange"
+            />
+          </UFormField>
+
           <UFormField label="Montant à encaisser" required>
             <UInput
               v-model="amount"
@@ -157,7 +203,11 @@ const showSuccess = computed(() => status.value === "success");
               step="0.01"
               placeholder="0"
               class="w-full"
+              :disabled="!!selectedInvoiceId"
             />
+            <p v-if="selectedInvoiceId" class="text-xs text-gray-400 mt-1">
+              Montant verrouillé : correspond au total de la commande sélectionnée.
+            </p>
           </UFormField>
 
           <UFormField label="Devise">

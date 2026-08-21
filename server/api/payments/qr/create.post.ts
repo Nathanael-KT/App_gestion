@@ -1,13 +1,16 @@
 import { createError, defineEventHandler, getHeader, readBody } from "h3";
 import { requireAdmin } from "../../../utils/requireAdmin";
+import { resolveInvoice } from "../../../utils/qrPayment";
 
 interface CreateBody {
-  amount: number;
+  amount?: number;
   currency?: string;
   note?: string;
   customerName?: string;
   cart?: unknown;
   provider?: string;
+  /** Facture/commande à encaisser (facultatif). Si fourni, le montant = total de la facture. */
+  invoiceId?: string;
 }
 
 function makeReference(): string {
@@ -45,7 +48,31 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readBody<CreateBody>(event);
-  const amount = Number(body?.amount);
+
+  // Résoudre la facture/commande si une est sélectionnée
+  let invoiceId: string | null = null;
+  let amount = Number(body?.amount);
+  let magasinId: string | null = null;
+
+  if (body?.invoiceId) {
+    const invoice = await resolveInvoice(adminClient, companyId, body.invoiceId);
+    if (!invoice) {
+      throw createError({
+        statusCode: 404,
+        statusMessage: "Facture/commande introuvable pour cette compagnie",
+      });
+    }
+    if (invoice.status === "paid") {
+      throw createError({
+        statusCode: 409,
+        statusMessage: "Cette commande est déjà payée",
+      });
+    }
+    invoiceId = invoice.id;
+    amount = invoice.total;
+    magasinId = invoice.magasin_id;
+  }
+
   if (!Number.isFinite(amount) || amount <= 0) {
     throw createError({ statusCode: 400, statusMessage: "Montant invalide" });
   }
@@ -60,7 +87,8 @@ export default defineEventHandler(async (event) => {
     .from("qr_payments")
     .insert({
       company_id: companyId,
-      magasin_id: null,
+      magasin_id: magasinId,
+      invoice_id: invoiceId,
       reference,
       amount: Math.round(amount * 100) / 100,
       currency: body.currency || "XOF",

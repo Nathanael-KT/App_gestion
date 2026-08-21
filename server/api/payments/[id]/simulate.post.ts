@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { createError, defineEventHandler, getRouterParam } from "h3";
+import { applyPaymentSuccess } from "../../../utils/qrPayment";
 
 /**
  * Mode démo uniquement : valide une session de paiement comme "succès" sans
@@ -33,14 +34,8 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  await adminClient
-    .from("qr_payments")
-    .update({
-      status: "success",
-      paid_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
+  // Valide la session comme réussie (et marque la facture liée comme payée)
+  const res = await applyPaymentSuccess(adminClient, id);
 
-  return { ok: true, status: "success" };
+  return { ok: true, status: "success", invoiceMarked: res.invoiceMarked === true };
 });

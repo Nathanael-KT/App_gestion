@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { defineEventHandler, readBody, getHeader } from "h3";
+import { applyPaymentSuccess } from "../../utils/qrPayment";
 
 /**
  * Webhook de notification des opérateurs Mobile Money (MTN MoMo / Orange Money).
@@ -71,15 +72,23 @@ export default defineEventHandler(async (event) => {
     return { ok: true, ignored: true };
   }
 
-  await adminClient
-    .from("qr_payments")
-    .update({
-      status: newStatus,
-      paid_at: newStatus === "success" ? new Date().toISOString() : null,
-      provider_payload: body,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", payment.id);
+  if (newStatus === "success") {
+    // Marque la session ET la facture/commande liée comme payées
+    await adminClient
+      .from("qr_payments")
+      .update({ provider_payload: body, updated_at: new Date().toISOString() })
+      .eq("id", payment.id);
+    await applyPaymentSuccess(adminClient, payment.id);
+  } else {
+    await adminClient
+      .from("qr_payments")
+      .update({
+        status: newStatus,
+        provider_payload: body,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", payment.id);
+  }
 
   return { ok: true, matched: true, status: newStatus };
 });

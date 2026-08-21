@@ -7,6 +7,7 @@ import {
   readBody,
 } from "h3";
 import { initiateMobilePayment, type MobileProvider } from "../../../utils/mobileMoney";
+import { applyPaymentSuccess } from "../../../utils/qrPayment";
 
 interface InitiateBody {
   provider: MobileProvider;
@@ -96,11 +97,19 @@ export default defineEventHandler(async (event) => {
 
   await adminClient.from("qr_payments").update(update).eq("id", id);
 
+  // Succès immédiat (rare, ex. Orange synchrone) : marquer la facture liée payée
+  let invoiceMarked = false;
+  if (result.status === "success") {
+    const r = await applyPaymentSuccess(adminClient, id);
+    invoiceMarked = r.invoiceMarked === true;
+  }
+
   return {
     ok: result.ok,
     status: update.status,
     mode: result.mode,
     paymentUrl: result.paymentUrl ?? null,
     message: result.message ?? null,
+    invoiceMarked,
   };
 });
