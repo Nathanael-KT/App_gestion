@@ -53,7 +53,7 @@ const loadFiltersFromStorage = () => {
         customStartDate.value = filters.customStartDate || "";
         customEndDate.value = filters.customEndDate || "";
       } catch (e) {
-        console.log("Erreur lors du chargement des filtres:", e);
+        // console.log("Erreur lors du chargement des filtres:", e);
       }
     }
   }

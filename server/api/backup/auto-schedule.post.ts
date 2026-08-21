@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 // deno-lint-ignore-file no-explicit-any
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default defineEventHandler(async (event: any) => {
@@ -9,7 +10,7 @@ export default defineEventHandler(async (event: any) => {
     // Dans un vrai environnement, cela configurerait une tâche cron
 
     if (enabled) {
-      console.log(`✅ Backup automatique programmé: ${schedule}`);
+      logger.debug(`✅ Backup automatique programmé: ${schedule}`);
 
       // Ici, vous pourriez utiliser node-cron ou un service comme Vercel Cron
       // pour programmer des tâches automatiques
@@ -20,7 +21,7 @@ export default defineEventHandler(async (event: any) => {
         nextExecution: schedule,
       };
     } else {
-      console.log("❌ Backup automatique désactivé");
+      logger.debug("❌ Backup automatique désactivé");
 
       return {
         success: true,
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event: any) => {
       };
     }
   } catch (error) {
-    console.error(
+    logger.error(
       "Erreur lors de la configuration du backup automatique:",
       error
     );

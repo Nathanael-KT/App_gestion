@@ -91,7 +91,7 @@ const fetchInvoiceDetails = async () => {
         .in("id", productIds);
 
       if (productsError)
-        console.warn("Erreur chargement produits:", productsError);
+        // console.warn("Erreur chargement produits:", productsError);
 
       // Créer une map pour accès rapide
       productsMap = (productsData || []).reduce((map, product) => {

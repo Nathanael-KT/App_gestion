@@ -6,7 +6,7 @@ const supabase = useSupabaseClient();
 const toast = useToast();
 const { companyId, isLoadingUser, loadCurrentUser, currentUser } =
   useCurrentUser();
-console.log("currentMagasin.id:", companyId);
+// console.log("currentMagasin.id:", companyId);
 
 onMounted(async () => {
   if (isLoadingUser.value) {
@@ -190,7 +190,7 @@ const saveMagasin = async () => {
     loading.value = false;
   }
 };
-console.log("currentMagasin.id:", currentMagasin.id);
+// console.log("currentMagasin.id:", currentMagasin.id);
 
 // Supprimer un magasin
 const deleteMagasin = async (id) => {

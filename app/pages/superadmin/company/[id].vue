@@ -104,7 +104,7 @@ async function fetchBlockedMenus() {
       .single();
 
     if (supaError) {
-      console.warn("[company detail] Blocked menus fetch error:", supaError);
+      // console.warn("[company detail] Blocked menus fetch error:", supaError);
       return;
     }
 
@@ -202,7 +202,7 @@ async function fetchUsers() {
       .eq("company_id", companyId);
 
     if (supaError) {
-      console.warn("[company detail] Users fetch error:", supaError);
+      // console.warn("[company detail] Users fetch error:", supaError);
       return;
     }
 
@@ -223,7 +223,7 @@ async function fetchMagasins() {
       .eq("company_id", companyId);
 
     if (supaError) {
-      console.warn("[company detail] Magasins fetch error:", supaError);
+      // console.warn("[company detail] Magasins fetch error:", supaError);
       return;
     }
 

@@ -69,7 +69,7 @@ const fetchProductTypes = async () => {
     if (fetchError) throw fetchError;
 
     typeProduits.value = data || [];
-    console.log("Types de produits chargés:", typeProduits.value); // Ajoutez ce log
+    // console.log("Types de produits chargés:", typeProduits.value); // Ajoutez ce log
   } catch (err) {
     error.value =
       err.message || "Erreur lors de la récupération des types de produits.";

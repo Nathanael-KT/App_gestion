@@ -464,7 +464,7 @@ const handleSubmit = async () => {
       .single();
 
     if (checkError || !publicUser) {
-      console.warn(
+      // console.warn(
         "L'utilisateur n'a pas été trouvé dans public.users, création manuelle..."
       );
 

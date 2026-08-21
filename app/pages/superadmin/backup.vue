@@ -987,7 +987,7 @@ const companyOptions = computed(() =>
 // Charger les compagnies au montage
 onMounted(async () => {
   // Note: Utilisation de JSON au lieu d'Excel pour compatibilité Deno Deploy
-  console.log("📋 Mode backup JSON activé (compatible Deno Deploy)");
+  // console.log("📋 Mode backup JSON activé (compatible Deno Deploy)");
 
   await loadCompanies();
   loadLastBackupDate();
@@ -1260,7 +1260,7 @@ async function backupCompanyData(company) {
 
       if (error && error.code !== "PGRST116") {
         // Ignorer si la table n'existe pas
-        console.warn(`Erreur pour la table ${table}:`, error);
+        // console.warn(`Erreur pour la table ${table}:`, error);
         backupData.tables.push({
           name: table,
           data: [],
@@ -1290,7 +1290,7 @@ async function backupCompanyData(company) {
         successfulTables++;
       }
     } catch (error) {
-      console.warn(`Erreur lors de l'export de ${table}:`, error);
+      // console.warn(`Erreur lors de l'export de ${table}:`, error);
       backupData.tables.push({
         name: table,
         data: [],

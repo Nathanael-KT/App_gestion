@@ -1,10 +1,73 @@
 /**
- * Utilitaire pour la synchronisation manuelle des utilisateurs
- * entre auth.users et public.users
+ * Composable unifié pour la synchronisation des utilisateurs
+ * Fusion des deux implémentations précédemment dupliquées
+ * (app/composables vs composables racine)
  */
 
 export const useUserSync = () => {
   const supabase = useSupabaseClient();
+
+  /**
+   * Synchronise un utilisateur après inscription/connexion
+   * via RPC sync_user_profile
+   */
+  const syncUserProfile = async (userId: string) => {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any).rpc("sync_user_profile", {
+        user_id: userId,
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /**
+   * Synchronise tous les utilisateurs auth existants (fonction admin)
+   */
+  const syncAllAuthUsers = async () => {
+    try {
+      const { data, error } = await (supabase as any).rpc(
+        "sync_all_auth_users"
+      );
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  /**
+   * Crée automatiquement le profil utilisateur après inscription
+   */
+  const handleUserSignUp = async (event: { user?: { id?: string } }) => {
+    const { user } = event;
+    if (user?.id) {
+      await syncUserProfile(user.id);
+    }
+  };
+
+  /**
+   * Gère la synchronisation lors de la connexion si le profil n'existe pas
+   */
+  const ensureUserProfile = async (userId: string) => {
+    try {
+      const { error } = await (supabase as any)
+        .from("users")
+        .select("id")
+        .eq("auth_user_id", userId)
+        .single();
+
+      if (error && error.code === "PGRST116") {
+        await syncUserProfile(userId);
+      }
+    } catch {
+      // silent - will be handled by caller if needed
+    }
+  };
 
   /**
    * Lier un utilisateur existant dans public.users à un compte authentifié
@@ -22,7 +85,6 @@ export const useUserSync = () => {
 
       return { success: true };
     } catch (error) {
-      console.error("Erreur lors de la liaison utilisateur:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Erreur inconnue",
@@ -48,7 +110,6 @@ export const useUserSync = () => {
         orphanUsers: orphanUsers || [],
       };
     } catch (error) {
-      console.error("Erreur lors de la validation:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Erreur inconnue",
@@ -57,6 +118,10 @@ export const useUserSync = () => {
   };
 
   return {
+    syncUserProfile,
+    syncAllAuthUsers,
+    handleUserSignUp,
+    ensureUserProfile,
     linkUserByEmail,
     getOrphanUsers,
   };

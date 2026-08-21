@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 // Endpoint appelé chaque 1er du mois par un scheduler externe
 // (GitHub Actions cron / Vercel Cron) pour mettre à jour le statut des
 // abonnements selon la période de grâce de paiement.
@@ -22,7 +23,7 @@ async function updateSubscriptions(
     .select("*");
 
   if (error) {
-    console.error("Erreur récupération abonnements:", error);
+    logger.error("Erreur récupération abonnements:", error);
     return;
   }
 
@@ -55,7 +56,7 @@ async function updateSubscriptions(
         .eq("id", sub.id);
     }
   }
-  console.log("Mise à jour des statuts terminée.");
+  logger.debug("Mise à jour des statuts terminée.");
 }
 
 export default defineEventHandler(async (event) => {

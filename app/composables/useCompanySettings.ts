@@ -1,3 +1,4 @@
+import { logger } from "./useLogger";
 import { ref, computed } from "vue";
 
 // Types pour les paramètres de l'entreprise
@@ -106,7 +107,7 @@ export const useCompanySettings = () => {
       if (fetchError) {
         if (fetchError.code === "PGRST116") {
           // Aucun enregistrement trouvé, retourner les paramètres par défaut
-          console.log(
+          logger.debug(
             "Aucun paramètre trouvé pour cette société, utilisation des valeurs par défaut",
           );
           settings.value = { ...defaultSettings };
@@ -123,7 +124,7 @@ export const useCompanySettings = () => {
           ? err.message
           : "Erreur lors du chargement des paramètres";
       error.value = message;
-      console.error("Erreur fetchCompanySettings:", err);
+      logger.error("Erreur fetchCompanySettings:", err);
       return null;
     } finally {
       loading.value = false;
@@ -180,7 +181,7 @@ export const useCompanySettings = () => {
           ? err.message
           : "Erreur lors de la sauvegarde des paramètres";
       error.value = message;
-      console.error("Erreur upsertCompanySettings:", err);
+      logger.error("Erreur upsertCompanySettings:", err);
       return false;
     } finally {
       loading.value = false;
@@ -229,7 +230,7 @@ export const useCompanySettings = () => {
           ? err.message
           : "Erreur lors de la suppression des paramètres";
       error.value = message;
-      console.error("Erreur deleteCompanySettings:", err);
+      logger.error("Erreur deleteCompanySettings:", err);
       return false;
     } finally {
       loading.value = false;
@@ -253,7 +254,7 @@ export const useCompanySettings = () => {
           ? err.message
           : "Erreur lors de la réinitialisation";
       error.value = message;
-      console.error("Erreur resetToDefault:", err);
+      logger.error("Erreur resetToDefault:", err);
       return false;
     } finally {
       loading.value = false;
