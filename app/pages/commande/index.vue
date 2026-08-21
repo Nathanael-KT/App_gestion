@@ -52,8 +52,8 @@ const loadFiltersFromStorage = () => {
         periodFilter.value = filters.periodFilter || "all";
         customStartDate.value = filters.customStartDate || "";
         customEndDate.value = filters.customEndDate || "";
-      } catch (e) {
-        // console.log("Erreur lors du chargement des filtres:", e);
+      } catch {
+        // Filtres sauvegardés illisibles : on garde les valeurs par défaut
       }
     }
   }

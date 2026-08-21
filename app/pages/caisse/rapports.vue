@@ -755,6 +755,8 @@ async function loadCashSummary() {
       .order("created_at", { ascending: false });
 
     if (emptyingError) {
+      // Erreur ignorée volontairement : le rapport s'affiche avec les
+      // données déjà disponibles (fallback allEmptyings || [])
     }
 
     // console.log("Vidages récupérés:", allEmptyings?.length || 0);

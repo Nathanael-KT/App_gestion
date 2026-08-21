@@ -335,7 +335,23 @@ L'application utilise **Supabase** comme backend :
 
 ### Migrations
 
-Les migrations sont dans `supabase/migrations/` et sont appliquées automatiquement lors du déploiement.
+Les migrations sont dans `supabase/migrations/` et sont **appliquées automatiquement** par le pipeline
+(`.github/workflows/deploy.yml`, job `Database Migration`) à chaque merge sur `main` :
+
+1. Le job détecte les nouveaux fichiers `supabase/migrations/*.sql` du push.
+2. `supabase db push` (CLI officielle) applique **toutes** les migrations en attente et les enregistre
+   dans `supabase_migrations.schema_migrations` — cohérent avec les `supabase db push` manuels.
+
+> ℹ️ Ce job est **indépendant des tests/lint** : un échec de test ne bloque plus l'application des
+> migrations (correction de l'issue #90).
+
+**Secrets GitHub requis** (Settings > Secrets and variables > Actions) :
+- `SUPABASE_ACCESS_TOKEN` — token personnel Supabase (avec droits sur le projet)
+- `SUPABASE_PROJECT_ID` — référence du projet (ex : `abcdefghijk`)
+- `SUPABASE_DB_PASSWORD` — mot de passe `postgres` du projet
+
+En cas de besoin, le workflow manuel `Supabase Repair And Push` (`workflow_dispatch`) permet de
+réparer l'historique des migrations et de tout repousser.
 
 ## 🏗️ Architecture
 
