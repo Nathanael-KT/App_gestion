@@ -733,46 +733,46 @@ onMounted(async () => {
           </div>
           <div class="hidden sm:block overflow-x-auto shadow-md">
             <table class="min-w-full bg-white w-full">
-              <thead class="bg-gray-200">
+              <thead class="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th
-                    class="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase"
+                    class="px-6 py-3 text-center text-xs font-medium text-gray-600 uppercase"
                   >
                     Photo
                   </th>
                   <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase"
                   >
                     Nom
                   </th>
                   <th
-                    class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase"
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase"
                   >
                     Reference
                   </th>
                   <th
-                    class="px-6 py-3 text-xs font-medium text-gray-700 uppercase"
+                    class="px-6 py-3 text-xs font-medium text-gray-600 uppercase"
                   >
                     Stock
                   </th>
                   <th
-                    class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase"
+                    class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
                   >
                     Type
                   </th>
                   <th
-                    class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase"
+                    class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
                   >
                     Emplacement
                   </th>
                   <th
-                    class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase"
+                    class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
                   >
                     Prix
                   </th>
                   <th
                     v-if="userRoles.includes('admin')"
-                    class="px-6 py-3 text-center text-xs font-medium text-gray-700 uppercase"
+                    class="px-6 py-3 text-center text-xs font-medium text-gray-600 uppercase"
                   >
                     Actions
                   </th>
@@ -953,56 +953,56 @@ onMounted(async () => {
 
       <div class="hidden sm:block overflow-x-auto shadow-md">
         <table class="min-w-full bg-white w-full">
-          <thead class="bg-blue-100">
+          <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
               <th
-                class="px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase"
+                class="px-6 py-3 text-center text-xs font-medium text-gray-600 uppercase"
               >
                 Photo
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-blue-700 uppercase"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase"
               >
                 Nom
               </th>
               <th
-                class="px-6 py-3 text-right text-xs font-medium text-blue-700 uppercase"
+                class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
               >
                 Reference
               </th>
               <th
-                class="px-6 py-3 text-right text-xs font-medium text-blue-700 uppercase"
+                class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
               >
                 Stock
               </th>
               <th
-                class="px-6 py-3 text-right text-xs font-medium text-blue-700 uppercase"
+                class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
               >
                 Type
               </th>
               <th
-                class="px-6 py-3 text-right text-xs font-medium text-blue-700 uppercase"
+                class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
               >
                 Emplacement
               </th>
               <th
-                class="px-6 py-3 text-right text-xs font-medium text-blue-700 uppercase hidden md:table-cell"
+                class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase hidden md:table-cell"
               >
                 Taille (cm²)
               </th>
               <th
-                class="px-6 py-3 text-right text-xs font-medium text-blue-700 uppercase"
+                class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
               >
                 Prix
               </th>
               <th
-                class="px-6 py-3 text-right text-xs font-medium text-blue-700 uppercase"
+                class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
               >
                 Cartons
               </th>
               <th
                 v-if="userRoles.includes('admin')"
-                class="px-6 py-3 text-center text-xs font-medium text-blue-700 uppercase"
+                class="px-6 py-3 text-center text-xs font-medium text-gray-600 uppercase"
               >
                 Actions
               </th>
@@ -1154,46 +1154,46 @@ onMounted(async () => {
 
       <div class="hidden sm:block overflow-x-auto shadow-md">
         <table class="min-w-full bg-white w-full">
-          <thead class="bg-green-100">
+          <thead class="bg-gray-50 border-b border-gray-200">
             <tr>
               <th
-                class="px-6 py-3 text-center text-xs font-medium text-green-700 uppercase"
+                class="px-6 py-3 text-center text-xs font-medium text-gray-600 uppercase"
               >
                 Photo
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase"
               >
                 Nom
               </th>
               <th
-                class="px-6 py-3 text-left text-xs font-medium text-green-700 uppercase"
+                class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase"
               >
                 Reference
               </th>
               <th
-                class="px-6 py-3 text-xs font-medium text-green-700 uppercase"
+                class="px-6 py-3 text-xs font-medium text-gray-600 uppercase"
               >
                 Stock
               </th>
               <th
-                class="px-6 py-3 text-right text-xs font-medium text-green-700 uppercase"
+                class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
               >
                 Type
               </th>
               <th
-                class="px-6 py-3 text-right text-xs font-medium text-green-700 uppercase"
+                class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
               >
                 Emplacement
               </th>
               <th
-                class="px-6 py-3 text-right text-xs font-medium text-green-700 uppercase"
+                class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase"
               >
                 Prix
               </th>
               <th
                 v-if="userRoles.includes('admin')"
-                class="px-6 py-3 text-center text-xs font-medium text-green-700 uppercase"
+                class="px-6 py-3 text-center text-xs font-medium text-gray-600 uppercase"
               >
                 Actions
               </th>
