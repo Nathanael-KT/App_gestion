@@ -2,7 +2,14 @@ import { logger } from "../../utils/logger";
 // Webhook Stripe : reçoit les événements de paiement/abonnement et met à
 // jour company_subscription automatiquement. Remplace le cochage manuel
 // "is_paid" par le superadmin (voir app/pages/superadmin/abonnements.vue)
-// par une synchronisation fiable pilotée par Stripe.
+// par une synchronisation fiable pilotée par Stripe (issue #89).
+//
+// Automatismes appliqués ici :
+// - Paiement reçu (checkout / facture)  → abonnement "actif", menus de
+//   l'offre appliqués, blocage automatique levé (sauf blocage manuel).
+// - Échec de paiement / abonnement résilié → statut mis à jour ; l'accès
+//   est coupé après 1 jour de grâce (cron + middleware), puis rétabli
+//   automatiquement dès que le paiement repasse.
 //
 // Sécurité: la requête est vérifiée via la signature Stripe
 // (STRIPE_WEBHOOK_SECRET), pas par un token applicatif — c'est Stripe qui
@@ -10,6 +17,11 @@ import { logger } from "../../utils/logger";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { createError, defineEventHandler, getHeader, readRawBody } from "h3";
+import {
+  applyPlanMenuAccess,
+  blockCompanyForSubscription,
+  unblockCompanyIfAutomatic,
+} from "../../utils/subscriptionAccess";
 
 export default defineEventHandler(async (event) => {
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -111,11 +123,10 @@ export default defineEventHandler(async (event) => {
         last_payment_date: new Date().toISOString().split("T")[0],
       });
 
-      // Débloque l'entreprise si elle avait été bloquée pour non-paiement.
-      await supabase
-        .from("company_settings")
-        .update({ blocked: false })
-        .eq("id", companyId);
+      // Applique les restrictions de menus de l'offre choisie, puis lève
+      // le blocage éventuel (uniquement s'il n'est pas manuel).
+      await applyPlanMenuAccess(supabase, companyId, planId);
+      await unblockCompanyIfAutomatic(supabase, companyId);
       break;
     }
 
@@ -126,10 +137,14 @@ export default defineEventHandler(async (event) => {
 
       const { data: subRaw } = await supabase
         .from("company_subscription")
-        .select("id, company_id")
+        .select("id, company_id, plan_id")
         .eq("stripe_subscription_id", subscriptionId)
         .maybeSingle();
-      const sub = subRaw as { id: string; company_id: string } | null;
+      const sub = subRaw as {
+        id: string;
+        company_id: string;
+        plan_id: string | null;
+      } | null;
       if (!sub) break;
 
       const periodEnd = invoice.lines?.data?.[0]?.period?.end;
@@ -146,10 +161,10 @@ export default defineEventHandler(async (event) => {
         })
         .eq("id", sub.id);
 
-      await supabase
-        .from("company_settings")
-        .update({ blocked: false })
-        .eq("id", sub.company_id);
+      // Paiement mensuel confirmé par Stripe : ré-application des menus de
+      // l'offre et levée du blocage automatique (jamais du blocage manuel).
+      await applyPlanMenuAccess(supabase, sub.company_id, sub.plan_id);
+      await unblockCompanyIfAutomatic(supabase, sub.company_id);
       break;
     }
 
@@ -158,6 +173,8 @@ export default defineEventHandler(async (event) => {
       const subscriptionId = getSubscriptionIdFromInvoice(invoice);
       if (!subscriptionId) break;
 
+      // Le statut passe "en_attente" ; si l'échec persiste au-delà de la
+      // grâce (1 jour après échéance), le cron quotidien bloque l'accès.
       await supabase
         .from("company_subscription")
         .update({
@@ -170,6 +187,14 @@ export default defineEventHandler(async (event) => {
 
     case "customer.subscription.deleted": {
       const subscription = stripeEvent.data.object as Stripe.Subscription;
+
+      const { data: subRaw } = await supabase
+        .from("company_subscription")
+        .select("id, company_id")
+        .eq("stripe_subscription_id", subscription.id)
+        .maybeSingle();
+      const sub = subRaw as { id: string; company_id: string } | null;
+
       await supabase
         .from("company_subscription")
         .update({
@@ -178,6 +203,12 @@ export default defineEventHandler(async (event) => {
           updated_at: new Date().toISOString(),
         })
         .eq("stripe_subscription_id", subscription.id);
+
+      // Abonnement résilié côté Stripe : l'accès est coupé (raison
+      // "subscription" → rétablissement automatique à la réactivation).
+      if (sub) {
+        await blockCompanyForSubscription(supabase, sub.company_id);
+      }
       break;
     }
 

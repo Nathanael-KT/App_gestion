@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import type { TablesUpdate } from "~~/types/database.types";
+import { computeBlockedMenus } from "~/utils/subscriptionAccess";
 
 type SubscriptionStatus = "actif" | "en_attente" | "bloque" | "inactif";
+type SubscriptionPatch = TablesUpdate<"company_subscription">;
 
 interface SubscriptionRow {
   id?: string;
@@ -11,8 +14,35 @@ interface SubscriptionRow {
   status?: string | null;
   last_payment_date?: string | null;
   next_due_date?: string | null;
+  plan_id?: string | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
+}
+
+interface PlanRow {
+  id: string;
+  name?: string | null;
+  slug?: string | null;
+  allowed_menus?: string[] | null;
+}
+
+interface StripeSyncResultItem {
+  companyId: string;
+  stripeSubscriptionId: string | null;
+  stripeStatus: string | null;
+  action: string;
+  detail?: string;
+}
+
+interface StripeSyncSummary {
+  total: number;
+  activated: number;
+  pastDue: number;
+  deactivated: number;
+  withoutStripe: number;
+  errors: number;
 }
 
 interface CompanyRow {
@@ -33,6 +63,9 @@ interface CompanySubscriptionItem {
   status: SubscriptionStatus;
   lastPaymentDate: string | null;
   nextDueDate: string | null;
+  planName: string | null;
+  planId: string | null;
+  stripeLinked: boolean;
   daysToDue: number | null;
   isOverdue: boolean;
 }
@@ -79,13 +112,19 @@ const dueOnly7Days = ref(false);
 const sortBy = ref<"company" | "status" | "due" | "payment">("company");
 const sortDirection = ref<"asc" | "desc">("asc");
 
-const extensionMonths = ref(1);
+const extensionAmount = ref(1);
+const extensionUnit = ref<"semaines" | "mois">("mois");
 const customDueDate = ref("");
 const autoAlertEnabled = ref(true);
 const runningAlertScan = ref(false);
 const lastAlertScanAt = ref<string | null>(null);
 const alerts = ref<SubscriptionAlert[]>([]);
 const logs = ref<ActionLog[]>([]);
+const plansById = ref<Map<string, PlanRow>>(new Map());
+const stripeSyncing = ref(false);
+const lastStripeSyncAt = ref<string | null>(null);
+const stripeSyncSummary = ref<StripeSyncSummary | null>(null);
+const stripeSyncResults = ref<StripeSyncResultItem[]>([]);
 
 let alertInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -211,7 +250,10 @@ const recordAction = (companyId: string, action: string, details: string) => {
   const entry: ActionLog = {
     id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     companyId,
-    companyName: item?.companyName || "Compagnie inconnue",
+    companyName:
+      companyId === "-"
+        ? "Toutes les compagnies"
+        : item?.companyName || "Compagnie inconnue",
     action,
     details,
     actor,
@@ -323,6 +365,8 @@ const exportCsv = () => {
     "company_id",
     "company_name",
     "company_email",
+    "plan",
+    "stripe_linked",
     "status",
     "is_paid",
     "company_blocked",
@@ -340,6 +384,8 @@ const exportCsv = () => {
         row.id,
         row.companyName,
         row.companyEmail,
+        row.planName,
+        row.stripeLinked,
         row.status,
         row.isPaid,
         row.companyBlocked,
@@ -382,6 +428,10 @@ const rebuildViewModel = (rows: CompanyRow[]) => {
     const due = asDate(nextDueDate);
     const daysToDue = due ? diffInDays(now, due) : null;
 
+    const plan = latestSub?.plan_id
+      ? plansById.value.get(latestSub.plan_id)
+      : null;
+
     return {
       id: row.id,
       companyName: row.company_name || "Compagnie sans nom",
@@ -392,6 +442,9 @@ const rebuildViewModel = (rows: CompanyRow[]) => {
       status,
       lastPaymentDate: latestSub?.last_payment_date || null,
       nextDueDate,
+      planName: plan?.name || null,
+      planId: latestSub?.plan_id || null,
+      stripeLinked: !!latestSub?.stripe_subscription_id,
       daysToDue,
       isOverdue: typeof daysToDue === "number" && daysToDue < 0,
     };
@@ -403,12 +456,35 @@ const rebuildViewModel = (rows: CompanyRow[]) => {
   }
 };
 
+const fetchPlans = async () => {
+  const { data, error } = await supabase
+    .from("subscription_plans")
+    .select("id, name, slug, allowed_menus")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+
+  if (error) return;
+
+  const map = new Map<string, PlanRow>();
+  for (const plan of (data as PlanRow[]) || []) {
+    map.set(plan.id, plan);
+  }
+  plansById.value = map;
+};
+
+// Liste des offres pour le sélecteur de la période gratuite.
+const availablePlans = computed(() => [...plansById.value.values()]);
+
+// Offre sur laquelle porte la période gratuite. Par défaut : l'offre de
+// base (« rapide »), puisque l'accès offert doit correspondre à une offre.
+const freeGrantPlanId = ref<string>("");
+
 const fetchCompanies = async () => {
   loading.value = true;
   const { data, error } = await supabase
     .from("company_settings")
     .select(
-      "*, company_subscription(id, company_id, is_paid, status, last_payment_date, next_due_date, created_at, updated_at)",
+      "*, company_subscription(id, company_id, is_paid, status, last_payment_date, next_due_date, plan_id, stripe_customer_id, stripe_subscription_id, created_at, updated_at)",
     )
     .order("company_name", { ascending: true });
 
@@ -424,6 +500,57 @@ const fetchCompanies = async () => {
   }
 
   rebuildViewModel(Array.isArray(data) ? (data as CompanyRow[]) : []);
+};
+
+// Synchronisation à la demande avec Stripe (issue #89) : vérifie que les
+// paiements mensuels passent bien et réconcilie la base automatiquement.
+const syncWithStripe = async () => {
+  if (stripeSyncing.value) return;
+  stripeSyncing.value = true;
+  try {
+    const { data: sessionResp } = await supabase.auth.getSession();
+    const token = sessionResp.session?.access_token;
+
+    const res = await $fetch<{
+      success: boolean;
+      summary: StripeSyncSummary;
+      results: StripeSyncResultItem[];
+    }>("/api/superadmin/sync-stripe-subscriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    stripeSyncSummary.value = res.summary;
+    stripeSyncResults.value = res.results;
+    lastStripeSyncAt.value = new Date().toISOString();
+
+    recordAction(
+      "-",
+      "stripe_sync",
+      `Sync Stripe: ${res.summary.activated} actif(s), ${res.summary.pastDue} en retard, ${res.summary.deactivated} résilié(s)`,
+    );
+    notify(
+      "Synchronisation Stripe terminée",
+      `${res.summary.activated} abonnement(s) confirmé(s) payé(s), ${res.summary.pastDue} en retard, ${res.summary.deactivated} résilié(s).`,
+      res.summary.pastDue > 0 || res.summary.errors > 0 ? "warning" : "success",
+    );
+    await fetchCompanies();
+  } catch (err) {
+    // Message métier propre (jamais le dump technique "[POST] ...").
+    const e = err as {
+      data?: { statusMessage?: string; message?: string };
+      message?: string;
+    };
+    notify(
+      "Erreur de synchronisation",
+      e?.data?.statusMessage ||
+        e?.data?.message ||
+        (err instanceof Error ? err.message : "Impossible de contacter Stripe"),
+      "error",
+    );
+  } finally {
+    stripeSyncing.value = false;
+  }
 };
 
 const getSubscriptionByCompany = async (
@@ -453,7 +580,7 @@ const getSubscriptionByCompany = async (
 
 const upsertSubscription = async (
   companyId: string,
-  patch: Partial<SubscriptionRow>,
+  patch: SubscriptionPatch,
 ): Promise<boolean> => {
   const existing = await getSubscriptionByCompany(companyId);
 
@@ -493,10 +620,14 @@ const upsertSubscription = async (
 const setCompanyBlocked = async (
   companyId: string,
   blocked: boolean,
+  reason: "manual" | "subscription" | null = null,
 ): Promise<boolean> => {
   const { error } = await supabase
     .from("company_settings")
-    .update({ blocked })
+    .update({
+      blocked,
+      blocked_reason: blocked ? reason : null,
+    })
     .eq("id", companyId);
 
   if (error) {
@@ -565,7 +696,13 @@ const blockForNonPayment = async (companyId: string) => {
     is_paid: false,
     status: "bloque",
   });
-  const successCompany = await setCompanyBlocked(companyId, true);
+  // Raison "subscription" : ce blocage est lié au paiement, il sera levé
+  // automatiquement dès que l'entreprise régularisera (webhook/cron).
+  const successCompany = await setCompanyBlocked(
+    companyId,
+    true,
+    "subscription",
+  );
 
   if (successSub && successCompany) {
     recordAction(companyId, "block", "Blocage pour impaye");
@@ -587,11 +724,29 @@ const unblockCompany = async (companyId: string) => {
   actionLoadingId.value = null;
 };
 
-const extendSubscription = async (companyId: string, months: number) => {
-  if (!Number.isFinite(months) || months < 1) {
+// Octroi d'une période gratuite (semaines ou mois) — privilège réservé au
+// super_admin (issue #89). Donne un accès complet jusqu'à la nouvelle
+// échéance, sans paiement Stripe.
+const grantFreePeriod = async (
+  companyId: string,
+  amount: number,
+  unit: "semaines" | "mois",
+  planId: string,
+) => {
+  if (!Number.isFinite(amount) || amount < 1) {
     notify(
       "Valeur invalide",
-      "Le nombre de mois doit etre superieur ou egal a 1.",
+      "La duree offerte doit etre superieure ou egale a 1.",
+      "error",
+    );
+    return;
+  }
+
+  const plan = plansById.value.get(planId);
+  if (!plan) {
+    notify(
+      "Offre manquante",
+      "Selectionnez l'offre sur laquelle porte la periode gratuite.",
       "error",
     );
     return;
@@ -599,22 +754,42 @@ const extendSubscription = async (companyId: string, months: number) => {
 
   actionLoadingId.value = companyId;
   const existing = await getSubscriptionByCompany(companyId);
-  const base = asDate(existing?.next_due_date) || new Date();
-  const due = new Date(base.getFullYear(), base.getMonth() + months, 28);
+  const now = new Date();
+  // Si une échéance future existe déjà, on prolonge à partir d'elle,
+  // sinon à partir d'aujourd'hui.
+  const existingDue = asDate(existing?.next_due_date);
+  const base = existingDue && existingDue > now ? existingDue : now;
+  const due = new Date(base.getTime());
+  if (unit === "mois") {
+    due.setMonth(due.getMonth() + amount);
+  } else {
+    due.setDate(due.getDate() + amount * 7);
+  }
 
   const success = await upsertSubscription(companyId, {
     is_paid: true,
     status: "actif",
     next_due_date: toISODate(due),
-    last_payment_date: toISODate(new Date()),
+    plan_id: planId,
   });
 
   if (success) {
-    recordAction(companyId, "extend", `Prolongation de ${months} mois`);
+    // L'accès offert suit le périmètre de l'offre choisie (menus autorisés).
+    await supabase
+      .from("company_settings")
+      .update({ blocked_menus: computeBlockedMenus(plan.allowed_menus) })
+      .eq("id", companyId);
+
+    const unitLabel = unit === "mois" ? "mois" : "semaine(s)";
+    recordAction(
+      companyId,
+      "free_grant",
+      `${amount} ${unitLabel} offert(s) sur l'offre "${plan.name || planId}" (jusqu'au ${toISODate(due)})`,
+    );
     await setCompanyBlocked(companyId, false);
     notify(
-      "Abonnement prolonge",
-      `Echeance prolongee de ${months} mois.`,
+      "Periode gratuite accordee",
+      `Acces "${plan.name}" offert jusqu'au ${formatDate(toISODate(due))}.`,
       "success",
     );
     await fetchCompanies();
@@ -685,6 +860,25 @@ const selectedItem = computed(() => {
     items.value.find((item) => item.id === selectedCompanyId.value) || null
   );
 });
+
+// Offre de la période gratuite : suit l'offre actuelle de la compagnie
+// sélectionnée, sinon retombe sur « rapide ». (watch placé APRÈS selectedItem
+// pour éviter toute lecture avant initialisation.)
+watch(
+  [selectedCompanyId, plansById],
+  () => {
+    const currentPlanId = selectedItem.value?.planId;
+    if (currentPlanId && plansById.value.has(currentPlanId)) {
+      freeGrantPlanId.value = currentPlanId;
+      return;
+    }
+    const fallback =
+      availablePlans.value.find((p) => p.slug === "rapide") ||
+      availablePlans.value[0];
+    freeGrantPlanId.value = fallback?.id || "";
+  },
+  { immediate: true },
+);
 
 const sortedFilteredItems = computed(() => {
   const text = search.value.trim().toLowerCase();
@@ -773,6 +967,7 @@ onMounted(async () => {
     return;
   }
 
+  await fetchPlans();
   await fetchCompanies();
   runAlertScan(true);
 
@@ -811,11 +1006,40 @@ watch(
           Pilotage des abonnements
         </h1>
         <p class="text-slate-600 mt-1">
-          Espace superadmin pour suivre, filtrer, corriger et operer les
-          abonnements des compagnies.
+          Espace superadmin pour suivre les paiements Stripe, filtrer,
+          corriger et operer les abonnements des compagnies.
         </p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-50 inline-flex items-center gap-2"
+          :disabled="loading || stripeSyncing"
+          title="Verifie les paiements mensuels directement aupres de Stripe et met a jour les statuts"
+          @click="syncWithStripe"
+        >
+          <svg
+            v-if="stripeSyncing"
+            class="animate-spin h-4 w-4"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            />
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8z"
+            />
+          </svg>
+          {{ stripeSyncing ? "Sync en cours..." : "Synchroniser Stripe" }}
+        </button>
         <button
           class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-50"
           :disabled="loading || sortedFilteredItems.length === 0"
@@ -921,6 +1145,73 @@ watch(
             </p>
             <p class="text-xs text-slate-500 mt-1">Acteur: {{ entry.actor }}</p>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="stripeSyncSummary"
+      class="rounded-xl border border-indigo-200 bg-indigo-50 p-4 space-y-3"
+    >
+      <div class="flex items-center justify-between gap-2">
+        <h2 class="text-lg font-bold text-indigo-900">
+          Derniere synchronisation Stripe
+        </h2>
+        <div class="flex items-center gap-3">
+          <p class="text-xs text-indigo-700">
+            {{
+              lastStripeSyncAt
+                ? new Date(lastStripeSyncAt).toLocaleString("fr-FR")
+                : ""
+            }}
+          </p>
+          <button
+            class="text-xs px-2 py-1 rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-800"
+            @click="stripeSyncSummary = null"
+          >
+            Masquer
+          </button>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2 text-sm">
+        <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-800">
+          {{ stripeSyncSummary.activated }} paye(s) / actif(s)
+        </span>
+        <span class="px-2 py-1 rounded bg-amber-100 text-amber-800">
+          {{ stripeSyncSummary.pastDue }} paiement(s) en retard
+        </span>
+        <span class="px-2 py-1 rounded bg-red-100 text-red-800">
+          {{ stripeSyncSummary.deactivated }} resilie(s)
+        </span>
+        <span class="px-2 py-1 rounded bg-slate-100 text-slate-700">
+          {{ stripeSyncSummary.withoutStripe }} sans lien Stripe
+        </span>
+        <span
+          v-if="stripeSyncSummary.errors > 0"
+          class="px-2 py-1 rounded bg-red-200 text-red-900"
+        >
+          {{ stripeSyncSummary.errors }} erreur(s)
+        </span>
+      </div>
+      <div class="max-h-48 overflow-auto space-y-1 pr-1">
+        <div
+          v-for="result in stripeSyncResults"
+          :key="result.companyId"
+          class="text-xs bg-white/70 rounded px-3 py-2 flex justify-between gap-2"
+        >
+          <span class="font-medium text-slate-800 truncate">
+            {{
+              items.find((it) => it.id === result.companyId)?.companyName ||
+              result.companyId
+            }}
+            <span
+              v-if="result.stripeStatus"
+              class="text-slate-500 font-normal"
+            >
+              — Stripe: {{ result.stripeStatus }}</span
+            >
+          </span>
+          <span class="text-slate-500 shrink-0">{{ result.detail }}</span>
         </div>
       </div>
     </div>
@@ -1051,6 +1342,9 @@ watch(
                 Compagnie
               </th>
               <th class="px-4 py-3 text-left font-semibold text-slate-700">
+                Offre
+              </th>
+              <th class="px-4 py-3 text-left font-semibold text-slate-700">
                 Statut
               </th>
               <th class="px-4 py-3 text-left font-semibold text-slate-700">
@@ -1093,6 +1387,23 @@ watch(
                   {{ item.companyName }}
                 </p>
                 <p class="text-xs text-slate-500">{{ item.companyEmail }}</p>
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex flex-col gap-1">
+                  <span class="text-sm font-medium text-slate-800">
+                    {{ item.planName || "Aucune offre" }}
+                  </span>
+                  <span
+                    class="px-2 py-0.5 rounded-full text-xs font-medium w-fit"
+                    :class="
+                      item.stripeLinked
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'bg-slate-100 text-slate-600'
+                    "
+                  >
+                    {{ item.stripeLinked ? "Stripe" : "Manuel" }}
+                  </span>
+                </div>
               </td>
               <td class="px-4 py-3">
                 <span
@@ -1154,7 +1465,7 @@ watch(
             </tr>
 
             <tr v-if="sortedFilteredItems.length === 0">
-              <td colspan="7" class="px-4 py-8 text-center text-slate-500">
+              <td colspan="8" class="px-4 py-8 text-center text-slate-500">
                 Aucun abonnement ne correspond aux filtres.
               </td>
             </tr>
@@ -1190,20 +1501,52 @@ watch(
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="rounded-lg border border-slate-200 p-4 space-y-3">
-          <h3 class="font-semibold text-slate-900">Prolongation</h3>
-          <div class="flex items-center gap-2">
+          <h3 class="font-semibold text-slate-900">Periode gratuite</h3>
+          <p class="text-xs text-slate-500">
+            Privilege super_admin : donne acces (sans paiement Stripe) pour la
+            duree choisie, <strong>selon le perimetre de l'offre
+            selectionnee</strong>. L'echeance est prolongee d'autant.
+          </p>
+          <div class="flex items-center gap-2 flex-wrap">
             <input
-              v-model.number="extensionMonths"
+              v-model.number="extensionAmount"
               type="number"
               min="1"
               class="w-24 px-3 py-2 rounded-md border border-slate-300"
             />
+            <select
+              v-model="extensionUnit"
+              class="px-3 py-2 rounded-md border border-slate-300 bg-white"
+            >
+              <option value="semaines">semaine(s)</option>
+              <option value="mois">mois</option>
+            </select>
+            <select
+              v-model="freeGrantPlanId"
+              class="px-3 py-2 rounded-md border border-slate-300 bg-white"
+              title="Offre appliquee pendant la periode gratuite"
+            >
+              <option
+                v-for="plan in availablePlans"
+                :key="plan.id"
+                :value="plan.id"
+              >
+                Offre {{ plan.name }}
+              </option>
+            </select>
             <button
               class="px-3 py-2 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700"
               :disabled="actionLoadingId === selectedItem.id"
-              @click="extendSubscription(selectedItem.id, extensionMonths)"
+              @click="
+                grantFreePeriod(
+                  selectedItem.id,
+                  extensionAmount,
+                  extensionUnit,
+                  freeGrantPlanId,
+                )
+              "
             >
-              Prolonger
+              Accorder gratuitement
             </button>
           </div>
         </div>

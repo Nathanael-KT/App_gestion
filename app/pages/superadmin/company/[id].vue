@@ -3,6 +3,8 @@ import { ref, onMounted } from "vue";
 
 const route = useRoute();
 const supabase = useSupabaseClient();
+// Erreurs affichées en toast (pas de bandeau inline).
+const { notifyError } = useErrorToast();
 
 const companyId = route.params.id as string;
 
@@ -36,13 +38,23 @@ interface Magasin {
   created_at?: string;
 }
 
+interface CompanySubscription {
+  is_paid?: boolean | null;
+  status?: string | null;
+  next_due_date?: string | null;
+  last_payment_date?: string | null;
+  stripe_subscription_id?: string | null;
+  subscription_plans?: { name?: string | null } | null;
+}
+
 const company = ref<Company | null>(null);
 const loading = ref(false);
-const error = ref("");
 const users = ref<User[]>([]);
 const magasins = ref<Magasin[]>([]);
 const usersLoading = ref(false);
 const magasinsLoading = ref(false);
+const subscription = ref<CompanySubscription | null>(null);
+const subscriptionLoading = ref(false);
 
 const blockedMenus = ref<string[]>([]);
 const companyBlocked = ref(false);
@@ -65,7 +77,6 @@ const allMenus = [
 
 async function fetchCompanyInfo() {
   loading.value = true;
-  error.value = "";
   try {
     const { data, error: supaError } = await supabase
       .from("company_settings")
@@ -74,9 +85,7 @@ async function fetchCompanyInfo() {
       .single();
 
     if (supaError) {
-      error.value =
-        supaError.message ||
-        "Erreur lors du chargement des données de l'entreprise";
+      notifyError(supaError, "Erreur lors du chargement des données de l'entreprise");
       console.error("[company detail] Fetch error:", supaError);
       return;
     }
@@ -85,10 +94,7 @@ async function fetchCompanyInfo() {
       company.value = data as Company;
     }
   } catch (err) {
-    error.value =
-      err instanceof Error
-        ? err.message
-        : "Erreur lors du chargement des données";
+    notifyError(err, "Erreur lors du chargement des données");
     console.error("[company detail] Unexpected error:", err);
   } finally {
     loading.value = false;
@@ -142,8 +148,7 @@ async function setMenuStatus(menu: string, shouldBlock: boolean) {
       .eq("id", companyId);
 
     if (supaError) {
-      error.value =
-        supaError.message || "Erreur lors de la mise à jour du menu";
+      notifyError(supaError, "Erreur lors de la mise à jour du menu");
       console.error("[company detail] Update error:", supaError);
       return;
     }
@@ -151,8 +156,7 @@ async function setMenuStatus(menu: string, shouldBlock: boolean) {
     blockedMenus.value = newBlockedMenus;
     lastUpdate.value = new Date();
   } catch (err) {
-    error.value =
-      err instanceof Error ? err.message : "Erreur lors de la mise à jour";
+    notifyError(err, "Erreur lors de la mise à jour");
     console.error("[company detail] Unexpected error updating menu:", err);
   } finally {
     menuActionLoading.value = null;
@@ -162,17 +166,19 @@ async function setMenuStatus(menu: string, shouldBlock: boolean) {
 async function setCompanyBlocked(blocked: boolean) {
   loading.value = true;
   try {
+    // Blocage décidé depuis cette fiche = blocage MANUEL : il n'est jamais
+    // levé automatiquement, même si un paiement Stripe arrive ensuite.
     const { error: supaError } = await supabase
       .from("company_settings")
       .update({
         blocked,
+        blocked_reason: blocked ? "manual" : null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", companyId);
 
     if (supaError) {
-      error.value =
-        supaError.message || "Erreur lors du blocage global de la compagnie";
+      notifyError(supaError, "Erreur lors du blocage global de la compagnie");
       console.error("[company detail] Update error:", supaError);
       return;
     }
@@ -180,10 +186,7 @@ async function setCompanyBlocked(blocked: boolean) {
     companyBlocked.value = blocked;
     lastUpdate.value = new Date();
   } catch (err) {
-    error.value =
-      err instanceof Error
-        ? err.message
-        : "Erreur lors du blocage de la compagnie";
+    notifyError(err, "Erreur lors du blocage de la compagnie");
     console.error(
       "[company detail] Unexpected error updating blocked status:",
       err,
@@ -235,12 +238,50 @@ async function fetchMagasins() {
   }
 }
 
+async function fetchSubscription() {
+  subscriptionLoading.value = true;
+  try {
+    const { data, error: supaError } = await supabase
+      .from("company_subscription")
+      .select(
+        "is_paid, status, next_due_date, last_payment_date, stripe_subscription_id, subscription_plans(name)",
+      )
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (supaError) return;
+    subscription.value = (data as CompanySubscription | null) ?? null;
+  } catch {
+    // affichage indicatif uniquement : ne pas bloquer la fiche
+  } finally {
+    subscriptionLoading.value = false;
+  }
+}
+
+const subscriptionStatusLabel = (status?: string | null): string => {
+  switch (status) {
+    case "actif":
+      return "Actif";
+    case "en_attente":
+      return "En attente";
+    case "bloque":
+      return "Bloqué";
+    case "inactif":
+      return "Inactif";
+    default:
+      return "Aucun abonnement";
+  }
+};
+
 onMounted(async () => {
   await Promise.all([
     fetchCompanyInfo(),
     fetchBlockedMenus(),
     fetchUsers(),
     fetchMagasins(),
+    fetchSubscription(),
   ]);
 });
 </script>
@@ -290,16 +331,6 @@ onMounted(async () => {
       <div class="h-4 bg-gray-100 rounded w-1/3 mb-2" />
     </div>
 
-    <!-- Error -->
-    <div v-if="error" class="mb-4">
-      <div
-        class="bg-red-100 text-red-700 px-4 py-2 rounded flex items-center gap-2"
-      >
-        <UIcon name="heroicons:exclamation-triangle-20-solid" class="h-5 w-5" />
-        <span>{{ error }}</span>
-      </div>
-    </div>
-
     <!-- Info + Menus -->
     <div v-if="company" class="flex flex-col gap-4 mb-10">
       <div
@@ -327,6 +358,83 @@ onMounted(async () => {
           </div>
         </div>
       </div>
+      <!-- Abonnement Section -->
+      <div class="bg-white shadow rounded-lg p-6">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Abonnement</h2>
+          <NuxtLink
+            to="/superadmin/abonnements"
+            class="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+          >
+            Gerer dans Pilotage des abonnements →
+          </NuxtLink>
+        </div>
+        <div v-if="subscriptionLoading" class="text-gray-500 animate-pulse">
+          <div class="h-4 bg-gray-200 rounded w-1/2 mb-2" />
+        </div>
+        <div v-else-if="!subscription" class="text-sm text-gray-500">
+          Aucun abonnement enregistre pour cette entreprise. Ses utilisateurs
+          n'ont acces qu'a la page Abonnement jusqu'a ce qu'une offre soit
+          activee (paiement Stripe ou periode gratuite accordee par vos soins).
+        </div>
+        <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500">Statut</p>
+            <p
+              class="font-semibold"
+              :class="{
+                'text-emerald-600': subscription.status === 'actif',
+                'text-amber-600': subscription.status === 'en_attente',
+                'text-red-600': subscription.status === 'bloque',
+                'text-slate-600':
+                  !subscription.status || subscription.status === 'inactif',
+              }"
+            >
+              {{ subscriptionStatusLabel(subscription.status) }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500">Offre</p>
+            <p class="font-semibold text-gray-900">
+              {{ subscription.subscription_plans?.name || "-" }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500">
+              Paiement
+            </p>
+            <p class="font-semibold text-gray-900">
+              {{ subscription.is_paid ? "Payé" : "Non payé" }}
+              <span
+                v-if="subscription.stripe_subscription_id"
+                class="ml-1 text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700"
+                >Stripe</span
+              >
+            </p>
+          </div>
+          <div>
+            <p class="text-xs uppercase tracking-wide text-gray-500">
+              Prochaine échéance
+            </p>
+            <p class="font-semibold text-gray-900">
+              {{
+                subscription.next_due_date
+                  ? new Date(subscription.next_due_date).toLocaleDateString(
+                      "fr-FR",
+                    )
+                  : "-"
+                }}
+            </p>
+          </div>
+        </div>
+        <p class="mt-3 text-xs text-gray-500">
+          Regle automatique : mois paye = acces ; mois non paye = acces coupe
+          apres 1 jour de grace, retabli automatiquement au paiement. Le
+          blocage global ci-dessous est un blocage manuel, jamais leve
+          automatiquement.
+        </p>
+      </div>
+
       <div class="bg-white shadow rounded-lg p-6">
         <h2 class="text-lg font-semibold mb-2">Statut des menus</h2>
         <div class="mb-4 flex items-center gap-4">

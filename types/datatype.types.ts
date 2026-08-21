@@ -255,6 +255,7 @@ export type Database = {
           backup_retention: number | null
           blocked: boolean | null
           blocked_menus: string[] | null
+          blocked_reason: string | null
           company_address: string | null
           company_email: string
           company_name: string
@@ -288,6 +289,7 @@ export type Database = {
           backup_retention?: number | null
           blocked?: boolean | null
           blocked_menus?: string[] | null
+          blocked_reason?: string | null
           company_address?: string | null
           company_email?: string
           company_name?: string
@@ -321,6 +323,7 @@ export type Database = {
           backup_retention?: number | null
           blocked?: boolean | null
           blocked_menus?: string[] | null
+          blocked_reason?: string | null
           company_address?: string | null
           company_email?: string
           company_name?: string
@@ -353,30 +356,45 @@ export type Database = {
       }
       company_subscription: {
         Row: {
+          cancel_at_period_end: boolean
           company_id: string | null
           created_at: string | null
           id: string
           is_paid: boolean | null
           last_payment_date: string | null
           next_due_date: string | null
+          plan_id: string | null
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           updated_at: string | null
         }
         Insert: {
+          cancel_at_period_end?: boolean
           company_id?: string | null
           created_at?: string | null
           id?: string
           is_paid?: boolean | null
           last_payment_date?: string | null
           next_due_date?: string | null
+          plan_id?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string | null
         }
         Update: {
+          cancel_at_period_end?: boolean
           company_id?: string | null
           created_at?: string | null
           id?: string
           is_paid?: boolean | null
           last_payment_date?: string | null
           next_due_date?: string | null
+          plan_id?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -392,6 +410,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "company_settings_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_subscription_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -924,6 +949,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscription_plans: {
+        Row: {
+          allowed_menus: string[] | null
+          created_at: string
+          currency: string
+          description: string | null
+          features: Json
+          id: string
+          interval: string
+          is_active: boolean
+          name: string
+          price_cents: number
+          slug: string
+          sort_order: number
+          stripe_price_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          allowed_menus?: string[] | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          interval?: string
+          is_active?: boolean
+          name: string
+          price_cents: number
+          slug: string
+          sort_order?: number
+          stripe_price_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allowed_menus?: string[] | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          interval?: string
+          is_active?: boolean
+          name?: string
+          price_cents?: number
+          slug?: string
+          sort_order?: number
+          stripe_price_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       users: {
         Row: {
