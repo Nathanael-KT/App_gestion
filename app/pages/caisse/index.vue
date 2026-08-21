@@ -522,7 +522,7 @@ const loadCashTransactions = async (stats) => {
       });
     } catch {
       // Si la table n'existe pas, utiliser des valeurs simulées
-      console.log("Table cash_transactions non trouvée, simulation activée");
+      // console.log("Table cash_transactions non trouvée, simulation activée");
       cashTransactions.value = [];
       stats.cashOut = 0;
       stats.cashIn = 0;
@@ -555,16 +555,12 @@ const loadOpeningBalance = async (stats) => {
       // Si aucune ligne n'est retournée, PGRST116, on met à 0
       if (!closingData || closingError?.code === "PGRST116") {
         stats.openingBalance = 0;
-        console.log("Aucun solde de fermeture trouvé pour le jour précédent");
+        // console.log("Aucun solde de fermeture trouvé pour le jour précédent");
       } else {
         stats.openingBalance = parseFloat(closingData.closing_balance) || 0;
       }
-    } catch (err) {
+    } catch {
       stats.openingBalance = 0;
-      console.log(
-        "Aucun solde de fermeture trouvé pour le jour précédent",
-        err
-      );
     }
   } catch (err) {
     console.error("Erreur lors du chargement du solde d'ouverture:", err);
@@ -593,9 +589,6 @@ const loadSelectedDateCashCount = async () => {
       .eq("magasin_id", magasinStore.magasinId);
 
     if (totalCounts && totalCounts > 1) {
-      console.warn(
-        `⚠️ Attention: ${totalCounts} comptages trouvés pour ${selectedDate.value}. Utilisation du plus récent.`
-      );
       toast.add({
         title: "Attention",
         description: `${totalCounts} comptages trouvés pour cette date. Utilisation du plus récent.`,
@@ -963,8 +956,8 @@ const loadCashHistory = async () => {
           });
         });
       }
-    } catch (error) {
-      console.warn("Erreur lors du chargement des comptages:", error);
+    } catch {
+      // console.warn("Erreur lors du chargement des comptages:", error);
     }
 
     // Charger les transactions de caisse (entrées/sorties)
@@ -1000,8 +993,8 @@ const loadCashHistory = async () => {
           }
         });
       }
-    } catch (error) {
-      console.warn("Erreur lors du chargement des transactions:", error);
+    } catch {
+      // console.warn("Erreur lors du chargement des transactions:", error);
     }
 
     // Charger les ventes en espèces
@@ -1030,8 +1023,8 @@ const loadCashHistory = async () => {
           cashHistory.value.summary.totalCashSales += sale.amount;
         });
       }
-    } catch (error) {
-      console.warn("Erreur lors du chargement des ventes:", error);
+    } catch {
+      // console.warn("Erreur lors du chargement des ventes:", error);
     }
 
     // Charger les vidages de caisse si la table existe
@@ -1062,8 +1055,8 @@ const loadCashHistory = async () => {
           cashHistory.value.summary.totalEmptied += empty.amount;
         });
       }
-    } catch (error) {
-      console.warn("Table cash_emptying non disponible:", error);
+    } catch {
+      // console.warn("Table cash_emptying non disponible:", error);
     }
 
     // Trier les transactions par date (plus récent en premier)
@@ -1349,9 +1342,6 @@ const saveCashCount = async () => {
           saveError.message?.includes("existe déjà") ||
           saveError.message?.includes("duplicate")
         ) {
-          console.log(
-            "Comptage détecté après tentative de création, rechargement..."
-          );
           await loadSelectedDateCashCount();
 
           if (selectedDateCashCount.value) {

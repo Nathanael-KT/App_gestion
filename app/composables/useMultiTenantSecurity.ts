@@ -2,6 +2,8 @@
  * Composable pour gérer la sécurité multi-tenant
  * Assure l'isolation des données entre entreprises
  */
+import { logger } from "./useLogger";
+
 export const useMultiTenantSecurity = () => {
   const supabase = useSupabaseClient();
   const { currentUser } = useCurrentUser();
@@ -11,7 +13,7 @@ export const useMultiTenantSecurity = () => {
    */
   const hasCompanyAccess = (companyId: string): boolean => {
     if (!currentUser.value?.company_id) {
-      console.warn("🚨 Utilisateur sans company_id");
+      logger.warn("Utilisateur sans company_id");
       return false;
     }
 
@@ -19,7 +21,7 @@ export const useMultiTenantSecurity = () => {
     const hasAccess = userCompanyId === companyId;
 
     if (!hasAccess) {
-      console.warn("🚨 Tentative d'accès non autorisé:", {
+      logger.warn("Tentative d'accès non autorisé:", {
         userCompanyId,
         requestedCompanyId: companyId,
         userEmail: currentUser.value.email,
@@ -67,7 +69,7 @@ export const useMultiTenantSecurity = () => {
     action: string,
     details: Record<string, unknown>,
   ) => {
-    console.log("🔒 Événement sécurité:", {
+    logger.warn("Événement sécurité:", {
       timestamp: new Date().toISOString(),
       user: currentUser.value?.email,
       company_id: currentUser.value?.company_id,

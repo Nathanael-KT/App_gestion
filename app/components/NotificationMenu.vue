@@ -24,10 +24,7 @@ const dynamicNotifications = ref<
 onMounted(() => {
   setInterval(() => {
     const now = new Date();
-    // afficher l'heure dans la console pour le debug
-    console.log("Heure actuelle :", now.toLocaleTimeString());
-    console.log("Vérification de l'heure pour les notifications");
-    // Notification à 14h
+    // Notification à 14h25
     if (now.getHours() === 14 && now.getMinutes() === 25) {
       if (
         typeof window !== "undefined" &&
@@ -45,11 +42,11 @@ onMounted(() => {
         window.localStorage.setItem("caisseNotifShown", "1");
       }
     }
-    // Modal obligatoire à 14h 30
+    // Modal obligatoire à 14h30
     if (now.getHours() === 14 && now.getMinutes() === 30) {
       showCaisseModal.value = true;
     }
-  }, 30000); // vérifie toutes les 30s
+  }, 30000);
 });
 
 function getIcon(type: string) {

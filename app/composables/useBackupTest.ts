@@ -1,3 +1,4 @@
+import { logger } from "./useLogger";
 /**
  * Composable pour tester le système de backup AWS S3
  * Permet de simuler un test de backup et de récupération
@@ -18,7 +19,7 @@ export const useBackupTest = () => {
    */
   const runBackupTest = async () => {
     if (isTestRunning.value) {
-      console.warn("⚠️ Test déjà en cours");
+      logger.warn("⚠️ Test déjà en cours");
       return;
     }
 
@@ -26,7 +27,7 @@ export const useBackupTest = () => {
     const startTime = Date.now();
 
     try {
-      console.log("🧪 Démarrage du test de backup AWS S3...");
+      logger.debug("🧪 Démarrage du test de backup AWS S3...");
 
       // 1. Vérifier la connexion à la base de données
       const { data: companies, error: dbError } = await supabase
@@ -46,13 +47,13 @@ export const useBackupTest = () => {
       if (!testCompany) {
         throw new Error("Aucune compagnie disponible pour le test");
       }
-      console.log(
+      logger.debug(
         `✅ Base de données OK - Test avec: ${testCompany.company_name}`,
       );
 
       // 2. Générer des données de test
       const testData = await generateTestBackupData(testCompany);
-      console.log("✅ Données de test générées");
+      logger.debug("✅ Données de test générées");
 
       // 3. Tester l'upload AWS S3
       const awsResult = (await $fetch("/api/backup/aws-upload", {
@@ -66,7 +67,7 @@ export const useBackupTest = () => {
         },
       })) as Record<string, any>;
 
-      console.log("✅ Upload AWS S3 réussi:", awsResult);
+      logger.debug("✅ Upload AWS S3 réussi:", awsResult);
 
       // 4. Calculer la durée
       const duration = Date.now() - startTime;
@@ -87,7 +88,7 @@ export const useBackupTest = () => {
         duration,
       };
 
-      console.log("🎉 Test de backup terminé avec succès");
+      logger.debug("🎉 Test de backup terminé avec succès");
       return testResults.value;
     } catch (error) {
       const duration = Date.now() - startTime;
@@ -104,7 +105,7 @@ export const useBackupTest = () => {
         duration,
       };
 
-      console.error("❌ Test de backup échoué:", error);
+      logger.error("❌ Test de backup échoué:", error);
       return testResults.value;
     } finally {
       isTestRunning.value = false;
@@ -184,7 +185,7 @@ export const useBackupTest = () => {
           });
         }
       } catch (error) {
-        console.warn(`Erreur table ${table} dans le test:`, error);
+        logger.warn(`Erreur table ${table} dans le test:`, error);
         testData.tables.push({
           name: table,
           data: [],
@@ -200,21 +201,21 @@ export const useBackupTest = () => {
    * Test de simulation de crash de BDD
    */
   const simulateDatabaseCrash = async () => {
-    console.log("💥 Simulation d'un crash de base de données...");
+    logger.debug("💥 Simulation d'un crash de base de données...");
 
     // Simuler différents scénarios de crash
     const crashScenarios = [
       {
         name: "Connexion perdue",
         simulate: () => {
-          console.log("📡 Simulation: Perte de connexion à Supabase");
+          logger.debug("📡 Simulation: Perte de connexion à Supabase");
           return { canRecover: true, recoveryTime: "2-5 minutes" };
         },
       },
       {
         name: "Corruption de données",
         simulate: () => {
-          console.log("💾 Simulation: Corruption des données de production");
+          logger.debug("💾 Simulation: Corruption des données de production");
           return {
             canRecover: false,
             recoveryTime: "Récupération depuis AWS S3 nécessaire",
@@ -224,7 +225,7 @@ export const useBackupTest = () => {
       {
         name: "Crash complet du serveur",
         simulate: () => {
-          console.log("🔥 Simulation: Crash complet du serveur Supabase");
+          logger.debug("🔥 Simulation: Crash complet du serveur Supabase");
           return {
             canRecover: false,
             recoveryTime: "Restauration depuis backup AWS S3",
@@ -240,18 +241,18 @@ export const useBackupTest = () => {
     }
     const result = randomScenario.simulate();
 
-    console.log(`✅ Simulation terminée: ${randomScenario.name}`);
-    console.log(
+    logger.debug(`✅ Simulation terminée: ${randomScenario.name}`);
+    logger.debug(
       `🔄 Récupération possible: ${result.canRecover ? "Oui" : "Non"}`,
     );
-    console.log(`⏱️ Temps de récupération: ${result.recoveryTime}`);
+    logger.debug(`⏱️ Temps de récupération: ${result.recoveryTime}`);
 
     if (!result.canRecover) {
-      console.log("☁️ Récupération depuis les backups AWS S3 en cours...");
-      console.log(
+      logger.debug("☁️ Récupération depuis les backups AWS S3 en cours...");
+      logger.debug(
         "📦 Fichiers disponibles sur S3 dans le bucket app-gestion-backups",
       );
-      console.log("⚡ Temps de récupération estimé: 5-10 minutes");
+      logger.debug("⚡ Temps de récupération estimé: 5-10 minutes");
     }
 
     return {

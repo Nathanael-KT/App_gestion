@@ -11,7 +11,7 @@
       class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
     >
       <div
-        v-for="settings in companySettingsList"
+        v-for="settings in filteredList"
         :key="settings.id"
         class="bg-white shadow rounded-lg p-6 flex flex-col justify-between"
       >
@@ -184,9 +184,11 @@
 
 <script setup lang="ts">
 import { useMagasinStore } from "../composables/useMagasinStore";
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useSupabaseClient } from "#imports";
 import { z } from "zod";
+
+const props = defineProps<{ search?: string }>();
 
 const magasinStore = useMagasinStore();
 
@@ -208,6 +210,18 @@ type CompanySettings = z.infer<typeof CompanySettingsSchema> & {
 
 const supabase = useSupabaseClient() as any;
 const companySettingsList = ref<CompanySettings[]>([]);
+
+const filteredList = computed(() => {
+  const q = (props.search || "").toLowerCase().trim();
+  if (!q) return companySettingsList.value;
+  return companySettingsList.value.filter((c) => {
+    return (
+      c.company_name?.toLowerCase().includes(q) ||
+      (c as any).company_email?.toLowerCase().includes(q) ||
+      (c as any).company_phone?.toLowerCase().includes(q)
+    );
+  });
+});
 const editingCompany = ref(false);
 const editingCompanyId = ref<string | null>(null);
 const deletingCompany = ref(false);

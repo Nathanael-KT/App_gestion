@@ -297,7 +297,7 @@ function scrollToContact() {
 
 function submitForm() {
   // Logique de soumission du formulaire
-  console.log('Formulaire soumis');
+  // console.log('Formulaire soumis');
 }
 </script>
 

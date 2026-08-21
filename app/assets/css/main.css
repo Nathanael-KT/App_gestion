@@ -1,8 +1,6 @@
 @import "tailwindcss" theme(static);
 @import "@nuxt/ui";
 
-/* assets/css/main.css */
-
 /* Main.css */
 .icone {
   color: var(--ui-secondary);
@@ -23,4 +21,84 @@ h2,
 h3,
 label {
   font-family: "Space grotesk", sans-serif;
+}
+
+/* Responsive global fixes - Issue #51 */
+html {
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  overflow-x: hidden;
+  min-width: 320px;
+}
+
+/* Ensure all containers are responsive */
+* {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Tables responsive */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Cards responsive */
+@media (max-width: 640px) {
+  .grid {
+    gap: 0.75rem;
+  }
+  
+  /* Force single column on very small screens for complex grids */
+  .grid-cols-2 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  @media (min-width: 480px) {
+    .grid-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+}
+
+/* Buttons responsive */
+@media (max-width: 640px) {
+  .btn, button {
+    min-height: 44px; /* Touch target */
+  }
+}
+
+/* Modals responsive */
+@media (max-width: 640px) {
+  [role="dialog"] {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
+}
+
+/* Inputs responsive */
+input, select, textarea {
+  font-size: 16px; /* Prevent zoom on iOS */
+}
+
+@media (min-width: 768px) {
+  input, select, textarea {
+    font-size: 14px;
+  }
+}
+
+/* Prevent horizontal scroll on mobile */
+.w-full {
+  max-width: 100vw;
+}
+
+/* Superadmin specific responsive */
+@media (max-width: 768px) {
+  .max-w-7xl {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
 }

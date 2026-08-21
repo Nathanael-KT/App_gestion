@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 // Webhook Stripe : reçoit les événements de paiement/abonnement et met à
 // jour company_subscription automatiquement. Remplace le cochage manuel
 // "is_paid" par le superadmin (voir app/pages/superadmin/abonnements.vue)
@@ -35,7 +36,7 @@ export default defineEventHandler(async (event) => {
       webhookSecret
     );
   } catch (err) {
-    console.error("Signature webhook Stripe invalide:", err);
+    logger.error("Signature webhook Stripe invalide:", err);
     throw createError({ statusCode: 400, statusMessage: "Signature invalide" });
   }
 

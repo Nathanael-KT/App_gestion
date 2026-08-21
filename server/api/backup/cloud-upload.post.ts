@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 /**
  * API pour sauvegarder les backups vers Google Drive
  * Alternative simple sans dépendances complexes
@@ -22,10 +23,10 @@ export default defineEventHandler(async (event) => {
     // Pour l'instant, simuler l'upload vers Google Drive
     // En production, utiliser l'API Google Drive avec un token d'accès
 
-    console.log(`📤 Simulation upload vers Google Drive:`);
-    console.log(`- Fichier: ${filename}`);
-    console.log(`- Compagnie: ${companyName}`);
-    console.log(`- Taille: ${data?.length || 0} caractères`);
+    logger.debug(`📤 Simulation upload vers Google Drive:`);
+    logger.debug(`- Fichier: ${filename}`);
+    logger.debug(`- Compagnie: ${companyName}`);
+    logger.debug(`- Taille: ${data?.length || 0} caractères`);
 
     // Simuler un délai d'upload
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -46,7 +47,7 @@ export default defineEventHandler(async (event) => {
       companyName,
     };
   } catch (error: unknown) {
-    console.error("Erreur upload Google Drive:", error);
+    logger.error("Erreur upload Google Drive:", error);
     const errorMessage =
       error instanceof Error ? error.message : "Erreur inconnue";
 

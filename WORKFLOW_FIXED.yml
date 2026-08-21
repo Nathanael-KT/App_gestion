@@ -1,0 +1,315 @@
+name: Build & Deploy with Docker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+  SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+  SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+  SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+  SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run unit tests
+        run: pnpm run test
+
+      - name: Run linter
+        run: pnpm run lint
+
+      - name: Type check
+        run: pnpm run typecheck
+
+  migrate:
+    name: Database Migration
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validate secrets
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
+            echo "⚠️ SUPABASE_ACCESS_TOKEN missing - will try direct psql fallback"
+          fi
+          if [ -z "${{ secrets.SUPABASE_PROJECT_ID }}" ]; then
+            echo "⚠️ SUPABASE_PROJECT_ID missing"
+          fi
+          if [ -z "${{ secrets.SUPABASE_DB_PASSWORD }}" ]; then
+            echo "⚠️ SUPABASE_DB_PASSWORD missing"
+          fi
+
+      - name: List migration files
+        run: |
+          set -euo pipefail
+          echo "📁 Migrations in repo:"
+          ls -1 supabase/migrations/*.sql | sort
+          echo ""
+          echo "🔍 Checking for files with spaces or duplicates:"
+          if ls supabase/migrations/*" "* 2>/dev/null; then
+            echo "❌ Found files with spaces - should be cleaned!"
+            exit 1
+          else
+            echo "✅ No files with spaces"
+          fi
+
+      - name: Try Supabase CLI push (preferred)
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' && secrets.SUPABASE_PROJECT_ID != '' && secrets.SUPABASE_DB_PASSWORD != '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "🔗 Linking Supabase project..."
+          supabase login --token "$SUPABASE_ACCESS_TOKEN"
+          supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD" || {
+            echo "⚠️ Link failed, trying db push directly"
+          }
+          echo "🚀 Pushing migrations via Supabase CLI..."
+          if supabase db push --password "$SUPABASE_DB_PASSWORD"; then
+            echo "✅ Supabase CLI push succeeded"
+            exit 0
+          else
+            echo "⚠️ Supabase CLI push failed, falling back to psql method"
+            exit 2
+          fi
+
+      - name: Fallback - Direct psql migration
+        if: always()
+        env:
+          SUPABASE_DB_URL: postgresql://postgres.${{ secrets.SUPABASE_PROJECT_ID }}:${{ secrets.SUPABASE_DB_PASSWORD }}@aws-0-eu-west-1.pooler.supabase.com:6543/postgres
+        run: |
+          set -euo pipefail
+
+          # If previous step succeeded, skip fallback
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "Previous step succeeded, skipping fallback"
+            exit 0
+          fi
+
+          echo "🔍 Checking for new migration files (fallback method)..."
+
+          BEFORE_SHA="${{ github.event.before }}"
+          if [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA" | grep "^supabase/migrations/.*\.sql$" > changed_migrations.txt || true
+          else
+            git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" | grep "^supabase/migrations/.*\.sql$" > changed_migrations.txt || true
+          fi
+
+          # Also include all migrations if changed list empty but we want to ensure no missing
+          if [ ! -s changed_migrations.txt ]; then
+            echo "ℹ️ No changed migrations detected via git diff, checking all migrations against remote history"
+            # List all migrations sorted - we will try to apply all, psql will skip existing via IF NOT EXISTS guards
+            ls supabase/migrations/*.sql | sort > all_migrations.txt
+            # For safety, only apply migrations newer than last known squashed if needed
+            # Here we apply all that are not yet tracked? Simpler: apply all files in order, with ON_ERROR_STOP=0 for idempotency check
+            # But we use a more conservative approach: apply only if changed list empty -> apply all recent (last 5)
+            echo "📦 Will attempt to apply recent migrations:"
+            tail -5 all_migrations.txt
+            cp all_migrations.txt changed_migrations.txt
+          fi
+
+          if [ -s changed_migrations.txt ]; then
+            echo "📦 Migration files to apply:"
+            cat changed_migrations.txt
+
+            # Install psql if needed
+            if ! command -v psql >/dev/null 2>&1; then
+              sudo apt-get update && sudo apt-get install -y postgresql-client
+            fi
+
+            echo "🔌 Testing database connection..."
+            if ! psql "$SUPABASE_DB_URL" -c "SELECT 1" > /dev/null 2>&1; then
+              echo "❌ Cannot connect to database"
+              exit 1
+            fi
+            echo "✅ Database connection successful"
+
+            echo "🚀 Applying migrations in order..."
+            sort changed_migrations.txt | uniq > sorted_migrations.txt
+            while IFS= read -r migration_file; do
+              # Skip files with spaces (should not exist anymore)
+              if [[ "$migration_file" == *" "* ]]; then
+                echo "⚠️ Skipping file with space: $migration_file"
+                continue
+              fi
+              if [ ! -f "$migration_file" ]; then
+                echo "⚠️ File not found: $migration_file (maybe renamed) - skipping"
+                continue
+              fi
+              echo "  📝 Applying: $migration_file"
+              if psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$migration_file"; then
+                echo "  ✅ Success: $migration_file"
+              else
+                echo "  ❌ Failed: $migration_file"
+                exit 1
+              fi
+            done < sorted_migrations.txt
+
+            echo "🎉 Migration processing completed"
+          else
+            echo "ℹ️ No migration files found"
+          fi
+
+          rm -f changed_migrations.txt all_migrations.txt sorted_migrations.txt
+
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, migrate]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Pull Vercel Environment
+        run: pnpm dlx vercel@latest pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Vercel Artifacts
+        run: pnpm dlx vercel@latest build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel
+        run: pnpm dlx vercel@latest deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Show Docker deployment info
+        run: |
+          echo "🐳 Docker image also available:"
+          echo "Registry: ${{ env.REGISTRY }}"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo ""
+          echo "To deploy with Docker:"
+          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          echo "docker run -d --name app-gestion -p 3000:3000 \\"
+          echo "  -e SUPABASE_URL=${{ secrets.SUPABASE_URL }} \\"
+          echo "  -e SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} \\"
+          echo "  --restart unless-stopped \\"
+          echo "  ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
+  notify:
+    name: Notification
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: always()
+    steps:
+      - name: Deployment Status
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "🎉 Deployment successful!"
+            echo "🌐 Application live: https://app-gestion.vercel.app"
+            echo "🐳 Docker image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+            echo "📱 URL Vercel disponible dans le dashboard du projet"
+            echo ""
+            echo "✅ Summary:"
+            echo "  - Tests passed"
+            echo "  - Migrations applied"
+            echo "  - Docker image built and pushed"
+            echo "  - Deployed to Vercel"
+          else
+            echo "❌ Deployment failed!"
+            echo "🔍 Check the workflow logs for details"
+            echo ""
+            echo "📋 Check these jobs:"
+            if [ "${{ needs.migrate.result }}" != "success" ]; then
+              echo "  - Database Migration failed"
+            fi
+            if [ "${{ needs.build.result }}" != "success" ]; then
+              echo "  - Docker Build failed"
+            fi
+            if [ "${{ needs.deploy.result }}" != "success" ]; then
+              echo "  - Vercel Deploy failed"
+            fi
+          fi

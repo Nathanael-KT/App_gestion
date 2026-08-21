@@ -1,3 +1,4 @@
+import { logger } from "./useLogger";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // ═══════════════════════════════════════════════════════════════════════════════
 // COMPOSABLE POUR LA GESTION DE CAISSE AVEC VALIDATION
@@ -77,7 +78,7 @@ onMounted(async () => {
 
       return data;
     } catch (err: any) {
-      console.error("Erreur lors de l'enregistrement de l'entrée:", err);
+      logger.error("Erreur lors de l'enregistrement de l'entrée:", err);
       error.value = "Impossible d'enregistrer l'entrée d'argent";
 
       toast.add({
@@ -130,7 +131,7 @@ onMounted(async () => {
 
       return data;
     } catch (err: unknown) {
-      console.error("Erreur lors de l'enregistrement de la sortie:", err);
+      logger.error("Erreur lors de l'enregistrement de la sortie:", err);
       error.value = "Impossible d'enregistrer la sortie d'argent";
 
       toast.add({
@@ -175,7 +176,7 @@ onMounted(async () => {
 
       // Si plusieurs comptages existent, c'est un problème de données
       if (count && count > 1) {
-        console.warn(
+        logger.warn(
           `⚠️ ATTENTION: ${count} comptages trouvés pour ${countData.date}!`
         );
         toast.add({
@@ -260,7 +261,7 @@ onMounted(async () => {
 
       return result;
     } catch (err: unknown) {
-      console.error("Erreur lors de l'enregistrement du comptage:", err);
+      logger.error("Erreur lors de l'enregistrement du comptage:", err);
       error.value = "Impossible d'enregistrer le comptage";
 
       toast.add({
@@ -295,7 +296,7 @@ onMounted(async () => {
 
       return data;
     } catch (err) {
-      console.error("Erreur lors de la récupération du comptage:", err);
+      logger.error("Erreur lors de la récupération du comptage:", err);
       error.value = "Erreur lors de la récupération du comptage";
       return null;
     } finally {
@@ -330,7 +331,7 @@ onMounted(async () => {
 
       return data;
     } catch (err) {
-      console.error("Erreur lors de la mise à jour du comptage:", err);
+      logger.error("Erreur lors de la mise à jour du comptage:", err);
       error.value = "Erreur lors de la mise à jour du comptage";
       return null;
     } finally {
@@ -358,7 +359,7 @@ onMounted(async () => {
       if (error) throw error;
       return data || [];
     } catch (err) {
-      console.error(
+      logger.error(
         "Erreur lors de la récupération de l'historique des comptages:",
         err
       );
@@ -389,7 +390,7 @@ onMounted(async () => {
       if (error) throw error;
       return data || [];
     } catch (err) {
-      console.error(
+      logger.error(
         "Erreur lors de la récupération de l'historique complet:",
         err
       );
@@ -531,7 +532,7 @@ onMounted(async () => {
 
       return operations;
     } catch (err) {
-      console.error(
+      logger.error(
         "Erreur lors de la récupération de l'historique administrateur:",
         err
       );
@@ -590,7 +591,7 @@ onMounted(async () => {
       await (supabase as any).from("cash_transactions").select("id").limit(1);
       return true;
     } catch (error) {
-      console.error("Les tables de caisse n'existent pas:", error);
+      logger.error("Les tables de caisse n'existent pas:", error);
       return false;
     }
   };
@@ -649,7 +650,7 @@ onMounted(async () => {
           const toDelete = countsArray.slice(1);
 
           if (toKeep) {
-            console.log(
+            logger.debug(
               `Date ${date}: Garder ${toKeep.id}, supprimer ${toDelete.length} doublons`
             );
 
@@ -661,7 +662,7 @@ onMounted(async () => {
                 .eq("id", duplicate.id);
 
               if (deleteError) {
-                console.error(
+                logger.error(
                   `Erreur lors de la suppression de ${duplicate.id}:`,
                   deleteError
                 );
@@ -685,7 +686,7 @@ onMounted(async () => {
 
       return { cleaned: totalCleaned, kept: totalKept };
     } catch (err) {
-      console.error("Erreur lors du nettoyage des doublons:", err);
+      logger.error("Erreur lors du nettoyage des doublons:", err);
       error.value = "Erreur lors du nettoyage des doublons";
       toast.add({
         title: "Erreur de nettoyage",
@@ -734,7 +735,7 @@ onMounted(async () => {
 
       return null;
     } catch (err) {
-      console.error("Erreur lors de la vérification d'intégrité:", err);
+      logger.error("Erreur lors de la vérification d'intégrité:", err);
       error.value = "Erreur lors de la vérification d'intégrité";
       return null;
     } finally {

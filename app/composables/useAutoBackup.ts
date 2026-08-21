@@ -1,3 +1,4 @@
+import { logger } from "./useLogger";
 /**
  * Composable pour la gestion des sauvegardes automatiques
  * Assure la continuité des données même en cas de crash de la base de données
@@ -79,13 +80,13 @@ export const useAutoBackup = () => {
         startScheduler();
       }
 
-      console.log("✅ AutoBackup initialisé:", {
+      logger.debug("✅ AutoBackup initialisé:", {
         enabled: config.value.enabled,
         nextExecution: nextExecution.value,
       });
     } catch (err) {
       error.value = `Erreur d'initialisation: ${err}`;
-      console.error("❌ Erreur AutoBackup:", err);
+      logger.error("❌ Erreur AutoBackup:", err);
     }
   };
 
@@ -99,7 +100,7 @@ export const useAutoBackup = () => {
         config.value = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
       }
     } catch {
-      console.warn(
+      logger.warn(
         "Configuration corrompue, utilisation des valeurs par défaut",
       );
       config.value = { ...DEFAULT_CONFIG };
@@ -139,7 +140,7 @@ export const useAutoBackup = () => {
         }));
       }
     } catch {
-      console.warn("Historique corrompu, réinitialisation");
+      logger.warn("Historique corrompu, réinitialisation");
       history.value = [];
     }
   };
@@ -151,7 +152,7 @@ export const useAutoBackup = () => {
     try {
       localStorage.setItem("autoBackupHistory", JSON.stringify(history.value));
     } catch (err) {
-      console.error("Erreur de sauvegarde historique:", err);
+      logger.error("Erreur de sauvegarde historique:", err);
     }
   };
 
@@ -203,7 +204,7 @@ export const useAutoBackup = () => {
       checkAndExecute();
     }, 60 * 1000);
 
-    console.log("🕐 Planificateur de sauvegarde démarré");
+    logger.debug("🕐 Planificateur de sauvegarde démarré");
   };
 
   /**
@@ -213,7 +214,7 @@ export const useAutoBackup = () => {
     if (schedulerInterval) {
       globalThis.clearInterval(schedulerInterval);
       schedulerInterval = null;
-      console.log("⏹️ Planificateur de sauvegarde arrêté");
+      logger.debug("⏹️ Planificateur de sauvegarde arrêté");
     }
   };
 
@@ -237,7 +238,7 @@ export const useAutoBackup = () => {
    */
   const executeBackup = async () => {
     if (isRunning.value) {
-      console.warn("⚠️ Sauvegarde déjà en cours");
+      logger.warn("⚠️ Sauvegarde déjà en cours");
       return;
     }
 
@@ -258,7 +259,7 @@ export const useAutoBackup = () => {
     isRunning.value = true;
 
     try {
-      console.log("🚀 Démarrage de la sauvegarde automatique");
+      logger.debug("🚀 Démarrage de la sauvegarde automatique");
 
       const { data: companies, error: companiesError } = await supabase
         .from("company_settings")
@@ -277,7 +278,7 @@ export const useAutoBackup = () => {
           const file = await backupCompanyData(company);
           record.files.push(file);
         } catch (err) {
-          console.error(`❌ Erreur backup ${company.company_name}:`, err);
+          logger.error(`❌ Erreur backup ${company.company_name}:`, err);
         }
       }
 
@@ -293,7 +294,7 @@ export const useAutoBackup = () => {
       lastExecution.value = new Date();
       calculateNextExecution();
 
-      console.log("✅ Sauvegarde automatique terminée");
+      logger.debug("✅ Sauvegarde automatique terminée");
 
       if (config.value.notifications) {
         showNotification(
@@ -307,7 +308,7 @@ export const useAutoBackup = () => {
       record.error = String(err);
       record.duration = Date.now() - startTime;
 
-      console.error("❌ Échec de la sauvegarde automatique:", err);
+      logger.error("❌ Échec de la sauvegarde automatique:", err);
 
       if (config.value.notifications) {
         showNotification(
@@ -378,19 +379,19 @@ export const useAutoBackup = () => {
           };
 
           if (awsResult.success) {
-            console.log("✅ Backup AWS S3 réussi:", {
+            logger.debug("✅ Backup AWS S3 réussi:", {
               url: awsResult.s3Url,
               key: awsResult.s3Key,
               size: awsResult.size,
             });
           } else if (awsResult.status === "aws_not_configured") {
-            console.log("ℹ️ AWS S3 non configuré:", awsResult.message);
+            logger.debug("ℹ️ AWS S3 non configuré:", awsResult.message);
             // Ce n'est pas une erreur critique, continuer sans AWS
           } else {
-            console.warn("⚠️ Erreur AWS S3:", awsResult.message);
+            logger.warn("⚠️ Erreur AWS S3:", awsResult.message);
           }
         } catch (awsError) {
-          console.warn("⚠️ Échec backup AWS S3, continuons...", awsError);
+          logger.warn("⚠️ Échec backup AWS S3, continuons...", awsError);
           // Ne pas faire échouer le backup si AWS échoue
         }
       }
@@ -402,7 +403,7 @@ export const useAutoBackup = () => {
         checksum,
       };
     } catch (error) {
-      console.error(`❌ Erreur backup ${company.company_name}:`, error);
+      logger.error(`❌ Erreur backup ${company.company_name}:`, error);
       throw error;
     }
   };
@@ -465,7 +466,7 @@ export const useAutoBackup = () => {
           });
         }
       } catch (error) {
-        console.warn(`Erreur table ${table}:`, error);
+        logger.warn(`Erreur table ${table}:`, error);
       }
     }
 

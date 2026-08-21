@@ -1,3 +1,4 @@
+import { logger } from "../../utils/logger";
 /**
  * Endpoint pour tester la configuration AWS sans faire d'upload
  * Vérifie les clés et la connectivité S3
@@ -90,7 +91,7 @@ export default defineEventHandler(async (event) => {
       const listResult = await s3Client.send(listCommand);
       existingBackups = listResult.Contents?.length || 0;
     } catch (listError) {
-      console.warn("Erreur listage (non critique):", listError);
+      logger.warn("Erreur listage (non critique):", listError);
     }
 
     // Tout est bon !
@@ -113,7 +114,7 @@ export default defineEventHandler(async (event) => {
       ],
     };
   } catch (error: unknown) {
-    console.error("❌ Erreur test AWS S3:", error);
+    logger.error("❌ Erreur test AWS S3:", error);
 
     // Analyser le type d'erreur
     let errorType = "unknown_error";
