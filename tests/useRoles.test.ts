@@ -9,6 +9,7 @@ describe("useRoles", () => {
     hasPermission,
     getUserPermissions,
     isAdmin,
+    isSuperAdmin,
     isMagasinier,
     isEmploye,
     getHighestRole,
@@ -94,12 +95,19 @@ describe("useRoles", () => {
     it("identifie correctement chaque rôle", () => {
       expect(isAdmin(["admin"])).toBe(true);
       expect(isAdmin(["employe"])).toBe(false);
+      expect(isSuperAdmin(["super_admin"])).toBe(true);
+      expect(isAdmin(["super_admin"])).toBe(true);
       expect(isMagasinier(["magasinier"])).toBe(true);
       expect(isEmploye(["employe"])).toBe(true);
     });
   });
 
   describe("getHighestRole — hiérarchie pour l'affichage", () => {
+    it("priorise super_admin sur les autres rôles", () => {
+      const role = getHighestRole(["employe", "admin", "super_admin"]);
+      expect(role?.value).toBe("super_admin");
+    });
+
     it("priorise admin sur les autres rôles", () => {
       const role = getHighestRole(["employe", "admin", "magasinier"]);
       expect(role?.value).toBe("admin");
@@ -134,6 +142,7 @@ describe("useRoles", () => {
     it("retourne le libellé français attendu", () => {
       expect(getRoleLabel("admin")).toBe("Administrateur");
       expect(getRoleLabel("magasinier")).toBe("Magasinier");
+      expect(getRoleLabel("super_admin")).toBe("Super Administrateur");
     });
 
     it("retourne la valeur brute si le rôle est inconnu", () => {
@@ -142,6 +151,10 @@ describe("useRoles", () => {
 
     it("retourne une couleur par défaut pour un rôle inconnu", () => {
       expect(getRoleColor("xyz")).toBe("bg-gray-100 text-gray-800");
+    });
+
+    it("retourne la couleur dédiée au super_admin", () => {
+      expect(getRoleColor("super_admin")).toBe("bg-purple-100 text-purple-800");
     });
   });
 });

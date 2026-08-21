@@ -328,6 +328,10 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ["auth", "roles"],
+});
+
 interface User {
   id: string;
   name: string | null;
@@ -397,8 +401,8 @@ const errors = reactive({
   roles: "",
 });
 
-// Supabase
 const supabase = useSupabaseClient();
+const { updateUser } = useAdminUsers();
 
 // Validation du formulaire
 const isFormValid = computed(() => {
@@ -510,15 +514,10 @@ const handleSubmit = async () => {
       roles: form.roles,
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
-      .from("users")
-      .update(updateData)
-      .eq("id", userId);
-
-    if (error) {
-      throw error;
-    }
+    await updateUser({
+      userId,
+      ...updateData,
+    });
 
     // Mettre à jour les données locales
     currentUser.value = { ...currentUser.value, ...updateData };

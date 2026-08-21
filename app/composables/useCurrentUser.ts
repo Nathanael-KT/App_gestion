@@ -140,9 +140,14 @@ export const useCurrentUser = () => {
   };
 
   /**
+   * Vérifier si l'utilisateur est super admin
+   */
+  const isSuperAdmin = computed(() => hasRole("super_admin"));
+
+  /**
    * Vérifier si l'utilisateur est admin
    */
-  const isAdmin = computed(() => hasRole("admin"));
+  const isAdmin = computed(() => hasRole("admin") || hasRole("super_admin"));
 
   /**
    * Vérifier si l'utilisateur est magasinier
@@ -158,6 +163,7 @@ export const useCurrentUser = () => {
    * Obtenir le rôle principal (le plus élevé dans la hiérarchie)
    */
   const primaryRole = computed(() => {
+    if (hasRole("super_admin")) return "super_admin";
     if (hasRole("admin")) return "admin";
     if (hasRole("magasinier")) return "magasinier";
     if (hasRole("employe")) return "employe";
@@ -197,6 +203,7 @@ export const useCurrentUser = () => {
     hasAllRoles,
 
     // Rôles spécifiques
+    isSuperAdmin,
     isAdmin,
     isMagasinier,
     isEmploye,

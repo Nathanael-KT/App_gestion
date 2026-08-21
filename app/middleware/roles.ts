@@ -36,12 +36,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   // Configuration des permissions par route avec les vraies données
   const routePermissions: Record<string, string[]> = {
-    "/utilisateurs": ["admin"],
-    "/utilisateurs/add": ["admin"],
-    "/utilisateurs/edit": ["admin"],
+    "/superadmin": ["super_admin"],
+    "/utilisateurs": ["admin", "super_admin"],
+    "/utilisateurs/add": ["admin", "super_admin"],
+    "/utilisateurs/edit": ["admin", "super_admin"],
     "/parametres": ["admin"],
     "/rapports/avances": ["admin"],
-    "/caisse/bilan": ["admin"], // Nouvelle route pour le bilan de caisse admin
+    "/caisse/bilan": ["admin"],
     "/stock/add": ["admin", "magasinier"],
     "/stock/edit": ["admin", "magasinier"],
     "/stock/categories": ["admin", "magasinier"],

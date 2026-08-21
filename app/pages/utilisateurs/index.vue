@@ -77,6 +77,12 @@
     <div class="bg-white rounded-xl shadow-sm border p-6">
       <div class="flex justify-end">
         <div class="flex flex-col sm:flex-row gap-4">
+          <UInput
+            v-model="searchQuery"
+            placeholder="Rechercher nom, email, téléphone..."
+            icon="i-heroicons-magnifying-glass"
+            class="w-full sm:w-72"
+          />
           <select
             v-model="selectedRole"
             class="border rounded-lg px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -276,12 +282,50 @@
         </div>
       </template>
     </UModal>
+
+    <UModal v-model:open="showResetModal" title="Réinitialiser le mot de passe">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-gray-600">
+            Définissez un mot de passe temporaire pour
+            <strong>{{ userToReset?.name || userToReset?.email }}</strong>.
+          </p>
+          <UInput
+            v-model="newPassword"
+            type="password"
+            placeholder="Minimum 8 caractères"
+            icon="heroicons:key-20-solid"
+          />
+        </div>
+      </template>
+      <template #footer="{ close }: { close: () => void }">
+        <div class="flex gap-3">
+          <UButton variant="outline" @click="close">Annuler</UButton>
+          <UButton
+            color="primary"
+            icon="heroicons:check-20-solid"
+            :loading="isResetting"
+            :disabled="newPassword.length < 8"
+            @click="submitResetPassword"
+          >
+            Enregistrer
+          </UButton>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useMagasinStore } from "../../composables/useMagasinStore";
+
+definePageMeta({
+  middleware: ["auth", "roles"],
+});
+
 const magasinStore = useMagasinStore();
+const { deleteUser: deleteUserApi, resetPassword: resetPasswordApi } =
+  useAdminUsers();
 interface User {
   id: string;
   name: string | null;
@@ -298,8 +342,12 @@ const users = ref<User[]>([]);
 const searchQuery = ref("");
 const selectedRole = ref("");
 const showDeleteModal = ref(false);
+const showResetModal = ref(false);
 const userToDelete = ref<User | null>(null);
+const userToReset = ref<User | null>(null);
 const isDeletingUser = ref(false);
+const isResetting = ref(false);
+const newPassword = ref("");
 
 // Configuration des rôles
 const roleConfig = {
@@ -451,17 +499,42 @@ const editUser = (userId: string) => {
   navigateTo(`/utilisateurs/edit/${userId}`);
 };
 
-const resetPassword = async (_userId: string) => {
+const resetPassword = async (userId: string) => {
+  const user = users.value.find((item) => item.id === userId);
+  if (!user) return;
+  userToReset.value = user;
+  newPassword.value = "";
+  showResetModal.value = true;
+};
+
+const submitResetPassword = async () => {
+  if (!userToReset.value || newPassword.value.length < 8) return;
+
   try {
-    // TODO: Implémenter la réinitialisation de mot de passe
+    isResetting.value = true;
+    await resetPasswordApi(userToReset.value.id, newPassword.value);
     useToast().add({
-      title: "Information",
-      description: "Fonction de réinitialisation de mot de passe à implémenter",
-      icon: "heroicons:information-circle-20-solid",
-      color: "info",
+      title: "Succès",
+      description: "Le mot de passe a été réinitialisé",
+      icon: "heroicons:check-circle-20-solid",
+      color: "success",
     });
+    showResetModal.value = false;
+    userToReset.value = null;
+    newPassword.value = "";
   } catch (error) {
     console.error("Erreur lors de la réinitialisation du mot de passe:", error);
+    useToast().add({
+      title: "Erreur",
+      description:
+        error instanceof Error
+          ? error.message
+          : "Impossible de réinitialiser le mot de passe",
+      icon: "heroicons:x-circle-20-solid",
+      color: "error",
+    });
+  } finally {
+    isResetting.value = false;
   }
 };
 
@@ -476,16 +549,7 @@ const deleteUser = async () => {
   try {
     isDeletingUser.value = true;
 
-    // Supprimer de la table users
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
-      .from("users")
-      .delete()
-      .eq("id", userToDelete.value.id);
-
-    if (error) {
-      throw error;
-    }
+    await deleteUserApi(userToDelete.value.id);
 
     // Retirer l'utilisateur de la liste locale
     users.value = users.value.filter((u) => u.id !== userToDelete.value?.id);

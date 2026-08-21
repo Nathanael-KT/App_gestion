@@ -228,13 +228,15 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useSupabaseClient } from "#imports";
+import { useRoute } from "vue-router";
+
+definePageMeta({
+  middleware: ["auth", "superadmin"],
+});
 
 const route = useRoute();
-const router = useRouter();
-const supabase = useSupabaseClient() as any;
 const toast = useToast();
+const { updateUser } = useAdminUsers();
 
 const userId = route.params.id as string;
 const isLoading = ref(false);
@@ -320,6 +322,7 @@ const validateForm = () => {
 const fetchUser = async () => {
   isLoading.value = true;
   try {
+    const supabase = useSupabaseClient() as any;
     const { data, error } = await supabase
       .from("users")
       .select("id, name, email, phone, roles")
@@ -342,7 +345,7 @@ const fetchUser = async () => {
       icon: "heroicons:x-circle-20-solid",
       color: "error",
     });
-    router.back();
+    navigateTo("/superadmin/utilisateurs");
   } finally {
     isLoading.value = false;
   }
@@ -354,18 +357,13 @@ const handleSubmit = async () => {
   }
   isLoading.value = true;
   try {
-    const { error } = await supabase
-      .from("users")
-      .update({
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
-        roles: form.roles,
-      })
-      .eq("id", userId);
-    if (error) {
-      throw new Error(error.message);
-    }
+    await updateUser({
+      userId,
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      roles: form.roles,
+    });
     toast.add({
       title: "Succès",
       description: "Utilisateur modifié avec succès",
@@ -373,8 +371,8 @@ const handleSubmit = async () => {
       color: "success",
     });
     setTimeout(() => {
-      router.back();
-    }, 1500);
+      navigateTo("/superadmin/utilisateurs");
+    }, 800);
   } catch (error) {
     toast.add({
       title: "Erreur",

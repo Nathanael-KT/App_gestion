@@ -20,6 +20,19 @@ export const useRoles = () => {
   // Configuration des rôles
   const roles: Role[] = [
     {
+      value: "super_admin",
+      label: "Super Administrateur",
+      icon: "heroicons:shield-check-20-solid",
+      iconColor: "text-amber-600",
+      description: "Contrôle total de la plateforme, des compagnies et des accès",
+      permissions: [
+        "Compagnies",
+        "Utilisateurs plateforme",
+        "Abonnements",
+        "Logs système",
+      ],
+    },
+    {
       value: "admin",
       label: "Administrateur",
       icon: "heroicons:shield-check-20-solid",
@@ -52,6 +65,13 @@ export const useRoles = () => {
 
   // Permissions détaillées par rôle
   const rolePermissions: Record<string, Permission[]> = {
+    super_admin: [
+      { module: "users", actions: ["create", "read", "update", "delete"] },
+      { module: "companies", actions: ["create", "read", "update", "delete"] },
+      { module: "subscriptions", actions: ["create", "read", "update", "delete"] },
+      { module: "settings", actions: ["read", "update"] },
+      { module: "reports", actions: ["read", "export"] },
+    ],
     admin: [
       { module: "users", actions: ["create", "read", "update", "delete"] },
       { module: "products", actions: ["create", "read", "update", "delete"] },
@@ -104,6 +124,7 @@ export const useRoles = () => {
    */
   const getRoleColor = (roleValue: string): string => {
     const roleColors: Record<string, string> = {
+      super_admin: "bg-purple-100 text-purple-800",
       admin: "bg-red-100 text-red-800",
       magasinier: "bg-blue-100 text-blue-800",
       employe: "bg-green-100 text-green-800",
@@ -183,8 +204,12 @@ export const useRoles = () => {
   /**
    * Vérifier si un utilisateur est administrateur
    */
+  const isSuperAdmin = (userRoles: string[]): boolean => {
+    return hasRole(userRoles, "super_admin");
+  };
+
   const isAdmin = (userRoles: string[]): boolean => {
-    return hasRole(userRoles, "admin");
+    return hasRole(userRoles, "admin") || isSuperAdmin(userRoles);
   };
 
   /**
@@ -205,7 +230,7 @@ export const useRoles = () => {
    * Obtenir le rôle le plus élevé (pour l'affichage)
    */
   const getHighestRole = (userRoles: string[]): Role | null => {
-    const roleHierarchy = ["admin", "magasinier", "employe"];
+    const roleHierarchy = ["super_admin", "admin", "magasinier", "employe"];
 
     for (const roleValue of roleHierarchy) {
       if (userRoles.includes(roleValue)) {
@@ -257,6 +282,7 @@ export const useRoles = () => {
     getUserPermissions,
 
     // Raccourcis pour les rôles spécifiques
+    isSuperAdmin,
     isAdmin,
     isMagasinier,
     isEmploye,

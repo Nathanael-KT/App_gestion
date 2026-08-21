@@ -58,6 +58,14 @@
             <UIcon name="heroicons:users-20-solid" class="w-6 h-6 text-emerald-600" />
           </div>
         </div>
+        <UButton
+          class="mt-3"
+          size="xs"
+          variant="ghost"
+          to="/superadmin/utilisateurs"
+        >
+          Gérer les utilisateurs
+        </UButton>
       </div>
 
       <div class="bg-white rounded-xl border p-5 shadow-sm">
@@ -219,7 +227,7 @@ import { useSupabaseClient } from "#imports";
 import CompanyCard from "../../components/CompanyCard.vue";
 import { z } from "zod";
 
-definePageMeta({ middleware: "auth" });
+definePageMeta({ middleware: ["auth", "superadmin"] });
 
 const supabase = useSupabaseClient() as any;
 const showCreateForm = ref(false);

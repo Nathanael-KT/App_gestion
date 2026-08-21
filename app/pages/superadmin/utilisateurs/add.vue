@@ -11,10 +11,10 @@
         />
         <div>
           <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">
-            Nouvel utilisateur
+            Nouveau super administrateur
           </h1>
           <p class="text-gray-600 mt-1">
-            Créer un nouveau compte utilisateur avec des rôles spécifiques
+            Créer un compte plateforme avec le rôle super_admin
           </p>
         </div>
       </div>
@@ -141,13 +141,10 @@
                     sélectionnés
                   </li>
                   <li>Lier automatiquement les deux comptes</li>
-                  <li>
-                    Envoyer un email d'invitation avec un lien de connexion
-                  </li>
+                  <li>Activer le compte immédiatement (sans compagnie)</li>
                 </ol>
                 <p class="mt-2 font-medium text-blue-900">
-                  L'utilisateur pourra se connecter directement avec ses
-                  identifiants !
+                  Le super administrateur pourra se connecter directement.
                 </p>
               </div>
             </div>
@@ -301,14 +298,19 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({
+  middleware: ["auth", "superadmin"],
+});
+
+const { createSuperAdmin } = useAdminUsers();
+
 // Configuration des rôles
 const availableRoles = [
-  
   {
     value: "super_admin",
     label: "Super Administrateur",
     icon: "heroicons:shield-check-20-solid",
-    iconColor: "text-green-600",
+    iconColor: "text-amber-600",
     description: "Accès complet à toutes les fonctionnalités et paramètres",
     permissions: ["Gestions des compagnies", "Gestions des utilisateurs", "Logs système"],
   },
@@ -329,7 +331,7 @@ const form = reactive<{
   email: "",
   phone: "",
   password: "",
-  roles: [],
+  roles: ["super_admin"],
 });
 
 // Erreurs
@@ -341,10 +343,6 @@ const errors = reactive({
   roles: "",
 });
 
-// Supabase
-const supabase = useSupabaseClient();
-
-// Toast notifications
 const toast = useToast();
 
 
@@ -428,74 +426,23 @@ const handleSubmit = async () => {
   }
   isLoading.value = true;
   try {
-    // Créer le compte d'authentification Supabase avec les métadonnées nécessaires
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    await createSuperAdmin({
+      name: form.name,
       email: form.email,
       password: form.password,
-      options: {
-        data: {
-          name: form.name,
-          roles: form.roles,
-          phone: form.phone || null,
-        },
-        emailRedirectTo: `${window.location.origin}/login`,
-      },
+      phone: form.phone || null,
     });
 
-    if (authError) {
-      throw new Error(
-        `Erreur lors de la création du compte d'authentification: ${authError.message}`
-      );
-    }
-
-    if (!authData.user) {
-      throw new Error("Aucun utilisateur créé lors de l'authentification");
-    }
-
-    // Le trigger sync_auth_user_to_public() va automatiquement créer l'enregistrement dans public.users
-    // Attendons un peu pour que le trigger s'exécute
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Vérifier que l'utilisateur a bien été créé dans public.users
-    const { data: publicUser, error: checkError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("auth_user_id", authData.user.id)
-      .single();
-
-    if (checkError || !publicUser) {
-
-      // Créer manuellement l'enregistrement dans public.users si le trigger n'a pas fonctionné
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: dbError } = await (supabase as any).from("users").insert([
-        {
-          auth_user_id: authData.user.id,
-          name: form.name,
-          email: form.email,
-          phone: form.phone || null,
-          roles: form.roles,
-        },
-      ]);
-
-      if (dbError) {
-        throw new Error(
-          `Erreur lors de la création du profil utilisateur: ${dbError.message}`
-        );
-      }
-    }
-
-    // Afficher un message de succès
     toast.add({
       title: "Succès",
-      description: `L'utilisateur ${form.name} a été créé avec succès. Un email de confirmation a été envoyé à ${form.email}.`,
+      description: `Le super administrateur ${form.name} a été créé. Il peut se connecter immédiatement.`,
       icon: "heroicons:check-circle-20-solid",
       color: "success",
     });
 
-    // Rediriger vers la liste des utilisateurs après un court délai
     setTimeout(() => {
-      navigateTo("/utilisateurs");
-    }, 2000);
+      navigateTo("/superadmin/utilisateurs");
+    }, 800);
   } catch (error: unknown) {
     console.error("Erreur lors de la création de l'utilisateur:", error);
 
@@ -523,7 +470,7 @@ const resetForm = () => {
     email: "",
     phone: "",
     password: "",
-    roles: [],
+    roles: ["super_admin"],
   });
 
   Object.keys(errors).forEach((key) => {
@@ -533,11 +480,11 @@ const resetForm = () => {
 
 // Meta
 useHead({
-  title: "Nouvel utilisateur - App Gestion",
+  title: "Nouveau super admin - App Gestion",
   meta: [
     {
       name: "description",
-      content: "Créer un nouveau compte utilisateur avec des rôles spécifiques",
+      content: "Créer un nouveau compte super administrateur",
     },
   ],
 });

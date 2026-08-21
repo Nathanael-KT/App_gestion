@@ -215,7 +215,10 @@ const superAdminMenuItems: MenuItem[] = [
     name: "Utilisateurs",
     path: "/superadmin/utilisateurs",
     icon: "heroicons:users-20-solid",
-    children: [],
+    children: [
+      { name: "Liste des utilisateurs", path: "/superadmin/utilisateurs" },
+      { name: "Ajouter un super admin", path: "/superadmin/utilisateurs/add" },
+    ],
     requiredRoles: ["super_admin"],
   },
   {
