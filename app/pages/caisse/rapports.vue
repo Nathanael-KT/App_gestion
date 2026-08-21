@@ -725,7 +725,7 @@ onMounted(async () => {
 async function loadCashSummary() {
   loading.value = true;
   try {
-    console.log("Début du chargement des données...");
+    logger.log("Début du chargement des données...");
 
     // Vérifier magasinId
     if (!isValidMagasinId(magasinStore.magasinId)) {
@@ -745,7 +745,7 @@ async function loadCashSummary() {
       throw countsError;
     }
 
-    console.log("Comptages récupérés:", cashCounts?.length || 0);
+    logger.log("Comptages récupérés:", cashCounts?.length || 0);
 
     // Récupérer tous les vidages de caisse
     const { data: allEmptyings, error: emptyingError } = await supabase
@@ -761,7 +761,7 @@ async function loadCashSummary() {
       );
     }
 
-    console.log("Vidages récupérés:", allEmptyings?.length || 0);
+    logger.log("Vidages récupérés:", allEmptyings?.length || 0);
 
     const userIds = [
       ...(cashCounts || []).map((count: CashCount) => count.counted_by),
@@ -836,7 +836,7 @@ async function loadCashSummary() {
     const lastEmptyDate =
       allEmptyings && allEmptyings.length > 0 ? allEmptyings[0].date : null;
 
-    console.log("Calculs finaux:", {
+    logger.log("Calculs finaux:", {
       totalCountedAmount,
       totalEmptied,
       totalCumulated,
@@ -859,7 +859,7 @@ async function loadCashSummary() {
       }),
     );
 
-    console.log("Historique des vidages:", emptyingHistory.value.length);
+    logger.log("Historique des vidages:", emptyingHistory.value.length);
 
     // Construire le résumé
     cashSummary.value = {
@@ -874,7 +874,7 @@ async function loadCashSummary() {
       generatedAt: new Date(),
     };
 
-    console.log("Résumé final:", cashSummary.value);
+    logger.log("Résumé final:", cashSummary.value);
 
     // Initialiser le montant de vidage avec le total disponible
     emptyingForm.value.amount = totalCumulated;

@@ -987,7 +987,7 @@ const companyOptions = computed(() =>
 // Charger les compagnies au montage
 onMounted(async () => {
   // Note: Utilisation de JSON au lieu d'Excel pour compatibilité Deno Deploy
-  console.log("📋 Mode backup JSON activé (compatible Deno Deploy)");
+  logger.log("📋 Mode backup JSON activé (compatible Deno Deploy)");
 
   await loadCompanies();
   loadLastBackupDate();

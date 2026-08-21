@@ -106,7 +106,7 @@ export const useCompanySettings = () => {
       if (fetchError) {
         if (fetchError.code === "PGRST116") {
           // Aucun enregistrement trouvé, retourner les paramètres par défaut
-          console.log(
+          logger.log(
             "Aucun paramètre trouvé pour cette société, utilisation des valeurs par défaut",
           );
           settings.value = { ...defaultSettings };

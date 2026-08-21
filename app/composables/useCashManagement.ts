@@ -649,7 +649,7 @@ onMounted(async () => {
           const toDelete = countsArray.slice(1);
 
           if (toKeep) {
-            console.log(
+            logger.log(
               `Date ${date}: Garder ${toKeep.id}, supprimer ${toDelete.length} doublons`
             );
 

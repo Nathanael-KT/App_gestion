@@ -79,7 +79,7 @@ export const useAutoBackup = () => {
         startScheduler();
       }
 
-      console.log("✅ AutoBackup initialisé:", {
+      logger.log("✅ AutoBackup initialisé:", {
         enabled: config.value.enabled,
         nextExecution: nextExecution.value,
       });
@@ -203,7 +203,7 @@ export const useAutoBackup = () => {
       checkAndExecute();
     }, 60 * 1000);
 
-    console.log("🕐 Planificateur de sauvegarde démarré");
+    logger.log("🕐 Planificateur de sauvegarde démarré");
   };
 
   /**
@@ -213,7 +213,7 @@ export const useAutoBackup = () => {
     if (schedulerInterval) {
       globalThis.clearInterval(schedulerInterval);
       schedulerInterval = null;
-      console.log("⏹️ Planificateur de sauvegarde arrêté");
+      logger.log("⏹️ Planificateur de sauvegarde arrêté");
     }
   };
 
@@ -258,7 +258,7 @@ export const useAutoBackup = () => {
     isRunning.value = true;
 
     try {
-      console.log("🚀 Démarrage de la sauvegarde automatique");
+      logger.log("🚀 Démarrage de la sauvegarde automatique");
 
       const { data: companies, error: companiesError } = await supabase
         .from("company_settings")
@@ -293,7 +293,7 @@ export const useAutoBackup = () => {
       lastExecution.value = new Date();
       calculateNextExecution();
 
-      console.log("✅ Sauvegarde automatique terminée");
+      logger.log("✅ Sauvegarde automatique terminée");
 
       if (config.value.notifications) {
         showNotification(
@@ -378,13 +378,13 @@ export const useAutoBackup = () => {
           };
 
           if (awsResult.success) {
-            console.log("✅ Backup AWS S3 réussi:", {
+            logger.log("✅ Backup AWS S3 réussi:", {
               url: awsResult.s3Url,
               key: awsResult.s3Key,
               size: awsResult.size,
             });
           } else if (awsResult.status === "aws_not_configured") {
-            console.log("ℹ️ AWS S3 non configuré:", awsResult.message);
+            logger.log("ℹ️ AWS S3 non configuré:", awsResult.message);
             // Ce n'est pas une erreur critique, continuer sans AWS
           } else {
             console.warn("⚠️ Erreur AWS S3:", awsResult.message);

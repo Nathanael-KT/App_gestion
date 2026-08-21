@@ -67,7 +67,7 @@ export const useMultiTenantSecurity = () => {
     action: string,
     details: Record<string, unknown>,
   ) => {
-    console.log("🔒 Événement sécurité:", {
+    logger.log("🔒 Événement sécurité:", {
       timestamp: new Date().toISOString(),
       user: currentUser.value?.email,
       company_id: currentUser.value?.company_id,
