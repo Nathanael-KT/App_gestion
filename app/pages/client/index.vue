@@ -246,12 +246,11 @@ watch(() => magasinStore.magasinId, fetchClientsWithInvoices);
           class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
         >
           <div class="flex-1 max-w-md">
-            <UInput
+            <VoiceSearchInput
               v-model="searchQuery"
               placeholder="Rechercher un client par nom, email..."
               icon="i-lucide-search"
               size="lg"
-              class="w-full"
             />
           </div>
           <div class="flex items-center gap-6 text-sm text-gray-600">

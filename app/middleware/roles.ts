@@ -43,6 +43,8 @@ export default defineNuxtRouteMiddleware(async (to) => {
     "/parametres": ["admin"],
     "/rapports/avances": ["admin"],
     "/caisse/bilan": ["admin"],
+    "/caisse/anomalies": ["admin"],
+    "/financing": ["admin"],
     "/stock/add": ["admin", "magasinier"],
     "/stock/edit": ["admin", "magasinier"],
     "/stock/categories": ["admin", "magasinier"],

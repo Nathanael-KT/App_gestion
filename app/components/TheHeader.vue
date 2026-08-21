@@ -20,6 +20,7 @@ const notifications = ref<
 
 const { stockAlerts } = useDashboardData();
 const newForumMessage = ref(false);
+const voiceOpen = ref(false);
 
 function checkCaisseFermeture() {
   const now = new Date();
@@ -178,6 +179,21 @@ const items: DropdownMenuItem[] = [
 const toggleMobileMenu = () => {
   emit("toggleMobileMenu");
 };
+
+// Raccourci clavier global : Ctrl/Cmd + K ouvre la recherche/navigation vocale
+let voiceKeyHandler: ((e: KeyboardEvent) => void) | null = null;
+onMounted(() => {
+  voiceKeyHandler = (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      voiceOpen.value = true;
+    }
+  };
+  window.addEventListener("keydown", voiceKeyHandler);
+});
+onBeforeUnmount(() => {
+  if (voiceKeyHandler) window.removeEventListener("keydown", voiceKeyHandler);
+});
 </script>
 
 <template>
@@ -217,6 +233,16 @@ const toggleMobileMenu = () => {
 
       <NotificationMenu v-if="!isSuperAdmin" :notifications="notifications" />
 
+      <!-- Recherche / navigation vocale (Ctrl+K) -->
+      <button
+        aria-label="Recherche vocale"
+        title="Recherche vocale (Ctrl+K)"
+        class="text-white hover:bg-white/10 p-2 rounded-lg transition-colors flex-shrink-0"
+        @click="voiceOpen = true"
+      >
+        <UIcon name="i-lucide-mic" class="h-5 w-5" />
+      </button>
+
       <UDropdownMenu :items="items">
         <UButton variant="ghost" class="!p-0 !w-10 !h-10 md:!w-12 md:!h-12">
           <span class="avatar-circle">
@@ -225,6 +251,9 @@ const toggleMobileMenu = () => {
         </UButton>
       </UDropdownMenu>
     </div>
+
+    <!-- Palette de commandes vocale (téléportée vers le body par UModal) -->
+    <VoiceSearchModal v-model:open="voiceOpen" />
   </header>
 </template>
 
