@@ -16,7 +16,8 @@ type RequireAdminResult = {
     email: string | null;
     roles: string[];
     companyId: string | null;
-    adminClient: ReturnType<typeof createClient>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    adminClient: ReturnType<typeof createClient<any>>;
 };
 
 /**

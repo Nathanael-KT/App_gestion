@@ -235,6 +235,11 @@ const menuItems: Array<{
         path: "/parametres/magasin",
         requiredRoles: ["admin"],
       },
+      {
+        name: "Abonnement",
+        path: "/parametres/abonnement",
+        requiredRoles: ["admin"],
+      },
     ],
     requiredRoles: ["admin", "employe", "magasinier"],
   },
