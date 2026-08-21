@@ -36,6 +36,42 @@ const error = ref<string | null>(null);
 
 const checkoutStatus = computed(() => route.query.checkout as string | undefined);
 
+// Raison d'arrivée sur cette page quand l'accès à l'application est
+// restreint (middleware global) : la personne ne peut rien faire d'autre
+// tant que l'abonnement n'est pas payé/valide.
+const accessReason = computed(() => route.query.reason as string | undefined);
+
+const accessReasonMessage = computed(() => {
+  switch (accessReason.value) {
+    case "subscription_required":
+      return {
+        title: "Abonnement requis",
+        description:
+          "Votre entreprise n'a pas encore d'abonnement actif. Choisissez une offre ci-dessous pour débloquer l'accès à l'application. Seul un administrateur de votre entreprise peut souscrire.",
+        color: "warning" as const,
+        icon: "i-heroicons-lock-closed",
+      };
+    case "subscription_overdue":
+      return {
+        title: "Échéance dépassée",
+        description:
+          "Le paiement de votre abonnement n'a pas été reçu (échéance dépassée). Régularisez ci-dessous : l'accès à l'application est rétabli automatiquement dès le paiement confirmé.",
+        color: "error" as const,
+        icon: "i-heroicons-exclamation-circle",
+      };
+    case "subscription_blocked":
+      return {
+        title: "Abonnement bloqué pour non-paiement",
+        description:
+          "L'accès de votre entreprise est suspendu. Régularisez votre abonnement ci-dessous : le déblocage est automatique après paiement. Si vous pensez qu'il s'agit d'une erreur, contactez le support.",
+        color: "error" as const,
+        icon: "i-heroicons-no-symbol",
+      };
+    default:
+      return null;
+  }
+});
+
 function formatPrice(cents: number, currency: string) {
   return new Intl.NumberFormat("fr-FR", {
     style: "currency",
@@ -148,12 +184,21 @@ function isCurrentPlan(planId: string) {
       </div>
 
       <UAlert
+        v-if="accessReasonMessage"
+        :icon="accessReasonMessage.icon"
+        :color="accessReasonMessage.color"
+        variant="soft"
+        :title="accessReasonMessage.title"
+        :description="accessReasonMessage.description"
+        class="mb-6"
+      />
+      <UAlert
         v-if="checkoutStatus === 'success'"
         icon="i-heroicons-check-circle"
         color="success"
         variant="soft"
         title="Paiement confirmé"
-        description="Votre abonnement est en cours d'activation, cela peut prendre quelques secondes."
+        description="Votre abonnement est en cours d'activation, cela peut prendre quelques secondes. Rechargez la page si besoin."
         class="mb-6"
       />
       <UAlert

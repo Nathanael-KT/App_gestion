@@ -1,3 +1,5 @@
+import { evaluateSubscriptionAccess } from "~/utils/subscriptionAccess";
+
 interface AccessUserData {
   roles?: string[] | null;
   company_id?: string | null;
@@ -5,6 +7,7 @@ interface AccessUserData {
 
 interface AccessCompanySettings {
   blocked?: boolean | null;
+  blocked_reason?: string | null;
   blocked_menus?: string[] | null;
 }
 
@@ -29,7 +32,8 @@ const MENU_TO_PATH: Record<string, string> = {
 };
 
 const PUBLIC_ROUTES = ["/login", "/error", "/vente", "/auth/"];
-// Routes toujours accessibles même si entreprise bloquée ou abonnement en retard
+// Routes toujours accessibles même si entreprise bloquée ou abonnement en
+// retard : c'est précisément là que l'utilisateur régularise son paiement.
 const ALWAYS_ALLOWED_ROUTES = [
   "/parametres/abonnement",
   "/parametres/general",
@@ -91,7 +95,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   const { data: settings, error: settingsError } = await supabase
     .from("company_settings")
-    .select("blocked, blocked_menus")
+    .select("blocked, blocked_reason, blocked_menus")
     .eq("id", companyId)
     .maybeSingle();
 
@@ -109,7 +113,18 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   const typedSettings = settings as AccessCompanySettings;
 
+  // Blocage global de l'entreprise.
   if (typedSettings.blocked === true) {
+    // Blocage automatique pour non-paiement : on redirige vers la page
+    // d'abonnement pour permettre la régularisation immédiate.
+    if (typedSettings.blocked_reason === "subscription") {
+      return navigateTo({
+        path: "/parametres/abonnement",
+        query: { reason: "subscription_blocked" },
+      });
+    }
+    // Blocage manuel par le super_admin (raison "manual" ou héritée) :
+    // page d'erreur, aucune régularisation en libre-service.
     return navigateTo({
       path: "/error",
       query: {
@@ -120,7 +135,13 @@ export default defineNuxtRouteMiddleware(async (to) => {
     });
   }
 
-  // Vérifier le statut d'abonnement si disponible
+  // Vérification automatique de l'abonnement (issue #89) :
+  // - Aucune ligne d'abonnement = entreprise legacy pré-Stripe : on laisse
+  //   passer (elle entrera dans le circuit à son premier paiement ou via une
+  //   action du super_admin). Les nouvelles entreprises ont toujours une
+  //   ligne "inactif" créée par trigger, donc sont bien restreintes.
+  // - Non payé / échéance dépassée (+1 jour de grâce) : accès limité à la
+  //   page Abonnement jusqu'à régularisation.
   try {
     const { data: subscription } = await supabase
       .from("company_subscription")
@@ -132,20 +153,27 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
     const sub = subscription as SubscriptionStatus | null;
     if (sub) {
-      // Si bloqué pour non-paiement
-      if (sub.status === "bloque") {
+      const access = evaluateSubscriptionAccess(sub);
+
+      if (access === "blocked") {
         return navigateTo({
-          path: "/error",
-          query: {
-            reason: "subscription_blocked",
-            message:
-              "Votre abonnement est bloque pour non-paiement. Veuillez regulariser votre situation dans Parametres > Abonnement.",
-          },
+          path: "/parametres/abonnement",
+          query: { reason: "subscription_blocked" },
         });
       }
-      // Si en attente et impayé depuis plus de 7 jours de grâce, on pourrait bloquer aussi
-      // Pour l'instant on laisse en warning, mais on bloque l'accès aux modules critiques
-      // sauf si super_admin (déjà bypass)
+      if (access === "payment_required") {
+        return navigateTo({
+          path: "/parametres/abonnement",
+          query: { reason: "subscription_required" },
+        });
+      }
+      if (access === "overdue") {
+        return navigateTo({
+          path: "/parametres/abonnement",
+          query: { reason: "subscription_overdue" },
+        });
+      }
+      // "granted" : on continue vers le contrôle des menus.
     }
   } catch {
     // Si erreur lecture abonnement, on ne bloque pas - sécurité mais pas bloquant
@@ -169,7 +197,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
         query: {
           reason: "menu_blocked",
           menu: menuName,
-          message: `L'acces a la section "${menuName}" est desactive pour votre entreprise. Contactez votre administrateur.`,
+          message: `L'acces a la section "${menuName}" n'est pas inclus dans votre offre d'abonnement ou a ete desactive pour votre entreprise.`,
         },
       });
     }
