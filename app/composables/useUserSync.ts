@@ -12,32 +12,22 @@ export const useUserSync = () => {
    * via RPC sync_user_profile
    */
   const syncUserProfile = async (userId: string) => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any).rpc("sync_user_profile", {
-        user_id: userId,
-      });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any).rpc("sync_user_profile", {
+      user_id: userId,
+    });
 
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      throw error;
-    }
+    if (error) throw error;
+    return data;
   };
 
   /**
    * Synchronise tous les utilisateurs auth existants (fonction admin)
    */
   const syncAllAuthUsers = async () => {
-    try {
-      const { data, error } = await (supabase as any).rpc(
-        "sync_all_auth_users"
-      );
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      throw error;
-    }
+    const { data, error } = await (supabase as any).rpc("sync_all_auth_users");
+    if (error) throw error;
+    return data;
   };
 
   /**

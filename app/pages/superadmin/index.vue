@@ -349,8 +349,8 @@ async function loadStats() {
       }
       stats.value.mrrCents = mrr;
     }
-  } catch (e) {
-    // silent
+  } catch {
+    // Statistiques indisponibles : on garde les valeurs précédentes
   } finally {
     loadingStats.value = false;
   }

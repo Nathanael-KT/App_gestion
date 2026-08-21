@@ -43,8 +43,8 @@ const loadFiltersFromStorage = () => {
         searchQuery.value = filters.searchQuery || "";
         statusFilter.value = filters.statusFilter || "all";
         typeFilter.value = filters.typeFilter || "all";
-      } catch (e) {
-        // console.log("Erreur lors du chargement des filtres:", e);
+      } catch {
+        // Filtres sauvegardés illisibles : on garde les valeurs par défaut
       }
     }
   }
