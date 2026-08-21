@@ -59,7 +59,7 @@ interface ActionLog {
 }
 
 definePageMeta({
-  middleware: "auth",
+  middleware: ["auth", "superadmin"],
 });
 
 const supabase = useSupabaseClient();

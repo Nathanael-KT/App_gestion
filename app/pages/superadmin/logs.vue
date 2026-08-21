@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ middleware: "auth" });
+definePageMeta({ middleware: ["auth", "superadmin"] });
 
 const loading = ref(false);
 const filterCompany = ref("");

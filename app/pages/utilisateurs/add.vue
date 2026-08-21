@@ -109,6 +109,28 @@
                 connexion
               </p>
             </div>
+            <div class="space-y-2 lg:col-span-2">
+              <label class="block text-sm font-medium text-gray-700">
+                Magasin *
+              </label>
+              <select
+                v-model="form.magasin_id"
+                class="w-full border rounded-lg px-4 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                :disabled="isLoading || isLoadingMagasins"
+              >
+                <option :value="null">Sélectionner un magasin</option>
+                <option
+                  v-for="magasin in magasins"
+                  :key="magasin.id"
+                  :value="magasin.id"
+                >
+                  {{ magasin.name }}
+                </option>
+              </select>
+              <p v-if="errors.magasin_id" class="text-red-500 text-sm">
+                {{ errors.magasin_id }}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -141,9 +163,7 @@
                     sélectionnés
                   </li>
                   <li>Lier automatiquement les deux comptes</li>
-                  <li>
-                    Envoyer un email d'invitation avec un lien de connexion
-                  </li>
+                  <li>Confirmer le compte pour une connexion immédiate</li>
                 </ol>
                 <p class="mt-2 font-medium text-blue-900">
                   L'utilisateur pourra se connecter directement avec ses
@@ -301,10 +321,15 @@
 </template>
 
 <script setup lang="ts">
-// Import du store magasin
 import { useMagasinStore } from "@/composables/useMagasinStore";
 import { useCurrentUser } from "../../composables/useCurrentUser";
+
+definePageMeta({
+  middleware: ["auth", "roles"],
+});
+
 const { companyId } = useCurrentUser();
+const { createCompanyUser } = useAdminUsers();
 
 // Configuration des rôles
 const availableRoles = [
@@ -370,10 +395,7 @@ const errors = reactive({
   magasin_id: "",
 });
 
-// Supabase
 const supabase = useSupabaseClient();
-
-// Toast notifications
 const toast = useToast();
 
 // Affecter automatiquement le magasin courant à chaque nouvel utilisateur
@@ -393,7 +415,8 @@ const isFormValid = computed(() => {
     form.email.trim() !== "" &&
     form.password.trim() !== "" &&
     form.password.length >= 8 &&
-    form.roles.length > 0
+    form.roles.length > 0 &&
+    Boolean(form.magasin_id)
   );
 });
 
@@ -416,7 +439,11 @@ const magasins = ref<Array<{ id: string; name: string }>>([]);
 const loadMagasins = async () => {
   isLoadingMagasins.value = true;
   try {
-    const { data, error } = await supabase.from("magasins").select("id, nom");
+    let query = supabase.from("magasins").select("id, nom");
+    if (companyId.value) {
+      query = query.eq("company_id", companyId.value);
+    }
+    const { data, error } = await query;
     if (error) {
       console.error("Erreur chargement magasins:", error);
       magasins.value = [];
@@ -481,6 +508,11 @@ const validateForm = () => {
     isValid = false;
   }
 
+  if (!form.magasin_id) {
+    errors.magasin_id = "Le magasin est requis";
+    isValid = false;
+  }
+
   return isValid;
 };
 
@@ -491,78 +523,33 @@ const handleSubmit = async () => {
   }
   isLoading.value = true;
   try {
-    // Créer le compte d'authentification Supabase avec les métadonnées nécessaires
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    if (!companyId.value) {
+      throw new Error("Aucune compagnie associée à votre compte.");
+    }
+    if (!form.magasin_id) {
+      throw new Error("Aucun magasin sélectionné. Choisissez un magasin actif.");
+    }
+
+    await createCompanyUser({
+      companyId: companyId.value,
       email: form.email,
       password: form.password,
-      options: {
-        data: {
-          name: form.name,
-          roles: form.roles,
-          phone: form.phone || null,
-          magasin_id: form.magasin_id,
-          company_id: companyId.value,
-        },
-        emailRedirectTo: `${window.location.origin}/login`,
-      },
+      name: form.name,
+      phone: form.phone || null,
+      roles: form.roles,
+      magasin_id: form.magasin_id,
     });
 
-    if (authError) {
-      throw new Error(
-        `Erreur lors de la création du compte d'authentification: ${authError.message}`,
-      );
-    }
-
-    if (!authData.user) {
-      throw new Error("Aucun utilisateur créé lors de l'authentification");
-    }
-
-    // Le trigger sync_auth_user_to_public() va automatiquement créer l'enregistrement dans public.users
-    // Attendons un peu pour que le trigger s'exécute
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Vérifier que l'utilisateur a bien été créé dans public.users
-    const { data: publicUser, error: checkError } = await supabase
-      .from("users")
-      .select("*")
-      .eq("auth_user_id", authData.user.id)
-      .single();
-
-    if (checkError || !publicUser) {
-
-      // Créer manuellement l'enregistrement dans public.users si le trigger n'a pas fonctionné
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: dbError } = await (supabase as any).from("users").insert([
-        {
-          auth_user_id: authData.user.id,
-          name: form.name,
-          email: form.email,
-          phone: form.phone || null,
-          roles: form.roles,
-          magasin_id: form.magasin_id,
-          company_id: companyId.value,
-        },
-      ]);
-
-      if (dbError) {
-        throw new Error(
-          `Erreur lors de la création du profil utilisateur: ${dbError.message}`,
-        );
-      }
-    }
-
-    // Afficher un message de succès
     toast.add({
       title: "Succès",
-      description: `L'utilisateur ${form.name} a été créé avec succès. Un email de confirmation a été envoyé à ${form.email}.`,
+      description: `L'utilisateur ${form.name} a été créé. Il peut se connecter immédiatement.`,
       icon: "heroicons:check-circle-20-solid",
       color: "success",
     });
 
-    // Rediriger vers la liste des utilisateurs après un court délai
     setTimeout(() => {
       navigateTo("/utilisateurs");
-    }, 2000);
+    }, 800);
   } catch (error: unknown) {
     console.error("Erreur lors de la création de l'utilisateur:", error);
 

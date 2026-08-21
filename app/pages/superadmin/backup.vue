@@ -913,8 +913,7 @@
 
 // Métadonnées de la page
 definePageMeta({
-  middleware: ["auth", "roles"],
-  requiredRoles: ["superadmin"],
+  middleware: ["auth", "superadmin"],
   layout: "default",
 });
 
