@@ -8,8 +8,12 @@ import {
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 
-export default defineEventHandler(async (_event) => {
+export default defineEventHandler(async (event) => {
   try {
+    // Sécurité: ce diagnostic expose des informations de configuration AWS
+    // (bucket, région, préfixe de clé) — réservé aux admin/super_admin.
+    await requireAdmin(event);
+
     // Vérifier les variables d'environnement
     const awsConfig = {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
