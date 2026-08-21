@@ -35,10 +35,13 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 9
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: Run unit tests
+        run: pnpm run test
 
       - name: Run linter
         run: pnpm run lint
@@ -65,7 +68,6 @@ jobs:
 
       - name: Detect and apply new migrations
         env:
-          env:
           SUPABASE_DB_URL: postgresql://postgres.${{ secrets.SUPABASE_PROJECT_ID }}:${{ secrets.SUPABASE_DB_PASSWORD }}@aws-0-eu-west-1.pooler.supabase.com:6543/postgres
 
         run: |
@@ -168,7 +170,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 9
 
       - name: Install dependencies
         run: pnpm install
