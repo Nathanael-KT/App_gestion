@@ -361,6 +361,8 @@ import { useRoute } from "vue-router";
 const route = useRoute();
 const companyId = route.params.id as string;
 const supabase = useSupabaseClient();
+const toast = useToast();
+const { notifyError } = useErrorToast();
 
 async function getAccessToken(): Promise<string> {
   const {
@@ -497,7 +499,7 @@ async function loadAllData() {
     console.error("[superadmin settings] loadAllData API error:", error);
     users.value = [];
     magasins.value = [];
-    alert("Impossible de charger les données utilisateurs/magasins.");
+    notifyError(error, "Impossible de charger les données utilisateurs/magasins.");
   } finally {
     loadingUsers.value = false;
     loadingMagasins.value = false;
@@ -532,16 +534,22 @@ async function saveUser() {
     userForm.roles.length === 0 ||
     !userForm.magasin_id
   ) {
-    alert(
-      "Veuillez remplir tous les champs obligatoires (nom, email, magasin, roles).",
-    );
+    toast.add({
+      title: "Champs manquants",
+      description:
+        "Veuillez remplir tous les champs obligatoires (nom, email, magasin, rôles).",
+      color: "warning",
+    });
     return;
   }
 
   if (!userForm.id && (!userForm.password || userForm.password.length < 8)) {
-    alert(
-      "Le mot de passe est obligatoire (8 caractères minimum) pour un nouvel utilisateur.",
-    );
+    toast.add({
+      title: "Mot de passe requis",
+      description:
+        "Le mot de passe est obligatoire (8 caractères minimum) pour un nouvel utilisateur.",
+      color: "warning",
+    });
     return;
   }
 
@@ -578,9 +586,7 @@ async function saveUser() {
       userForm.magasin_id = "";
     } catch (error) {
       console.error("[superadmin settings] saveUser create error:", error);
-      alert(
-        error instanceof Error ? error.message : "Erreur création utilisateur",
-      );
+      notifyError(error, "Erreur création utilisateur");
     }
   } else {
     // Edition via API serveur (évite blocages RLS superadmin multi-company)
@@ -600,11 +606,7 @@ async function saveUser() {
       showUserForm.value = false;
     } catch (error) {
       console.error("[superadmin settings] saveUser update error:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la mise à jour de l'utilisateur",
-      );
+      notifyError(error, "Erreur lors de la mise à jour de l'utilisateur");
     }
   }
 }
@@ -621,11 +623,7 @@ function confirmDeleteUser(user: User) {
     })
     .catch((error) => {
       console.error("[superadmin settings] delete user error:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la suppression",
-      );
+      notifyError(error, "Erreur lors de la suppression");
     });
 }
 
@@ -648,7 +646,11 @@ function editMagasin(magasin: Magasin) {
 }
 async function saveMagasin() {
   if (!magasinForm.nom) {
-    alert("Le nom du magasin est obligatoire.");
+    toast.add({
+      title: "Champ manquant",
+      description: "Le nom du magasin est obligatoire.",
+      color: "warning",
+    });
     return;
   }
   if (!magasinForm.id) {
@@ -667,11 +669,7 @@ async function saveMagasin() {
       showMagasinForm.value = false;
     } catch (error) {
       console.error("[superadmin settings] saveMagasin create error:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la création du magasin",
-      );
+      notifyError(error, "Erreur lors de la création du magasin");
     }
   } else {
     // Edition via API serveur (résout RLS sur table magasins)
@@ -690,11 +688,7 @@ async function saveMagasin() {
       showMagasinForm.value = false;
     } catch (error) {
       console.error("[superadmin settings] saveMagasin update error:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la mise à jour du magasin",
-      );
+      notifyError(error, "Erreur lors de la mise à jour du magasin");
     }
   }
 }
@@ -711,11 +705,7 @@ function confirmDeleteMagasin(magasin: Magasin) {
     })
     .catch((error) => {
       console.error("[superadmin settings] delete magasin error:", error);
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Erreur lors de la suppression",
-      );
+      notifyError(error, "Erreur lors de la suppression");
     });
 }
 

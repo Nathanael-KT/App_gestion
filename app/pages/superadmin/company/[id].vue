@@ -3,6 +3,8 @@ import { ref, onMounted } from "vue";
 
 const route = useRoute();
 const supabase = useSupabaseClient();
+// Erreurs affichées en toast (pas de bandeau inline).
+const { notifyError } = useErrorToast();
 
 const companyId = route.params.id as string;
 
@@ -47,7 +49,6 @@ interface CompanySubscription {
 
 const company = ref<Company | null>(null);
 const loading = ref(false);
-const error = ref("");
 const users = ref<User[]>([]);
 const magasins = ref<Magasin[]>([]);
 const usersLoading = ref(false);
@@ -76,7 +77,6 @@ const allMenus = [
 
 async function fetchCompanyInfo() {
   loading.value = true;
-  error.value = "";
   try {
     const { data, error: supaError } = await supabase
       .from("company_settings")
@@ -85,9 +85,7 @@ async function fetchCompanyInfo() {
       .single();
 
     if (supaError) {
-      error.value =
-        supaError.message ||
-        "Erreur lors du chargement des données de l'entreprise";
+      notifyError(supaError, "Erreur lors du chargement des données de l'entreprise");
       console.error("[company detail] Fetch error:", supaError);
       return;
     }
@@ -96,10 +94,7 @@ async function fetchCompanyInfo() {
       company.value = data as Company;
     }
   } catch (err) {
-    error.value =
-      err instanceof Error
-        ? err.message
-        : "Erreur lors du chargement des données";
+    notifyError(err, "Erreur lors du chargement des données");
     console.error("[company detail] Unexpected error:", err);
   } finally {
     loading.value = false;
@@ -153,8 +148,7 @@ async function setMenuStatus(menu: string, shouldBlock: boolean) {
       .eq("id", companyId);
 
     if (supaError) {
-      error.value =
-        supaError.message || "Erreur lors de la mise à jour du menu";
+      notifyError(supaError, "Erreur lors de la mise à jour du menu");
       console.error("[company detail] Update error:", supaError);
       return;
     }
@@ -162,8 +156,7 @@ async function setMenuStatus(menu: string, shouldBlock: boolean) {
     blockedMenus.value = newBlockedMenus;
     lastUpdate.value = new Date();
   } catch (err) {
-    error.value =
-      err instanceof Error ? err.message : "Erreur lors de la mise à jour";
+    notifyError(err, "Erreur lors de la mise à jour");
     console.error("[company detail] Unexpected error updating menu:", err);
   } finally {
     menuActionLoading.value = null;
@@ -185,8 +178,7 @@ async function setCompanyBlocked(blocked: boolean) {
       .eq("id", companyId);
 
     if (supaError) {
-      error.value =
-        supaError.message || "Erreur lors du blocage global de la compagnie";
+      notifyError(supaError, "Erreur lors du blocage global de la compagnie");
       console.error("[company detail] Update error:", supaError);
       return;
     }
@@ -194,10 +186,7 @@ async function setCompanyBlocked(blocked: boolean) {
     companyBlocked.value = blocked;
     lastUpdate.value = new Date();
   } catch (err) {
-    error.value =
-      err instanceof Error
-        ? err.message
-        : "Erreur lors du blocage de la compagnie";
+    notifyError(err, "Erreur lors du blocage de la compagnie");
     console.error(
       "[company detail] Unexpected error updating blocked status:",
       err,
@@ -340,16 +329,6 @@ onMounted(async () => {
       <div class="h-4 bg-gray-100 rounded w-1/2 mb-2" />
       <div class="h-4 bg-gray-100 rounded w-1/4 mb-2" />
       <div class="h-4 bg-gray-100 rounded w-1/3 mb-2" />
-    </div>
-
-    <!-- Error -->
-    <div v-if="error" class="mb-4">
-      <div
-        class="bg-red-100 text-red-700 px-4 py-2 rounded flex items-center gap-2"
-      >
-        <UIcon name="heroicons:exclamation-triangle-20-solid" class="h-5 w-5" />
-        <span>{{ error }}</span>
-      </div>
     </div>
 
     <!-- Info + Menus -->

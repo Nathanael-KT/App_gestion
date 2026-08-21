@@ -523,9 +523,16 @@ const syncWithStripe = async () => {
     );
     await fetchCompanies();
   } catch (err) {
+    // Message métier propre (jamais le dump technique "[POST] ...").
+    const e = err as {
+      data?: { statusMessage?: string; message?: string };
+      message?: string;
+    };
     notify(
       "Erreur de synchronisation",
-      err instanceof Error ? err.message : "Impossible de contacter Stripe",
+      e?.data?.statusMessage ||
+        e?.data?.message ||
+        (err instanceof Error ? err.message : "Impossible de contacter Stripe"),
       "error",
     );
   } finally {

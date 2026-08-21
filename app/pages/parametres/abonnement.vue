@@ -26,13 +26,13 @@ interface CurrentSubscription {
 
 const supabase = useSupabaseClient() as ReturnType<typeof useSupabaseClient<any>>;
 const route = useRoute();
+const { notifyError } = useErrorToast();
 const { companyId, isLoadingUser, loadCurrentUser } = useCurrentUser();
 
 const plans = ref<Plan[]>([]);
 const currentSub = ref<CurrentSubscription | null>(null);
 const loading = ref(true);
 const actionLoading = ref<string | null>(null); // slug du plan en cours de traitement
-const error = ref<string | null>(null);
 
 const checkoutStatus = computed(() => route.query.checkout as string | undefined);
 
@@ -82,7 +82,6 @@ function formatPrice(cents: number, currency: string) {
 
 async function loadData() {
   loading.value = true;
-  error.value = null;
   try {
     const { data: plansData, error: plansError } = await supabase
       .from("subscription_plans")
@@ -103,7 +102,7 @@ async function loadData() {
       currentSub.value = (subData as CurrentSubscription) ?? null;
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : "Erreur de chargement";
+    notifyError(err, "Erreur de chargement");
   } finally {
     loading.value = false;
   }
@@ -132,8 +131,7 @@ async function subscribeToPlan(planSlug: string) {
       window.location.href = res.checkoutUrl;
     }
   } catch (err) {
-    error.value =
-      err instanceof Error ? err.message : "Impossible de lancer le paiement";
+    notifyError(err, "Impossible de lancer le paiement");
   } finally {
     actionLoading.value = null;
   }
@@ -156,10 +154,7 @@ async function openBillingPortal() {
       window.location.href = res.portalUrl;
     }
   } catch (err) {
-    error.value =
-      err instanceof Error
-        ? err.message
-        : "Impossible d'ouvrir le portail de facturation";
+    notifyError(err, "Impossible d'ouvrir le portail de facturation");
   } finally {
     actionLoading.value = null;
   }
@@ -208,14 +203,6 @@ function isCurrentPlan(planId: string) {
         variant="soft"
         title="Paiement annulé"
         description="Aucun montant n'a été débité. Vous pouvez réessayer à tout moment."
-        class="mb-6"
-      />
-      <UAlert
-        v-if="error"
-        icon="i-heroicons-exclamation-triangle"
-        color="error"
-        variant="soft"
-        :title="error"
         class="mb-6"
       />
 
