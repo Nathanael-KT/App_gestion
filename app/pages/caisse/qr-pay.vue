@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import {
   useQrPayment,
   type QrPaymentHistory,
@@ -11,6 +11,7 @@ definePageMeta({ middleware: "auth" });
 type BadgeColor = "error" | "info" | "success" | "primary" | "secondary" | "warning" | "neutral";
 
 const { create, cancel, list, unpaidInvoices } = useQrPayment();
+const magasinStore = useMagasinStore();
 
 const amount = ref<string>("");
 const currency = ref("XOF");
@@ -160,9 +161,17 @@ const formatTime = (iso: string) =>
   });
 
 onMounted(async () => {
-  invoices.value = await unpaidInvoices();
+  invoices.value = await unpaidInvoices(magasinStore.magasinId);
   await loadHistory();
 });
+
+// Recharger les commandes si le caissier change de magasin
+watch(
+  () => magasinStore.magasinId,
+  async (id) => {
+    if (id) invoices.value = await unpaidInvoices(id);
+  },
+);
 onBeforeUnmount(stopPolling);
 
 const showQr = computed(() => session.value && status.value !== "success");

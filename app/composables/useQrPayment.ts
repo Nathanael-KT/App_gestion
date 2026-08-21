@@ -71,14 +71,19 @@ export const useQrPayment = () => {
   };
 
   /** Liste les factures/commandes impayées sélectionnables pour l'encaissement. */
-  const unpaidInvoices = async (): Promise<SelectableInvoice[]> => {
+  const unpaidInvoices = async (magasinId?: string): Promise<SelectableInvoice[]> => {
     try {
       const res = await $fetch<{ ok: boolean; invoices: SelectableInvoice[] }>(
         "/api/payments/qr/invoices",
-        { method: "GET", headers: await authHeaders() },
+        {
+          method: "GET",
+          headers: await authHeaders(),
+          query: magasinId ? { magasinId } : {},
+        },
       );
       return res.invoices ?? [];
-    } catch {
+    } catch (err) {
+      notifyError(err, "Impossible de charger les commandes à encaisser");
       return [];
     }
   };

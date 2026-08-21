@@ -24,26 +24,38 @@ export interface InvoiceSummary {
   date: string | null;
 }
 
-/** Liste les factures impayées d'une compagnie (scopées par magasin). */
+/** Liste les factures impayées (commandes à encaisser) avec le nom du client. */
 export async function listUnpaidInvoices(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adminClient: SupabaseClient<any, "public", any>,
   companyId: string,
+  magasinId?: string | null,
 ): Promise<InvoiceSummary[]> {
-  const { data: magasins } = await adminClient
-    .from("magasins")
-    .select("id")
-    .eq("company_id", companyId);
-  const magasinIds = ((magasins as Array<{ id: string }>) ?? []).map((m) => m.id);
-  if (magasinIds.length === 0) return [];
-
-  const { data } = await adminClient
+  // On reproduit le pattern éprouvé de la page Factures (jointure clients(name)).
+  let req = adminClient
     .from("invoices")
-    .select("id, reference, total, status, date, magasin_id, client:clients(name)")
-    .in("magasin_id", magasinIds)
+    .select("id, reference, total, status, date, magasin_id, clients(name)")
     .neq("status", "paid")
     .order("date", { ascending: false })
     .limit(100);
+
+  if (magasinId) {
+    req = req.eq("magasin_id", magasinId);
+  } else {
+    // Fallback : tous les magasins de la compagnie
+    const { data: magasins } = await adminClient
+      .from("magasins")
+      .select("id")
+      .eq("company_id", companyId);
+    const magasinIds = ((magasins as Array<{ id: string }>) ?? []).map((m) => m.id);
+    if (magasinIds.length === 0) return [];
+    req = req.in("magasin_id", magasinIds);
+  }
+
+  const { data, error } = await req;
+  if (error) {
+    throw new Error(`Impossible de charger les commandes: ${error.message}`);
+  }
 
   return ((data as Array<Record<string, unknown>>) ?? []).map((inv) => ({
     id: String(inv.id),
@@ -53,7 +65,7 @@ export async function listUnpaidInvoices(
     date: (inv.date as string) ?? null,
     magasin_id: (inv.magasin_id as string) ?? null,
     client_name:
-      (inv.client as { name?: string } | null)?.name ?? null,
+      (inv.clients as { name?: string } | null)?.name ?? null,
   }));
 }
 
@@ -63,22 +75,28 @@ export async function resolveInvoice(
   adminClient: SupabaseClient<any, "public", any>,
   companyId: string,
   invoiceId: string,
+  magasinId?: string | null,
 ): Promise<InvoiceSummary | null> {
-  const { data: magasins } = await adminClient
-    .from("magasins")
-    .select("id")
-    .eq("company_id", companyId);
-  const magasinIds = ((magasins as Array<{ id: string }>) ?? []).map((m) => m.id);
-  if (magasinIds.length === 0) return null;
-
-  const { data } = await adminClient
+  let req = adminClient
     .from("invoices")
-    .select("id, reference, total, status, date, magasin_id, client:clients(name)")
-    .eq("id", invoiceId)
-    .in("magasin_id", magasinIds)
-    .maybeSingle();
+    .select("id, reference, total, status, date, magasin_id, clients(name)")
+    .eq("id", invoiceId);
 
-  if (!data) return null;
+  if (magasinId) {
+    req = req.eq("magasin_id", magasinId);
+  } else {
+    const { data: magasins } = await adminClient
+      .from("magasins")
+      .select("id")
+      .eq("company_id", companyId);
+    const magasinIds = ((magasins as Array<{ id: string }>) ?? []).map((m) => m.id);
+    if (magasinIds.length === 0) return null;
+    req = req.in("magasin_id", magasinIds);
+  }
+
+  const { data, error } = await req.maybeSingle();
+  if (error || !data) return null;
+
   const inv = data as Record<string, unknown>;
   return {
     id: String(inv.id),
@@ -87,7 +105,8 @@ export async function resolveInvoice(
     status: String(inv.status ?? ""),
     date: (inv.date as string) ?? null,
     magasin_id: (inv.magasin_id as string) ?? null,
-    client_name: (inv.client as { name?: string } | null)?.name ?? null,
+    client_name:
+      (inv.clients as { name?: string } | null)?.name ?? null,
   };
 }
 
